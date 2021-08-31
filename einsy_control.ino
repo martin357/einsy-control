@@ -58,37 +58,8 @@ Menu menu_6(menu_6_items, sizeof(menu_6_items) / 2);
 
 void setup() {
   setupPins();
-  // current_menu[0] = main_menu[0];
-  // current_menu = &main_menu;
-  // current_menu_len = sizeof(main_menu) / 2;
-
   Serial.begin(115200);
-  // Serial.println(current_menu_len);
-  Serial.print("main_menu_items\t");
-  Serial.println(sizeof(main_menu_items));
 
-  Serial.print("menu_3_items\t");
-  Serial.println(sizeof(menu_3_items));
-
-  Serial.print("menu_5_items\t");
-  Serial.println(sizeof(menu_5_items));
-
-  Serial.print("menu_6_items\t");
-  Serial.println(sizeof(menu_6_items));
-
-  Serial.print("main_menu items_count\t");
-  Serial.println(main_menu.items_count);
-
-  Serial.print("menu_3 items_count\t");
-  Serial.println(menu_3.items_count);
-
-  Serial.print("menu_5 items_count\t");
-  Serial.println(menu_5.items_count);
-
-  Serial.print("menu_6 items_count\t");
-  Serial.println(menu_6.items_count);
-
-  // current_menu = &menu_3;
   current_menu = &main_menu;
 
   lcd.setBrightness(128);

@@ -23,6 +23,7 @@ void setupPins(){
 // 	encoderRead();
 // }
 
+// shamelessly stolen from CW1 FW
 void readEncoder() {
   static int8_t rotary_diff = 0;
   static uint8_t lcd_encoder_bits = 0;
