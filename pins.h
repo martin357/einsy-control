@@ -160,17 +160,17 @@ void digitalWriteExt(const uint8_t, const bool);
 // #define SWI2C_SCL      21 //SCL on P3
 //
 //
-// #define X_TMC2130_CS           41
-// #define X_TMC2130_DIAG         64 // !!! changed from 40 (EINY03)
-// #define X_STEP_PIN             37
-// #define X_DIR_PIN              49
-// #define X_MIN_PIN            0 // 12
-// //#define X_MAX_PIN            30
-// //#define X_MIN_PIN              X_TMC2130_DIAG
-// #define X_MAX_PIN              X_TMC2130_DIAG
-// #define X_ENABLE_PIN           29
-// #define X_MS1_PIN           -1
-// #define X_MS2_PIN           -1
+#define X_TMC2130_CS           41
+#define X_TMC2130_DIAG         64 // !!! changed from 40 (EINY03)
+#define X_STEP_PIN             37
+#define X_DIR_PIN              49
+#define X_MIN_PIN            0 // 12
+//#define X_MAX_PIN            30
+//#define X_MIN_PIN              X_TMC2130_DIAG
+#define X_MAX_PIN              X_TMC2130_DIAG
+#define X_ENABLE_PIN           29
+#define X_MS1_PIN           -1
+#define X_MS2_PIN           -1
 //
 // #define Y_TMC2130_CS        39
 // #define Y_TMC2130_DIAG      69
