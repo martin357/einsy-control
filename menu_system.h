@@ -32,75 +32,13 @@ public:
 };
 
 
-class MenuItemCallableArgInt8_t: public MenuItemCallable{
+template <typename T>
+class MenuItemCallableArg: public MenuItemCallable{
 public:
-  MenuItemCallableArgInt8_t(const char*, void (*)(int8_t), int8_t, bool = true);
+  MenuItemCallableArg(const char*, void (*)(T), T, bool = true);
   Menu* on_press();
-  void (*callable)(int8_t);
-  int8_t value;
-};
-
-
-class MenuItemCallableArgUint8_t: public MenuItemCallable{
-public:
-  MenuItemCallableArgUint8_t(const char*, void (*)(uint8_t), uint8_t, bool = true);
-  Menu* on_press();
-  void (*callable)(uint8_t);
-  uint8_t value;
-};
-
-
-class MenuItemCallableArgInt16_t: public MenuItemCallable{
-public:
-  MenuItemCallableArgInt16_t(const char*, void (*)(int16_t), int16_t, bool = true);
-  Menu* on_press();
-  void (*callable)(int16_t);
-  int16_t value;
-};
-
-
-class MenuItemCallableArgUint16_t: public MenuItemCallable{
-public:
-  MenuItemCallableArgUint16_t(const char*, void (*)(uint16_t), uint16_t, bool = true);
-  Menu* on_press();
-  void (*callable)(uint16_t);
-  uint16_t value;
-};
-
-
-class MenuItemCallableArgInt32_t: public MenuItemCallable{
-public:
-  MenuItemCallableArgInt32_t(const char*, void (*)(int32_t), int32_t, bool = true);
-  Menu* on_press();
-  void (*callable)(int32_t);
-  int32_t value;
-};
-
-
-class MenuItemCallableArgUint32_t: public MenuItemCallable{
-public:
-  MenuItemCallableArgUint32_t(const char*, void (*)(uint32_t), uint32_t, bool = true);
-  Menu* on_press();
-  void (*callable)(uint32_t);
-  uint32_t value;
-};
-
-
-class MenuItemCallableArgFloat: public MenuItemCallable{
-public:
-  MenuItemCallableArgFloat(const char*, void (*)(float), float, bool = true);
-  Menu* on_press();
-  void (*callable)(float);
-  float value;
-};
-
-
-class MenuItemCallableArgDouble: public MenuItemCallable{
-public:
-  MenuItemCallableArgDouble(const char*, void (*)(double), double, bool = true);
-  Menu* on_press();
-  void (*callable)(double);
-  double value;
+  void (*callable)(T);
+  T value;
 };
 
 

@@ -29,15 +29,20 @@ Menu motor2_menu(motor2_items, sizeof(motor2_items) / 2);
 void foobar(){ Serial.println("callable clicked"); }
 void foobar_arg(int8_t val){ Serial.print("callable(with arg) clicked! "); Serial.println(val); }
 void foobar_uarg(uint8_t val){ Serial.print("callable(with unsigned arg) clicked! "); Serial.println(val); }
+void foobar_farg(float val){ Serial.print("callable(with float arg) clicked! "); Serial.println(val); }
 MenuItemCallable foobar1("Callable!", &foobar, false);
 
-MenuItemCallableArgInt8_t foobar_arg1("ArgCall! -16", &foobar_arg, -16, false);
-MenuItemCallableArgInt8_t foobar_arg2("ArgCall! -128", &foobar_arg, -128, false);
-MenuItemCallableArgInt8_t foobar_arg3("ArgCall! -255", &foobar_arg, -255, false);
+MenuItemCallableArg<int8_t> foobar_arg1("ArgCall! -16", &foobar_arg, -16, false);
+MenuItemCallableArg<int8_t> foobar_arg2("ArgCall! -128", &foobar_arg, -128, false);
+MenuItemCallableArg<int8_t> foobar_arg3("ArgCall! -255", &foobar_arg, -255, false);
 
-MenuItemCallableArgUint8_t foobar_uarg1("ArgU_Call! 16", &foobar_uarg, 16, false);
-MenuItemCallableArgUint8_t foobar_uarg2("ArgU_Call! 128", &foobar_uarg, 128, false);
-MenuItemCallableArgUint8_t foobar_uarg3("ArgU_Call! 255", &foobar_uarg, 255, false);
+MenuItemCallableArg<uint8_t> foobar_uarg1("ArgU_Call! 16", &foobar_uarg, 16, false);
+MenuItemCallableArg<uint8_t> foobar_uarg2("ArgU_Call! 128", &foobar_uarg, 128, false);
+MenuItemCallableArg<uint8_t> foobar_uarg3("ArgU_Call! 255", &foobar_uarg, 255, false);
+
+MenuItemCallableArg<float> foobar_farg1("ArgCall! 16.5", &foobar_farg, 16.5, false);
+MenuItemCallableArg<float> foobar_farg2("ArgCall! 128.5", &foobar_farg, 128.5, false);
+MenuItemCallableArg<float> foobar_farg3("ArgCall! 255.5", &foobar_farg, 255.5, false);
 
 MenuItem motor1("Motor X", &motor1_menu);
 MenuItem motor2("Motor Y", &motor2_menu);
@@ -65,6 +70,9 @@ MenuItem* main_menu_items[] = {
   &foobar_uarg1,
   &foobar_uarg2,
   &foobar_uarg3,
+  &foobar_farg1,
+  &foobar_farg2,
+  &foobar_farg3,
   &foo6,
   &foo7,
   &foo8,
