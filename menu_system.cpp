@@ -81,6 +81,7 @@ MenuItemCallableArgInt8_t::MenuItemCallableArgInt8_t(const char* title, void (*c
 
 
 Menu* MenuItemCallableArgInt8_t::on_press(){
+  Serial.println("[i] MenuItemCallableArgInt8_t");
   if(callable != nullptr) callable(value);
   return do_return ? current_menu->came_from : nullptr;
 }
@@ -98,6 +99,74 @@ MenuItemCallableArgUint8_t::MenuItemCallableArgUint8_t(const char* title, void (
 
 Menu* MenuItemCallableArgUint8_t::on_press(){
   Serial.println("[i] MenuItemCallableArgUint8_t");
+  if(callable != nullptr) callable(value);
+  return do_return ? current_menu->came_from : nullptr;
+}
+
+
+
+/*
+  menu item callable arg int16_t
+*/
+MenuItemCallableArgInt16_t::MenuItemCallableArgInt16_t(const char* title, void (*callable)(int16_t), int16_t value, bool do_return):
+  MenuItemCallable(title, nullptr, do_return),
+  callable(callable),
+  value(value){}
+
+
+Menu* MenuItemCallableArgInt16_t::on_press(){
+  Serial.println("[i] MenuItemCallableArgInt16_t");
+  if(callable != nullptr) callable(value);
+  return do_return ? current_menu->came_from : nullptr;
+}
+
+
+
+/*
+  menu item callable arg uint16_t
+*/
+MenuItemCallableArgUint16_t::MenuItemCallableArgUint16_t(const char* title, void (*callable)(uint16_t), uint16_t value, bool do_return):
+  MenuItemCallable(title, nullptr, do_return),
+  callable(callable),
+  value(value){}
+
+
+Menu* MenuItemCallableArgUint16_t::on_press(){
+  Serial.println("[i] MenuItemCallableArgUint16_t");
+  if(callable != nullptr) callable(value);
+  return do_return ? current_menu->came_from : nullptr;
+}
+
+
+
+/*
+  menu item callable arg int32_t
+*/
+MenuItemCallableArgInt32_t::MenuItemCallableArgInt32_t(const char* title, void (*callable)(int32_t), int32_t value, bool do_return):
+  MenuItemCallable(title, nullptr, do_return),
+  callable(callable),
+  value(value){}
+
+
+Menu* MenuItemCallableArgInt32_t::on_press(){
+  Serial.println("[i] MenuItemCallableArgInt32_t");
+  if(callable != nullptr) callable(value);
+  return do_return ? current_menu->came_from : nullptr;
+}
+
+
+
+/*
+  menu item callable arg uint32_t
+*/
+MenuItemCallableArgUint32_t::MenuItemCallableArgUint32_t(const char* title, void (*callable)(uint32_t), uint32_t value, bool do_return):
+  MenuItemCallable(title, nullptr, do_return),
+  callable(callable),
+  value(value){}
+
+
+Menu* MenuItemCallableArgUint32_t::on_press(){
+  Serial.println("[i] MenuItemCallableArgUint32_t");
   if(callable != nullptr) callable(value);
   return do_return ? current_menu->came_from : nullptr;
 }
