@@ -1,12 +1,19 @@
-#include	<inttypes.h>
-#include	<Arduino.h>
+#include <inttypes.h>
+#include <Arduino.h>
 #include "src/LiquidCrystal_Prusa.h"
 #include "hardware.h"
 
 
+// extern
 int8_t enc_diff = 0;
 uint8_t enc_click = 0;
 uint32_t beeper_off_at = 0;
+Motor motors[MOTORS_MAX] = {
+  Motor(X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_TMC2130_CS, X_TMC2130_DIAG),
+  Motor(Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_TMC2130_CS, Y_TMC2130_DIAG),
+  Motor(Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_TMC2130_CS, Z_TMC2130_DIAG),
+  Motor(E0_STEP_PIN, E0_DIR_PIN, E0_ENABLE_PIN, E0_TMC2130_CS, E0_TMC2130_DIAG),
+};
 
 
 const uint8_t Back[8] PROGMEM = {
@@ -67,10 +74,14 @@ const uint8_t Stop[8] PROGMEM = {
 
 
 void setupPins(){
-  pinModeOutput(BEEPER);
+  // encoder
   pinModeInput(BTN_EN1, true);
   pinModeInput(BTN_EN2, true);
   pinModeInput(BTN_ENC, true);
+
+  // misc
+  pinModeInput(MISO, true);
+  pinModeOutput(BEEPER);
 }
 
 
@@ -83,6 +94,43 @@ void setupLcd(){
 	lcd.createChar(2, Right);
 	lcd.createChar(3, Play);
 	lcd.createChar(4, Stop);
+}
+
+
+void setupMotors(){
+  for(size_t i = 0; i < MOTORS_MAX; i++) {
+    motors[i].driver.begin();
+    motors[i].driver.toff(4);
+    motors[i].driver.blank_time(24);
+    motors[i].driver.rms_current(400); // mA
+    // motors[i].driver.microsteps(16);
+    motors[i].driver.TCOOLTHRS(0xFFFFF); // 20bit max
+    motors[i].driver.THIGH(0);
+    motors[i].driver.semin(5);
+    motors[i].driver.semax(2);
+    motors[i].driver.sedn(0b01);
+    motors[i].driver.sgt(2);
+
+    motors[i].driver.en_pwm_mode(1);      // Enable extremely quiet stepping
+    motors[i].driver.pwm_autoscale(1);
+    motors[i].driver.microsteps(64);
+  }
+
+  // Set stepper interrupt
+  {
+    cli();//stop interrupts
+    TCCR1A = 0;// set entire TCCR1A register to 0
+    TCCR1B = 0;// same for TCCR1B
+    TCNT1  = 0;//initialize counter value to 0
+    OCR1A = 256;// = (16*10^6) / (1*1024) - 1 (must be <65536)
+    // turn on CTC mode
+    TCCR1B |= (1 << WGM12);
+    // Set CS11 bits for 8 prescaler
+    TCCR1B |= (1 << CS11);// | (1 << CS10);
+    // enable timer compare interrupt
+    TIMSK1 |= (1 << OCIE1A);
+    sei();//allow interrupts
+  }
 }
 
 
@@ -167,4 +215,65 @@ void readEncoder() {
 void beep(uint16_t duration){
   digitalWriteExt(BEEPER, HIGH);
   beeper_off_at = millis() + duration;
+}
+
+
+Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_pin, uint8_t diag_pin):
+  driver(cs_pin, 0.2f),
+  step_pin(step_pin),
+  dir_pin(dir_pin),
+  enable_pin(enable_pin),
+  cs_pin(cs_pin),
+  diag_pin(diag_pin){
+    pinModeOutput(enable_pin);
+    pinModeOutput(dir_pin);
+    pinModeOutput(step_pin);
+    pinModeOutput(cs_pin);
+    digitalWriteExt(enable_pin, HIGH);
+    digitalWriteExt(dir_pin, LOW);
+    digitalWriteExt(step_pin, LOW);
+    digitalWriteExt(cs_pin, HIGH);
+  }
+
+
+void Motor::on(){
+  digitalWriteExt(enable_pin, LOW);
+}
+
+
+void Motor::off(){
+  digitalWriteExt(enable_pin, HIGH);
+}
+
+
+bool Motor::is_on(){
+  return digitalReadExt(enable_pin) == LOW;
+}
+
+
+void Motor::start(){
+  if(!is_on()) on();
+  running = true;
+}
+
+
+void Motor::stop(){
+  running = false;
+}
+
+
+bool Motor::dir(){
+  return digitalReadExt(dir_pin);
+}
+
+
+void Motor::dir(bool direction){
+  digitalWriteExt(dir_pin, direction);
+}
+
+
+uint16_t Motor::sg_value(){
+  TMC2130_n::DRV_STATUS_t drv_status{0};
+  drv_status.sr = driver.DRV_STATUS();
+  return drv_status.sg_result;
 }
