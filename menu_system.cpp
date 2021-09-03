@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "src/LiquidCrystal_Prusa.h"
 #include "menu_system.h"
+#include "hardware.h"
 
 
 
@@ -31,11 +32,7 @@ MenuItemBack::MenuItemBack() : MenuItem("Back \1"){}
 
 
 Menu* MenuItemBack::on_press(uint16_t duration){
-  if(current_menu->came_from != nullptr){
-    current_menu->on_leave();
-    current_menu->came_from->on_enter();
-    current_menu = current_menu->came_from;
-  }
+  current_menu->go_back();
   return nullptr;
 }
 
@@ -99,11 +96,7 @@ MenuItemCallable::MenuItemCallable(const char* title, void (*callable)(), bool d
 
 Menu* MenuItemCallable::on_press(uint16_t duration){
   if(callable != nullptr) callable();
-  if(do_return && current_menu->came_from != nullptr){
-    current_menu->on_leave();
-    current_menu->came_from->on_enter();
-    current_menu = current_menu->came_from;
-  }
+  if(do_return) current_menu->go_back();
   return nullptr;
 }
 
@@ -122,11 +115,7 @@ MenuItemCallableArg<T>::MenuItemCallableArg(const char* title, void (*callable)(
 template <typename T>
 Menu* MenuItemCallableArg<T>::on_press(uint16_t duration){
   if(callable != nullptr) callable(value);
-  if(do_return && current_menu->came_from != nullptr){
-    current_menu->on_leave();
-    current_menu->came_from->on_enter();
-    current_menu = current_menu->came_from;
-  }
+  if(do_return) current_menu->go_back();
   return nullptr;
 }
 
@@ -231,7 +220,7 @@ void Menu::on_press(uint16_t duration){
     current_menu = new_menu;
   }
 
-  draw();
+  current_menu->draw();
 }
 
 
@@ -261,6 +250,22 @@ void Menu::move(int8_t amount){
   // if(y > 3) offset += (y - 3);
   if(y < 1 && offset > 0) offset += y - 1;
   if(y > 2 && offset + 4 < items_count) offset += (y - 2);
+
+  draw();
+}
+
+
+void Menu::loop(){
+}
+
+
+void Menu::go_back(){
+  if(came_from != nullptr){
+    on_leave();
+    came_from->on_enter();
+    current_menu = came_from;
+    current_menu->draw();
+  }
 }
 
 
@@ -276,6 +281,85 @@ MenuMotor::MenuMotor(uint8_t index, MenuItem* const* items, uint8_t items_count)
 void MenuMotor::on_enter(){
   last_entered_motor_menu = index;
 }
+
+
+
+/*
+  menu range
+*/
+template <typename T>
+MenuRange<T>::MenuRange(const char* title, T& value, T min_value, T max_value):
+  Menu(nullptr, 0),
+  title(title),
+  value(value),
+  min_value(min_value),
+  max_value(max_value){}
+
+
+template <typename T>
+void MenuRange<T>::on_enter(){
+  lcd.clear();
+}
+
+
+template <typename T>
+void MenuRange<T>::on_press(uint16_t duration){
+  go_back();
+}
+
+template <typename T>
+void MenuRange<T>::draw(bool clear){
+  lcd.setCursor(0, 0);
+
+  lcd.print("\3");
+  lcd.print(title);
+  lcd.print(" \1");
+
+  lcd.print("<", 0, 2);
+  lcd.print(value, 8, 2);
+  lcd.print(">", 19, 2);
+
+}
+
+
+template <typename T>
+void MenuRange<T>::move(int8_t amount){
+  if(value + amount > max_value) value = max_value;
+  else if(value + amount < min_value) value = min_value;
+  else value += amount;
+
+  draw();
+}
+
+
+template class MenuRange<uint8_t>;
+template class MenuRange<uint16_t>;
+
+
+
+/*
+  menu range motor off time
+*/
+MenuRangeMotorOffTime::MenuRangeMotorOffTime():
+  MenuRange("Off time", value, 1, 15),
+  value(1){}
+
+
+void MenuRangeMotorOffTime::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].driver.toff();
+}
+
+
+void MenuRangeMotorOffTime::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.toff()) motors[last_entered_motor_menu].driver.toff(value);
+    last_loop = _millis;
+  }
+}
+
 
 
 

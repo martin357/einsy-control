@@ -30,6 +30,7 @@ void setup() {
   OCR1A = 100;
 
   menu_motor_stallguard_value.redraw_interval = 50;
+  Serial.println("start");
 
 }
 
@@ -39,11 +40,12 @@ void loop() {
 
   readEncoder();
 
+  current_menu->loop();
+
   if(enc_diff){
     current_menu->move(enc_diff);
     enc_diff = 0;
 
-    current_menu->draw();
   }
 
   if(enc_click){

@@ -93,6 +93,8 @@ public:
   virtual void on_press(uint16_t);
   virtual void draw(bool = true);
   virtual void move(int8_t);
+  virtual void loop();
+  void go_back();
   MenuItem* const* const items;
   uint8_t items_count;
   Menu* came_from;
@@ -107,6 +109,31 @@ public:
   MenuMotor(uint8_t, MenuItem* const*, uint8_t);
   void on_enter();
   uint8_t index;
+};
+
+
+template <typename T>
+class MenuRange: public Menu{
+public:
+  MenuRange(const char*, T&, T, T);
+  void on_enter();
+  void on_press(uint16_t);
+  void draw(bool = true);
+  void move(int8_t);
+  const char* title;
+  T& value;
+  T min_value;
+  T max_value;
+};
+
+
+class MenuRangeMotorOffTime: public MenuRange<uint8_t>{
+public:
+  MenuRangeMotorOffTime();
+  void on_enter();
+  void loop();
+  uint8_t value;
+
 };
 
 
