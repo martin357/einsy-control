@@ -188,7 +188,7 @@ template class MenuItemDynamicCallable<uint16_t>;
 /*
   menu
 */
-Menu::Menu(MenuItem* const* items, uint8_t items_count):
+Menu::Menu(MenuItem* const* items, size_t items_count):
   items(items),
   items_count(items_count),
   came_from(nullptr),
@@ -271,20 +271,6 @@ void Menu::go_back(){
 
 
 /*
-  menu motor
-*/
-MenuMotor::MenuMotor(uint8_t index, MenuItem* const* items, uint8_t items_count):
-  Menu(items, items_count),
-  index(index){}
-
-
-void MenuMotor::on_enter(){
-  last_entered_motor_menu = index;
-}
-
-
-
-/*
   menu range
 */
 template <typename T>
@@ -315,9 +301,9 @@ void MenuRange<T>::draw(bool clear){
   lcd.print(title);
   lcd.print(" \1");
 
-  lcd.print("<", 0, 2);
+  lcd.print(value > min_value ? "<" : " ", 0, 2);
   lcd.print(value, 8, 2);
-  lcd.print(">", 19, 2);
+  lcd.print(value < max_value ? ">" : " ", 19, 2);
 
 }
 
@@ -334,6 +320,86 @@ void MenuRange<T>::move(int8_t amount){
 
 template class MenuRange<uint8_t>;
 template class MenuRange<uint16_t>;
+
+
+
+/*
+  menu list
+*/
+template <typename T>
+MenuList<T>::MenuList(const char* title, T* value, T items_list[], size_t items_count):
+  Menu(nullptr, 0),
+  title(title),
+  value(value),
+  items_count(items_count),
+  index(0){
+    items = (T*)calloc(items_count, sizeof(T*));
+    if(items) memcpy(items, items_list, items_count * sizeof(T));
+  }
+
+
+template <typename T>
+void MenuList<T>::on_enter(){
+  lcd.clear();
+
+  index = 0;
+  for(size_t i = 0; i < items_count; i++){
+    if(*value == items[i]){
+      index = i;
+      break;
+
+    }
+  }
+}
+
+
+template <typename T>
+void MenuList<T>::on_press(uint16_t duration){
+  go_back();
+}
+
+template <typename T>
+void MenuList<T>::draw(bool clear){
+  lcd.setCursor(0, 0);
+
+  lcd.print("\3");
+  lcd.print(title);
+  lcd.print(" \1");
+
+  lcd.print(index > 0 ? "<" : " ", 0, 2);
+  lcd.print(*value, 8, 2);
+  lcd.print(index < items_count - 1 ? ">" : " ", 19, 2);
+
+}
+
+
+template <typename T>
+void MenuList<T>::move(int8_t amount){
+  if((int8_t)index + amount < 0) index = 0;
+  else if(index + amount >= items_count) index = items_count - 1;
+  else index += amount;
+  *value = items[index];
+
+  draw();
+}
+
+
+template class MenuList<uint8_t>;
+template class MenuList<uint16_t>;
+
+
+
+/*
+  menu motor
+*/
+MenuMotor::MenuMotor(uint8_t index, MenuItem* const* items, uint8_t items_count):
+  Menu(items, items_count),
+  index(index){}
+
+
+void MenuMotor::on_enter(){
+  last_entered_motor_menu = index;
+}
 
 
 

@@ -2,6 +2,9 @@
 #define _menu_system_h_
 
 
+#define COUNT_ARRAY_ITEMS(X) (sizeof(X) / sizeof(X[0]))
+
+
 
 class Menu;
 
@@ -87,7 +90,7 @@ public:
 
 class Menu{
 public:
-  Menu(MenuItem* const*, uint8_t);
+  Menu(MenuItem* const*, size_t);
   virtual void on_enter();
   virtual void on_leave();
   virtual void on_press(uint16_t);
@@ -96,19 +99,11 @@ public:
   virtual void loop();
   void go_back();
   MenuItem* const* const items;
-  uint8_t items_count;
+  size_t items_count;
   Menu* came_from;
   int8_t current_item;
   uint8_t offset;
   uint16_t redraw_interval;
-};
-
-
-class MenuMotor: public Menu{
-public:
-  MenuMotor(uint8_t, MenuItem* const*, uint8_t);
-  void on_enter();
-  uint8_t index;
 };
 
 
@@ -124,6 +119,30 @@ public:
   T& value;
   T min_value;
   T max_value;
+};
+
+
+template <typename T>
+class MenuList: public Menu{
+public:
+  MenuList(const char*, T* ,T[], size_t);
+  void on_enter();
+  void on_press(uint16_t);
+  void draw(bool = true);
+  void move(int8_t);
+  const char* title;
+  T* value;
+  size_t items_count;
+  uint8_t index;
+  T* items;
+};
+
+
+class MenuMotor: public Menu{
+public:
+  MenuMotor(uint8_t, MenuItem* const*, uint8_t);
+  void on_enter();
+  uint8_t index;
 };
 
 
