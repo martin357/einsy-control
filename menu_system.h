@@ -147,6 +147,24 @@ public:
 };
 
 
+class MenuListMotorMicrostepping: public MenuList<uint16_t>{
+public:
+  MenuListMotorMicrostepping();
+  void on_enter();
+  void loop();
+  uint16_t value;
+};
+
+
+class MenuListMotorBlankTime: public MenuList<uint8_t>{
+public:
+  MenuListMotorBlankTime();
+  void on_enter();
+  void loop();
+  uint8_t value;
+};
+
+
 class MenuRangeMotorOffTime: public MenuRange<uint8_t>{
 public:
   MenuRangeMotorOffTime();

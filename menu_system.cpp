@@ -408,6 +408,58 @@ void MenuMotor::on_enter(){
 
 
 /*
+  menu list motor microstepping
+*/
+uint16_t motor_microstepping_items[] = {0, 2, 4, 8, 16, 32, 64, 128, 256};
+MenuListMotorMicrostepping::MenuListMotorMicrostepping():
+  MenuList("Microstepping", &value, motor_microstepping_items, sizeof(motor_microstepping_items) / sizeof(motor_microstepping_items[0])),
+  value(64){}
+
+
+void MenuListMotorMicrostepping::on_enter(){
+  value = motors[last_entered_motor_menu].driver.microsteps();
+  MenuList::on_enter();
+}
+
+
+void MenuListMotorMicrostepping::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.microsteps()) motors[last_entered_motor_menu].driver.microsteps(value);
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
+  menu list motor blank time
+*/
+uint8_t motor_blank_time_items[] = {16, 24, 36, 54};
+MenuListMotorBlankTime::MenuListMotorBlankTime():
+  MenuList("Blank time", &value, motor_blank_time_items, sizeof(motor_blank_time_items) / sizeof(motor_blank_time_items[0])),
+  value(24){}
+
+
+void MenuListMotorBlankTime::on_enter(){
+  value = motors[last_entered_motor_menu].driver.blank_time();
+  MenuList::on_enter();
+}
+
+
+void MenuListMotorBlankTime::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.blank_time()) motors[last_entered_motor_menu].driver.blank_time(value);
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
   menu range motor off time
 */
 MenuRangeMotorOffTime::MenuRangeMotorOffTime():
