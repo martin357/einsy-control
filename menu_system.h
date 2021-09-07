@@ -75,6 +75,7 @@ public:
   MenuItemDynamic(const char*, T&);
   const char* getTitle();
   T& value;
+  const char* title; // make it public
 };
 
 
@@ -152,7 +153,6 @@ public:
   void on_enter();
   void loop();
   uint8_t value;
-
 };
 
 

@@ -137,13 +137,25 @@ template class MenuItemCallableArg<float>;
 */
 template <typename T>
 MenuItemDynamic<T>::MenuItemDynamic(const char* title, T& value):
-  MenuItem(title, nullptr),
+  MenuItem(nullptr, nullptr),
+  title(title),
   value(value){}
 
 
 template <typename T>
 const char* MenuItemDynamic<T>::getTitle(){
-  return "I AM DYNAMIC";
+  static char buf[20] = {0};
+  char buf_num[10] = {0};
+  itoa(value, buf_num, 10);
+
+  memset(buf, ' ', sizeof(buf));
+  buf[sizeof(buf) - 1] = 0;
+
+  memcpy(buf, title, strlen(title));
+  memcpy(buf + strlen(title), ": ", 2);
+  memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
+
+  return buf;
 }
 
 
@@ -157,7 +169,7 @@ template class MenuItemDynamic<uint16_t>;
 */
 template <typename T>
 MenuItemDynamicCallable<T>::MenuItemDynamicCallable(const char* title, T (*value_getter)()):
-  MenuItem(title, nullptr),
+  MenuItem(nullptr, nullptr),
   title(title),
   value_getter(value_getter){}
 
@@ -246,8 +258,6 @@ void Menu::move(int8_t amount){
   if(current_item < 0) current_item = 0;
   if(current_item >= items_count - 1) current_item = items_count - 1;
   int8_t y = current_item - offset;
-  // if(y < 0) offset += y;
-  // if(y > 3) offset += (y - 3);
   if(y < 1 && offset > 0) offset += y - 1;
   if(y > 2 && offset + 4 < items_count) offset += (y - 2);
 
@@ -293,18 +303,16 @@ void MenuRange<T>::on_press(uint16_t duration){
   go_back();
 }
 
+
 template <typename T>
 void MenuRange<T>::draw(bool clear){
-  lcd.setCursor(0, 0);
-
-  lcd.print("\3");
+  lcd.print("\3", 0, 0);
   lcd.print(title);
   lcd.print(" \1");
 
   lcd.print(value > min_value ? "<" : " ", 0, 2);
   lcd.print(value, 8, 2);
   lcd.print(value < max_value ? ">" : " ", 19, 2);
-
 }
 
 
@@ -343,12 +351,9 @@ void MenuList<T>::on_enter(){
   lcd.clear();
 
   index = 0;
-  for(size_t i = 0; i < items_count; i++){
-    if(*value == items[i]){
-      index = i;
-      break;
-
-    }
+  for(size_t i = 0; i < items_count; i++) if(*value == items[i]){
+    index = i;
+    break;
   }
 }
 
@@ -358,18 +363,17 @@ void MenuList<T>::on_press(uint16_t duration){
   go_back();
 }
 
+
 template <typename T>
 void MenuList<T>::draw(bool clear){
-  lcd.setCursor(0, 0);
-
-  lcd.print("\3");
+  lcd.print("\3", 0, 0);
   lcd.print(title);
   lcd.print(" \1");
 
   lcd.print(index > 0 ? "<" : " ", 0, 2);
-  lcd.print(*value, 8, 2);
+  lcd.setCursor(8, 2); // we must call setCursor separately because otherwise
+  lcd.print(*value);   // compiler could choose wrong print function overload
   lcd.print(index < items_count - 1 ? ">" : " ", 19, 2);
-
 }
 
 
