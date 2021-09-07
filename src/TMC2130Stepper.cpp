@@ -1,5 +1,4 @@
 #include "TMCStepper.h"
-#include "TMC_MACROS.h"
 
 int8_t TMC2130Stepper::chain_length = 0;
 uint32_t TMC2130Stepper::spi_speed = 16000000/8;
@@ -9,32 +8,6 @@ TMC2130Stepper::TMC2130Stepper(uint16_t pinCS, float RS, int8_t link) :
   _pinCS(pinCS),
   link_index(link)
   {
-    defaults();
-
-    if (link > chain_length)
-      chain_length = link;
-  }
-
-TMC2130Stepper::TMC2130Stepper(uint16_t pinCS, uint16_t pinMOSI, uint16_t pinMISO, uint16_t pinSCK, int8_t link) :
-  TMCStepper(default_RS),
-  _pinCS(pinCS),
-  link_index(link)
-  {
-    SW_SPIClass *SW_SPI_Obj = new SW_SPIClass(pinMOSI, pinMISO, pinSCK);
-    TMC_SW_SPI = SW_SPI_Obj;
-    defaults();
-
-    if (link > chain_length)
-      chain_length = link;
-  }
-
-TMC2130Stepper::TMC2130Stepper(uint16_t pinCS, float RS, uint16_t pinMOSI, uint16_t pinMISO, uint16_t pinSCK, int8_t link) :
-  TMCStepper(RS),
-  _pinCS(pinCS),
-  link_index(link)
-  {
-    SW_SPIClass *SW_SPI_Obj = new SW_SPIClass(pinMOSI, pinMISO, pinSCK);
-    TMC_SW_SPI = SW_SPI_Obj;
     defaults();
 
     if (link > chain_length)
@@ -66,26 +39,17 @@ void TMC2130Stepper::switchCSpin(bool state) {
 
 __attribute__((weak))
 void TMC2130Stepper::beginTransaction() {
-  if (TMC_SW_SPI == nullptr) {
-    SPI.beginTransaction(SPISettings(spi_speed, MSBFIRST, SPI_MODE3));
-  }
+  SPI.beginTransaction(SPISettings(spi_speed, MSBFIRST, SPI_MODE3));
 }
 __attribute__((weak))
 void TMC2130Stepper::endTransaction() {
-  if (TMC_SW_SPI == nullptr) {
-    SPI.endTransaction();
-  }
+  SPI.endTransaction();
 }
 
 __attribute__((weak))
 uint8_t TMC2130Stepper::transfer(const uint8_t data) {
   uint8_t out = 0;
-  if (TMC_SW_SPI != nullptr) {
-    out = TMC_SW_SPI->transfer(data);
-  }
-  else {
-    out = SPI.transfer(data);
-  }
+  out = SPI.transfer(data);
   return out;
 }
 
@@ -165,8 +129,6 @@ void TMC2130Stepper::begin() {
   //set pins
   pinMode(_pinCS, OUTPUT);
   switchCSpin(HIGH);
-
-  if (TMC_SW_SPI != nullptr) TMC_SW_SPI->init();
 
   GCONF(GCONF_register.sr);
   CHOPCONF(CHOPCONF_register.sr);
@@ -307,3 +269,196 @@ uint8_t TMC2130Stepper::sg_current_decrease() {
   }
   return 0;
 }
+
+
+// CHOPCONF
+#define SET_REG_CHOPCONF(SETTING) CHOPCONF_register.SETTING = B; write(CHOPCONF_register.address, CHOPCONF_register.sr)
+uint32_t TMC2130Stepper::CHOPCONF() {
+	return read(CHOPCONF_register.address);
+}
+void TMC2130Stepper::CHOPCONF(uint32_t input) {
+	CHOPCONF_register.sr = input;
+	write(CHOPCONF_register.address, CHOPCONF_register.sr);
+}
+
+void TMC2130Stepper::toff(		uint8_t B )	{ SET_REG_CHOPCONF(toff);	}
+void TMC2130Stepper::hstrt(		uint8_t B )	{ SET_REG_CHOPCONF(hstrt);	}
+void TMC2130Stepper::hend(		uint8_t B )	{ SET_REG_CHOPCONF(hend);	}
+//void TMC2130Stepper::fd(		uint8_t B )	{ SET_REG_CHOPCONF(fd);		}
+void TMC2130Stepper::disfdcc(	bool 	B )	{ SET_REG_CHOPCONF(disfdcc);	}
+void TMC2130Stepper::rndtf(		bool 	B )	{ SET_REG_CHOPCONF(rndtf);	}
+void TMC2130Stepper::chm(		bool 	B )	{ SET_REG_CHOPCONF(chm);		}
+void TMC2130Stepper::tbl(		uint8_t B )	{ SET_REG_CHOPCONF(tbl);		}
+void TMC2130Stepper::vsense(	bool 	B )	{ SET_REG_CHOPCONF(vsense);	}
+void TMC2130Stepper::vhighfs(	bool 	B )	{ SET_REG_CHOPCONF(vhighfs);	}
+void TMC2130Stepper::vhighchm(	bool 	B )	{ SET_REG_CHOPCONF(vhighchm);}
+void TMC2130Stepper::sync(		uint8_t B )	{ SET_REG_CHOPCONF(sync);	}
+void TMC2130Stepper::mres(		uint8_t B )	{ SET_REG_CHOPCONF(mres);	}
+void TMC2130Stepper::intpol(	bool 	B )	{ SET_REG_CHOPCONF(intpol);	}
+void TMC2130Stepper::dedge(		bool 	B )	{ SET_REG_CHOPCONF(dedge);	}
+void TMC2130Stepper::diss2g(	bool 	B )	{ SET_REG_CHOPCONF(diss2g);	}
+
+uint8_t TMC2130Stepper::toff()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.toff;	}
+uint8_t TMC2130Stepper::hstrt()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.hstrt;	}
+uint8_t TMC2130Stepper::hend()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.hend;	}
+//uint8_t TMC2130Stepper::fd()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.fd;		}
+bool 	TMC2130Stepper::disfdcc()	{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.disfdcc;	}
+bool 	TMC2130Stepper::rndtf()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.rndtf;	}
+bool 	TMC2130Stepper::chm()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.chm;		}
+uint8_t TMC2130Stepper::tbl()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.tbl;		}
+bool 	TMC2130Stepper::vsense()	{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.vsense;	}
+bool 	TMC2130Stepper::vhighfs()	{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.vhighfs;	}
+bool 	TMC2130Stepper::vhighchm()	{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.vhighchm;}
+uint8_t TMC2130Stepper::sync()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.sync;	}
+uint8_t TMC2130Stepper::mres()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.mres;	}
+bool 	TMC2130Stepper::intpol()	{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.intpol;	}
+bool 	TMC2130Stepper::dedge()		{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.dedge;	}
+bool 	TMC2130Stepper::diss2g()	{ CHOPCONF_t r{0}; r.sr = CHOPCONF(); return r.diss2g;	}
+
+
+// COOLCONF
+#define SET_REG_COOLCONF(SETTING) COOLCONF_register.SETTING = B; write(COOLCONF_register.address, COOLCONF_register.sr);
+#define GET_REG_COOLCONF(SETTING) return COOLCONF_register.SETTING;
+uint32_t TMC2130Stepper::COOLCONF() { return COOLCONF_register.sr; }
+void TMC2130Stepper::COOLCONF(uint32_t input) {
+	COOLCONF_register.sr = input;
+	write(COOLCONF_register.address, COOLCONF_register.sr);
+}
+
+void TMC2130Stepper::semin(	uint8_t B )	{ SET_REG_COOLCONF(semin);	}
+void TMC2130Stepper::seup(	uint8_t B )	{ SET_REG_COOLCONF(seup);	}
+void TMC2130Stepper::semax(	uint8_t B )	{ SET_REG_COOLCONF(semax);	}
+void TMC2130Stepper::sedn(	uint8_t B )	{ SET_REG_COOLCONF(sedn);	}
+void TMC2130Stepper::seimin(bool 	B )	{ SET_REG_COOLCONF(seimin);	}
+void TMC2130Stepper::sgt(	int8_t  B )	{ SET_REG_COOLCONF(sgt);		}
+void TMC2130Stepper::sfilt(	bool 	B )	{ SET_REG_COOLCONF(sfilt);	}
+
+uint8_t TMC2130Stepper::semin()	{ GET_REG_COOLCONF(semin);	}
+uint8_t TMC2130Stepper::seup()	{ GET_REG_COOLCONF(seup);	}
+uint8_t TMC2130Stepper::semax()	{ GET_REG_COOLCONF(semax);	}
+uint8_t TMC2130Stepper::sedn()	{ GET_REG_COOLCONF(sedn);	}
+bool 	TMC2130Stepper::seimin(){ GET_REG_COOLCONF(seimin);	}
+bool 	TMC2130Stepper::sfilt()	{ GET_REG_COOLCONF(sfilt);	}
+
+int8_t TMC2130Stepper::sgt() {
+	// Two's complement in a 7bit value
+	int8_t val = (COOLCONF_register.sgt &  0x40) << 1; // Isolate sign bit
+	val |= COOLCONF_register.sgt & 0x7F;
+	return val;
+}
+
+
+// DRV_STATUS
+#define GET_REG_DRV_STATUS(NS, SETTING) NS::DRV_STATUS_t r{0}; r.sr = DRV_STATUS(); return r.SETTING
+
+uint32_t TMC2130Stepper::DRV_STATUS() { return read(DRV_STATUS_t::address); }
+
+uint16_t TMC2130Stepper::sg_result(){ GET_REG_DRV_STATUS(TMC2130_n, sg_result); 	}
+bool TMC2130Stepper::fsactive()		{ GET_REG_DRV_STATUS(TMC2130_n, fsactive); 	}
+uint8_t TMC2130Stepper::cs_actual()	{ GET_REG_DRV_STATUS(TMC2130_n, cs_actual); 	}
+bool TMC2130Stepper::stallguard()	{ GET_REG_DRV_STATUS(TMC2130_n, stallGuard); 	}
+bool TMC2130Stepper::ot()			{ GET_REG_DRV_STATUS(TMC2130_n, ot); 			}
+bool TMC2130Stepper::otpw()			{ GET_REG_DRV_STATUS(TMC2130_n, otpw); 		}
+bool TMC2130Stepper::s2ga()			{ GET_REG_DRV_STATUS(TMC2130_n, s2ga); 		}
+bool TMC2130Stepper::s2gb()			{ GET_REG_DRV_STATUS(TMC2130_n, s2gb); 		}
+bool TMC2130Stepper::ola()			{ GET_REG_DRV_STATUS(TMC2130_n, ola); 			}
+bool TMC2130Stepper::olb()			{ GET_REG_DRV_STATUS(TMC2130_n, olb); 			}
+bool TMC2130Stepper::stst()			{ GET_REG_DRV_STATUS(TMC2130_n, stst); 		}
+
+
+// GCONF
+#define SET_REG_GCONF(SETTING) GCONF_register.SETTING = B; write(GCONF_register.address, GCONF_register.sr)
+uint32_t TMC2130Stepper::GCONF() {
+	return read(GCONF_register.address);
+}
+void TMC2130Stepper::GCONF(uint32_t input) {
+	GCONF_register.sr = input;
+	write(GCONF_register.address, GCONF_register.sr);
+}
+
+void TMC2130Stepper::I_scale_analog(bool B)			{ SET_REG_GCONF(i_scale_analog);			}
+void TMC2130Stepper::internal_Rsense(bool B)		{ SET_REG_GCONF(internal_rsense);			}
+void TMC2130Stepper::en_pwm_mode(bool B)			{ SET_REG_GCONF(en_pwm_mode);				}
+void TMC2130Stepper::enc_commutation(bool B)		{ SET_REG_GCONF(enc_commutation);			}
+void TMC2130Stepper::shaft(bool B) 					{ SET_REG_GCONF(shaft);					}
+void TMC2130Stepper::diag0_error(bool B) 			{ SET_REG_GCONF(diag0_error);				}
+void TMC2130Stepper::diag0_otpw(bool B) 			{ SET_REG_GCONF(diag0_otpw);				}
+void TMC2130Stepper::diag0_stall(bool B) 			{ SET_REG_GCONF(diag0_stall);				}
+void TMC2130Stepper::diag1_stall(bool B) 			{ SET_REG_GCONF(diag1_stall);				}
+void TMC2130Stepper::diag1_index(bool B) 			{ SET_REG_GCONF(diag1_index);				}
+void TMC2130Stepper::diag1_onstate(bool B) 			{ SET_REG_GCONF(diag1_onstate);			}
+void TMC2130Stepper::diag1_steps_skipped(bool B) 	{ SET_REG_GCONF(diag1_steps_skipped);		}
+void TMC2130Stepper::diag0_int_pushpull(bool B) 	{ SET_REG_GCONF(diag0_int_pushpull);		}
+void TMC2130Stepper::diag1_pushpull(bool B) 		{ SET_REG_GCONF(diag1_poscomp_pushpull);	}
+void TMC2130Stepper::small_hysteresis(bool B) 		{ SET_REG_GCONF(small_hysteresis);		}
+void TMC2130Stepper::stop_enable(bool B) 			{ SET_REG_GCONF(stop_enable);				}
+void TMC2130Stepper::direct_mode(bool B) 			{ SET_REG_GCONF(direct_mode);				}
+
+bool TMC2130Stepper::I_scale_analog()				{ GCONF_t r{0}; r.sr = GCONF(); return r.i_scale_analog;		}
+bool TMC2130Stepper::internal_Rsense()				{ GCONF_t r{0}; r.sr = GCONF(); return r.internal_rsense;		}
+bool TMC2130Stepper::en_pwm_mode()					{ GCONF_t r{0}; r.sr = GCONF(); return r.en_pwm_mode;			}
+bool TMC2130Stepper::enc_commutation()				{ GCONF_t r{0}; r.sr = GCONF(); return r.enc_commutation;		}
+bool TMC2130Stepper::shaft() 						{ GCONF_t r{0}; r.sr = GCONF(); return r.shaft;					}
+bool TMC2130Stepper::diag0_error() 					{ GCONF_t r{0}; r.sr = GCONF(); return r.diag0_error;			}
+bool TMC2130Stepper::diag0_otpw() 					{ GCONF_t r{0}; r.sr = GCONF(); return r.diag0_otpw;			}
+bool TMC2130Stepper::diag0_stall() 					{ GCONF_t r{0}; r.sr = GCONF(); return r.diag0_stall;			}
+bool TMC2130Stepper::diag1_stall() 					{ GCONF_t r{0}; r.sr = GCONF(); return r.diag1_stall;			}
+bool TMC2130Stepper::diag1_index() 					{ GCONF_t r{0}; r.sr = GCONF(); return r.diag1_index;			}
+bool TMC2130Stepper::diag1_onstate() 				{ GCONF_t r{0}; r.sr = GCONF(); return r.diag1_onstate;			}
+bool TMC2130Stepper::diag1_steps_skipped() 			{ GCONF_t r{0}; r.sr = GCONF(); return r.diag1_steps_skipped;	}
+bool TMC2130Stepper::diag0_int_pushpull() 			{ GCONF_t r{0}; r.sr = GCONF(); return r.diag0_int_pushpull;	}
+bool TMC2130Stepper::diag1_pushpull()		 		{ GCONF_t r{0}; r.sr = GCONF(); return r.diag1_poscomp_pushpull;}
+bool TMC2130Stepper::small_hysteresis() 			{ GCONF_t r{0}; r.sr = GCONF(); return r.small_hysteresis;		}
+bool TMC2130Stepper::stop_enable() 					{ GCONF_t r{0}; r.sr = GCONF(); return r.stop_enable;			}
+bool TMC2130Stepper::direct_mode() 					{ GCONF_t r{0}; r.sr = GCONF(); return r.direct_mode;			}
+
+/*
+bit 18 not implemented:
+test_mode 0:
+Normal operation 1:
+Enable analog test output on pin DCO. IHOLD[1..0] selects the function of DCO:
+0…2: T120, DAC, VDDH Attention:
+Not for user, set to 0 for normal operation!
+*/
+
+
+// IHOLD_IRUN
+#define SET_REG_IHOLD_IRUN(SETTING) IHOLD_IRUN_register.SETTING = B; write(IHOLD_IRUN_register.address, IHOLD_IRUN_register.sr);
+#define GET_REG_IHOLD_IRUN(SETTING) return IHOLD_IRUN_register.SETTING;
+uint32_t TMCStepper::IHOLD_IRUN() { return IHOLD_IRUN_register.sr; }
+void TMCStepper::IHOLD_IRUN(uint32_t input) {
+	IHOLD_IRUN_register.sr = input;
+	write(IHOLD_IRUN_register.address, IHOLD_IRUN_register.sr);
+}
+
+void 	TMCStepper::ihold(uint8_t B) 		{ SET_REG_IHOLD_IRUN(ihold);		}
+void 	TMCStepper::irun(uint8_t B)  		{ SET_REG_IHOLD_IRUN(irun); 		}
+void 	TMCStepper::iholddelay(uint8_t B)	{ SET_REG_IHOLD_IRUN(iholddelay); 	}
+
+uint8_t TMCStepper::ihold() 				{ GET_REG_IHOLD_IRUN(ihold);		}
+uint8_t TMCStepper::irun()  				{ GET_REG_IHOLD_IRUN(irun); 		}
+uint8_t TMCStepper::iholddelay()  			{ GET_REG_IHOLD_IRUN(iholddelay);	}
+
+
+// PWMCONF
+#define SET_REG_PWMCONF(SETTING) PWMCONF_register.SETTING = B; write(PWMCONF_register.address, PWMCONF_register.sr)
+#define GET_REG_PWMCONF(SETTING) return PWMCONF_register.SETTING
+uint32_t TMC2130Stepper::PWMCONF() { return PWMCONF_register.sr; }
+void TMC2130Stepper::PWMCONF(uint32_t input) {
+	PWMCONF_register.sr = input;
+	write(PWMCONF_register.address, PWMCONF_register.sr);
+}
+
+void TMC2130Stepper::pwm_ampl(		uint8_t B )	{ SET_REG_PWMCONF(pwm_ampl);		}
+void TMC2130Stepper::pwm_grad(		uint8_t B )	{ SET_REG_PWMCONF(pwm_grad);		}
+void TMC2130Stepper::pwm_freq(		uint8_t B )	{ SET_REG_PWMCONF(pwm_freq);		}
+void TMC2130Stepper::pwm_autoscale(	bool 	B )	{ SET_REG_PWMCONF(pwm_autoscale);	}
+void TMC2130Stepper::pwm_symmetric(	bool 	B )	{ SET_REG_PWMCONF(pwm_symmetric);	}
+void TMC2130Stepper::freewheel(		uint8_t B )	{ SET_REG_PWMCONF(freewheel);		}
+
+uint8_t TMC2130Stepper::pwm_ampl()		{ GET_REG_PWMCONF(pwm_ampl);		}
+uint8_t TMC2130Stepper::pwm_grad()		{ GET_REG_PWMCONF(pwm_grad);		}
+uint8_t TMC2130Stepper::pwm_freq()		{ GET_REG_PWMCONF(pwm_freq);		}
+bool 	TMC2130Stepper::pwm_autoscale()	{ GET_REG_PWMCONF(pwm_autoscale);	}
+bool 	TMC2130Stepper::pwm_symmetric()	{ GET_REG_PWMCONF(pwm_symmetric);	}
+uint8_t TMC2130Stepper::freewheel()		{ GET_REG_PWMCONF(freewheel);		}
