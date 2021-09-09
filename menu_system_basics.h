@@ -1,5 +1,5 @@
-#ifndef _menu_system_h_
-#define _menu_system_h_
+#ifndef _menu_system_basics_h_
+#define _menu_system_basics_h_
 
 
 #define COUNT_ARRAY_ITEMS(X) (sizeof(X) / sizeof(X[0]))
@@ -136,50 +136,6 @@ public:
   size_t items_count;
   uint8_t index;
   T* items;
-};
-
-
-class MenuMotor: public Menu{
-public:
-  MenuMotor(uint8_t, MenuItem* const*, uint8_t);
-  void on_enter();
-  uint8_t index;
-};
-
-
-class MenuListMotorMicrostepping: public MenuList<uint16_t>{
-public:
-  MenuListMotorMicrostepping();
-  void on_enter();
-  void loop();
-  uint16_t value;
-};
-
-
-class MenuListMotorBlankTime: public MenuList<uint8_t>{
-public:
-  MenuListMotorBlankTime();
-  void on_enter();
-  void loop();
-  uint8_t value;
-};
-
-
-class MenuRangeMotorOffTime: public MenuRange<uint8_t>{
-public:
-  MenuRangeMotorOffTime();
-  void on_enter();
-  void loop();
-  uint8_t value;
-};
-
-
-class MenuRangeMotorRPM: public MenuRange<uint16_t>{
-public:
-  MenuRangeMotorRPM();
-  void on_enter();
-  void loop();
-  uint16_t value;
 };
 
 
