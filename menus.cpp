@@ -16,10 +16,17 @@ MenuItemToggleCallable motor_on_off(&is_motor_on, "Driver: on", "Driver: off", &
 
 // motor start/stop
 bool is_motor_running(){ return motors[last_entered_motor_menu].running; }
-void do_motor_start(){ motors[last_entered_motor_menu].start(); }
+void do_motor_start(){
+  motors[last_entered_motor_menu].rpm( motors[last_entered_motor_menu].rpm() );
+  motors[last_entered_motor_menu].start();
+}
 void do_motor_stop(){ motors[last_entered_motor_menu].stop(); }
 MenuItemToggleCallable motor_start_stop(&is_motor_running, "Stop", "Run continuously", &do_motor_stop, &do_motor_start);
 
+
+// motor speed
+MenuRangeMotorRPM menu_motor_speed;
+MenuItem motor_speed("Speed [RPM]", &menu_motor_speed);
 
 // motor direction
 bool get_motor_direction(){ return motors[last_entered_motor_menu].dir(); }
@@ -74,6 +81,7 @@ MenuItem motor_stallguard_value("Show stallGuard", &menu_motor_stallguard_value)
 MenuItem* motor_items[] = {
   &back,
   &motor_on_off,
+  &motor_speed,
   &motor_direction,
   &motor_start_stop,
   &motor_stallguard_value,
@@ -92,6 +100,26 @@ MenuItem motor_z("Motor Z", &menu_motor_z);
 MenuItem motor_e("Motor E", &menu_motor_e);
 
 
+// OCR1A
+uint16_t* timer_ptr1 = &OCR1A;
+MenuRange<uint16_t> menu_timer1("OCR1A", *timer_ptr1, 1, 255);
+MenuItem timer1("OCR1A", &menu_timer1);
+
+// OCR3A
+uint16_t* timer_ptr3 = &OCR3A;
+MenuRange<uint16_t> menu_timer3("OCR3A", *timer_ptr3, 1, 255);
+MenuItem timer3("OCR3A", &menu_timer3);
+
+// OCR4A
+uint16_t* timer_ptr4 = &OCR4A;
+MenuRange<uint16_t> menu_timer4("OCR4A", *timer_ptr4, 1, 255);
+MenuItem timer4("OCR4A", &menu_timer4);
+
+// OCR5A
+uint16_t* timer_ptr5 = &OCR5A;
+MenuRange<uint16_t> menu_timer5("OCR5A", *timer_ptr5, 1, 255);
+MenuItem timer5("OCR5A", &menu_timer5);
+
 
 // main menu
 MenuItem* main_menu_items[] = {
@@ -99,5 +127,9 @@ MenuItem* main_menu_items[] = {
   &motor_y,
   &motor_z,
   &motor_e,
+  &timer1,
+  &timer3,
+  &timer4,
+  &timer5,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);

@@ -174,6 +174,15 @@ public:
 };
 
 
+class MenuRangeMotorRPM: public MenuRange<uint16_t>{
+public:
+  MenuRangeMotorRPM();
+  void on_enter();
+  void loop();
+  uint16_t value;
+};
+
+
 
 extern MenuItemBack back;
 extern Menu* current_menu;

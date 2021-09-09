@@ -9,10 +9,10 @@ int8_t enc_diff = 0;
 uint8_t enc_click = 0;
 uint32_t beeper_off_at = 0;
 Motor motors[MOTORS_MAX] = {
-  Motor(X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_TMC2130_CS, X_TMC2130_DIAG),
-  Motor(Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_TMC2130_CS, Y_TMC2130_DIAG),
-  Motor(Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_TMC2130_CS, Z_TMC2130_DIAG),
-  Motor(E0_STEP_PIN, E0_DIR_PIN, E0_ENABLE_PIN, E0_TMC2130_CS, E0_TMC2130_DIAG),
+  Motor(X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_TMC2130_CS, X_TMC2130_DIAG, &PORTC, PINC0, &OCR1A, &TCNT1, &TIMSK1, OCIE1A),
+  Motor(Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_TMC2130_CS, Y_TMC2130_DIAG, &PORTC, PINC1, &OCR3A, &TCNT3, &TIMSK3, OCIE3A),
+  Motor(Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_TMC2130_CS, Z_TMC2130_DIAG, &PORTC, PINC2, &OCR4A, &TCNT4, &TIMSK4, OCIE4A),
+  Motor(E0_STEP_PIN, E0_DIR_PIN, E0_ENABLE_PIN, E0_TMC2130_CS, E0_TMC2130_DIAG, &PORTC, PINC3, &OCR5A, &TCNT5, &TIMSK5, OCIE5A),
 };
 
 
@@ -100,10 +100,10 @@ void setupLcd(){
 void setupMotors(){
   for(size_t i = 0; i < MOTORS_MAX; i++) {
     motors[i].driver.begin();
-    motors[i].driver.toff(4);
+    motors[i].driver.toff(2);
     motors[i].driver.blank_time(24);
-    motors[i].driver.rms_current(400); // mA
-    // motors[i].driver.microsteps(16);
+    motors[i].driver.rms_current(300); // mA
+
     motors[i].driver.TCOOLTHRS(0xFFFFF); // 20bit max
     motors[i].driver.THIGH(0);
     motors[i].driver.semin(5);
@@ -113,25 +113,49 @@ void setupMotors(){
 
     motors[i].driver.en_pwm_mode(1);      // Enable extremely quiet stepping
     motors[i].driver.pwm_autoscale(1);
-    motors[i].driver.microsteps(64);
+
+    motors[i].microsteps(motors[i].usteps);
   }
 
-  // Set stepper interrupt
-  {
-    cli();//stop interrupts
-    TCCR1A = 0;// set entire TCCR1A register to 0
-    TCCR1B = 0;// same for TCCR1B
-    TCNT1  = 0;//initialize counter value to 0
-    OCR1A = 256;// = (16*10^6) / (1*1024) - 1 (must be <65536)
-    // turn on CTC mode
-    TCCR1B |= (1 << WGM12);
-    // Set CS11 bits for 8 prescaler
-    TCCR1B |= (1 << CS11);// | (1 << CS10);
-    // enable timer compare interrupt
-    TIMSK1 |= (1 << OCIE1A);
-    sei();//allow interrupts
-  }
+  #if MOTORS_PRESCALER != 8
+    #error MOTORS_PRESCALER is not set to 8 !!!
+  #endif
+
+  #define SETUP_TIMER(t) \
+    TCCR##t##A = 0; \
+    TCCR##t##B = 0; \
+    TCNT##t  = 0; \
+    OCR##t##A = F_CPU / MOTORS_PRESCALER / 1000; \
+    TCCR##t##B |= (1 << WGM##t##2); \
+    TCCR##t##B |= (1 << CS##t##1);  \
+    // TIMSK##t |= (1 << OCIE##t##A); \
+    TIMSK##t = 0;
+
+  cli();
+  SETUP_TIMER(1);
+  SETUP_TIMER(3);
+  SETUP_TIMER(4);
+  SETUP_TIMER(5);
+  sei();
+
+  #undef SETUP_TIMER
+
+  for(size_t i = 0; i < MOTORS_MAX; i++) motors[i].rpm(motors[i].rpm());
+
 }
+
+
+// #define MOTOR_STEP_ISR(t, m) ISR(TIMER##t##_COMPA_vect){  \
+//   PORTC ^= 1 << PINC##m;  \
+//   counter##t += 1; \
+// }
+//
+// MOTOR_STEP_ISR(1, 0)
+// MOTOR_STEP_ISR(3, 1)
+// MOTOR_STEP_ISR(4, 2)
+// MOTOR_STEP_ISR(5, 3)
+//
+// #undef MOTOR_STEP_ISR
 
 
 // void setupTimer0() {
@@ -218,13 +242,76 @@ void beep(uint16_t duration){
 }
 
 
-Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_pin, uint8_t diag_pin):
-  driver(cs_pin, 0.2f),
+
+float rpm2rps(float rpm){
+  return rpm / 60;
+}
+
+
+uint16_t rps2sps(float rps, uint16_t usteps){
+  return uint16_t(FSTEPS_PER_REVOLUTION * usteps * rps);
+}
+
+
+uint16_t sps2ocr(uint16_t sps){
+  return F_CPU / MOTORS_PRESCALER / sps;
+}
+
+
+uint16_t rpm2ocr(float rpm, uint16_t usteps){
+  return rps2ocr(rpm / 60, usteps);
+}
+
+
+uint16_t rps2ocr(float rps, uint16_t usteps){
+  return F_CPU / MOTORS_PRESCALER / (FSTEPS_PER_REVOLUTION * usteps * rps);
+}
+
+
+float ocr2rpm(uint16_t ocr, uint16_t usteps){
+  return ocr2rps(ocr, usteps) * 60;
+}
+
+
+float ocr2rps(uint16_t ocr, uint16_t usteps){
+  return F_CPU / MOTORS_PRESCALER / ocr / usteps / FSTEPS_PER_REVOLUTION;
+}
+
+
+
+Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_pin, uint8_t diag_pin,
+    uint8_t* step_port, uint8_t step_bit, uint16_t* timer_compare_port, uint16_t* timer_counter_port,
+    uint8_t* timer_enable_port, uint8_t timer_enable_bit):
   step_pin(step_pin),
   dir_pin(dir_pin),
   enable_pin(enable_pin),
   cs_pin(cs_pin),
-  diag_pin(diag_pin){
+  diag_pin(diag_pin),
+  step_port(step_port),
+  step_bit(step_bit),
+  timer_compare_port(timer_compare_port),
+  timer_counter_port(timer_counter_port),
+  timer_enable_port(timer_enable_port),
+  timer_enable_bit(timer_enable_bit),
+  driver(cs_pin, 0.2f),
+  usteps(32),
+  running(false),
+  steps_to_do(0),
+  steps_total(0),
+
+  target_rpm(-1.0),
+  // accel(400.0),
+  // decel(800.0),
+  accel(40.0),
+  decel(120.0),
+  ramp_interval(30),
+
+  do_delay(true),
+  do_toggle(true),
+
+  last_speed_change(last_speed_change),
+
+  _rpm(0.0){
     pinModeOutput(enable_pin);
     pinModeOutput(dir_pin);
     pinModeOutput(step_pin);
@@ -233,16 +320,20 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
     digitalWriteExt(dir_pin, LOW);
     digitalWriteExt(step_pin, LOW);
     digitalWriteExt(cs_pin, HIGH);
+    ramp_off();
+    rpm(0.0);
   }
 
 
 void Motor::on(){
   digitalWriteExt(enable_pin, LOW);
+  if(millis() > 300) SERIAL_PRINTLN("on");
 }
 
 
 void Motor::off(){
   digitalWriteExt(enable_pin, HIGH);
+  if(millis() > 300) SERIAL_PRINTLN("off");
 }
 
 
@@ -254,11 +345,26 @@ bool Motor::is_on(){
 void Motor::start(){
   if(!is_on()) on();
   running = true;
+  *timer_enable_port |= (1 << timer_enable_bit);
+  if(millis() > 300) SERIAL_PRINTLN("start");
 }
 
 
 void Motor::stop(){
+  *timer_enable_port = 0;
   running = false;
+  ramp_off();
+  if(millis() > 300) SERIAL_PRINTLN("stop");
+}
+
+
+void Motor::step(){
+  // *step_port ^= 1 << step_bit;
+  // *step_port ^= 1 << step_bit;
+  *step_port ^= 1 << step_bit;
+  if(do_delay) delayMicroseconds(2);
+  if(do_toggle) *step_port ^= 1 << step_bit;
+  steps_total++;
 }
 
 
@@ -276,4 +382,69 @@ uint16_t Motor::sg_value(){
   TMC2130_n::DRV_STATUS_t drv_status{0};
   drv_status.sr = driver.DRV_STATUS();
   return drv_status.sg_result;
+}
+
+
+void Motor::microsteps(uint16_t microstepping){
+  driver.microsteps(microstepping);
+  usteps = driver.microsteps();
+  // rpm(_rpm); // update timer
+
+  if(millis() > 300){
+    SERIAL_PRINT("new usteps: ");
+    SERIAL_PRINTLN(usteps);
+  }
+}
+
+
+void Motor::rpm(float value){
+  _rpm = value;
+  uint32_t ocr = rpm2ocr(value, usteps);
+  if(ocr < 70) ocr = 70;
+  if(ocr > 65535) ocr = 65535;
+
+  if(value <= 0.0){
+    stop();
+    if(millis() > 300) SERIAL_PRINTLN("low rpm - stop!");
+  }
+
+  if(*timer_compare_port != ocr ){
+    // SERIAL_PRINT("ocrD=");
+    // SERIAL_PRINT(*timer_compare_port - ocr);
+    // SERIAL_PRINT("\t");
+
+    // *timer_counter_port -= *timer_compare_port - ocr;
+    *timer_counter_port = 0;
+    *timer_compare_port = ocr;
+
+    // float new_rpm = ocr2rpm(ocr, usteps);
+    // _rpm = new_rpm;
+
+    if(millis() > 300){
+      SERIAL_PRINT("new ocr=");
+      SERIAL_PRINT(ocr);
+      // SERIAL_PRINT("\tnew rpm=");
+      // SERIAL_PRINT(new_rpm);
+      SERIAL_PRINTLN();
+    }
+  }
+}
+
+
+float Motor::rpm(){
+  return _rpm;
+}
+
+
+void Motor::ramp_to(float value){
+  target_rpm = value;
+  // target_rpm = ocr2rpm(rpm2ocr(value, usteps), usteps);
+  last_speed_change = millis();
+  if(!running) start();
+}
+
+
+void Motor::ramp_off(){
+  target_rpm = -1.0;
+  last_speed_change = millis();
 }

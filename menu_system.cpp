@@ -311,7 +311,8 @@ void MenuRange<T>::draw(bool clear){
   lcd.print(" \1");
 
   lcd.print(value > min_value ? "<" : " ", 0, 2);
-  lcd.print(value, 8, 2);
+  lcd.setCursor(8, 2); // we must call setCursor separately because otherwise
+  lcd.print(value);    // compiler could choose wrong print function overload
   lcd.print(value < max_value ? ">" : " ", 19, 2);
 }
 
@@ -417,7 +418,7 @@ MenuListMotorMicrostepping::MenuListMotorMicrostepping():
 
 
 void MenuListMotorMicrostepping::on_enter(){
-  value = motors[last_entered_motor_menu].driver.microsteps();
+  value = motors[last_entered_motor_menu].usteps;
   MenuList::on_enter();
 }
 
@@ -426,7 +427,7 @@ void MenuListMotorMicrostepping::loop(){
   static uint32_t last_loop = 0;
   uint32_t _millis = millis();
   if(_millis > last_loop + 50){
-    if(value != motors[last_entered_motor_menu].driver.microsteps()) motors[last_entered_motor_menu].driver.microsteps(value);
+    if(value != motors[last_entered_motor_menu].usteps) motors[last_entered_motor_menu].microsteps(value);
     last_loop = _millis;
   }
 }
@@ -478,6 +479,34 @@ void MenuRangeMotorOffTime::loop(){
   uint32_t _millis = millis();
   if(_millis > last_loop + 50){
     if(value != motors[last_entered_motor_menu].driver.toff()) motors[last_entered_motor_menu].driver.toff(value);
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
+  menu range motor rpm
+*/
+MenuRangeMotorRPM::MenuRangeMotorRPM():
+  MenuRange("Speed [RPM]", value, 1, 460),
+  value(1){}
+
+
+void MenuRangeMotorRPM::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].rpm();
+}
+
+
+void MenuRangeMotorRPM::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].rpm()){
+      motors[last_entered_motor_menu].target_rpm = -1.0;
+      motors[last_entered_motor_menu].rpm(value);
+    }
     last_loop = _millis;
   }
 }
