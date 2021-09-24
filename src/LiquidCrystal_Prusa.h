@@ -78,8 +78,7 @@ public:
 	static void setBrightness(uint8_t);
 
 	void print(uint8_t number, uint8_t col, uint8_t row, uint8_t denom = 100, unsigned char filler = ' ');
-	void print(float number, uint8_t col, uint8_t row);
-	void printTime(uint16_t time, uint8_t col, uint8_t row);
+	// void print(float number, uint8_t col, uint8_t row);
 	void print(const char* str, uint8_t col, uint8_t row);
 	void print_P(const char* str, uint8_t col, uint8_t row);
 	void clearLine(uint8_t row);

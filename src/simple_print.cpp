@@ -27,22 +27,37 @@ void SimplePrint::print(uint16_t number, uint16_t denom, unsigned char filler) {
 	}
 }
 
-void SimplePrint::print(float number) {
-	number += 0.05;
-	uint8_t integer = (uint8_t)number;
-	print(integer, 100, ' ');
-	write('.');
-	integer = (number - integer) * 10;
-	print(integer, 1);
+void SimplePrint::print(int8_t number, int8_t denom, unsigned char filler) {
+	print((int16_t)number, (int16_t)denom, filler);
 }
 
-void SimplePrint::printTime(uint16_t time) {
-	uint8_t min = time / 60;
-	uint8_t sec = time % 60;
-	print(min, 10, '0');
-	write(':');
-	print(sec, 10, '0');
+void SimplePrint::print(int16_t number, int16_t denom, unsigned char filler) {
+	div_t division;
+	if(number < 0){
+		number = -number;
+		write('-');
+	}else write(' ');
+	while (denom) {
+		division = div(number, denom);
+		if (division.quot || denom == 1) {
+			write(division.quot + '0');
+			filler = '0';
+		} else if (filler) {
+			write(filler);
+		}
+		number = division.rem;
+		denom /= 10;
+	}
 }
+
+// void SimplePrint::print(float number) {
+// 	number += 0.05;
+// 	uint8_t integer = (uint8_t)number;
+// 	print(integer, 100, ' ');
+// 	write('.');
+// 	integer = (number - integer) * 10;
+// 	print(integer, 1);
+// }
 
 void SimplePrint::print(const char *str) {
 	uint8_t c;

@@ -1,6 +1,5 @@
 #include <inttypes.h>
 #include <Arduino.h>
-#include "src/LiquidCrystal_Prusa.h"
 #include "hardware.h"
 
 
@@ -8,12 +7,14 @@
 int8_t enc_diff = 0;
 uint8_t enc_click = 0;
 uint32_t beeper_off_at = 0;
-Motor motors[MOTORS_MAX] = {
-  Motor(X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_TMC2130_CS, X_TMC2130_DIAG, &PORTC, PINC0, &OCR1A, &TCNT1, &TIMSK1, OCIE1A),
-  Motor(Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_TMC2130_CS, Y_TMC2130_DIAG, &PORTC, PINC1, &OCR3A, &TCNT3, &TIMSK3, OCIE3A),
-  Motor(Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_TMC2130_CS, Z_TMC2130_DIAG, &PORTC, PINC2, &OCR4A, &TCNT4, &TIMSK4, OCIE4A),
-  Motor(E0_STEP_PIN, E0_DIR_PIN, E0_ENABLE_PIN, E0_TMC2130_CS, E0_TMC2130_DIAG, &PORTC, PINC3, &OCR5A, &TCNT5, &TIMSK5, OCIE5A),
+#define INIT_MOTOR(i, d, n) Motor(d##_STEP_PIN, d##_DIR_PIN, d##_ENABLE_PIN, d##_TMC2130_CS, d##_TMC2130_DIAG, &PORTC, PINC##i, &OCR##n##A, &TCNT##n, &TIMSK##n, OCIE##n##A)
+Motor motors[] = {
+  INIT_MOTOR(0, X, 1),
+  INIT_MOTOR(1, Y, 3),
+  INIT_MOTOR(2, Z, 4),
+  INIT_MOTOR(3, E0, 5),
 };
+#undef INIT_MOTOR
 
 
 const uint8_t Back[8] PROGMEM = {
@@ -104,7 +105,7 @@ void setupMotors(){
     motors[i].driver.blank_time(24);
     motors[i].driver.rms_current(300); // mA
 
-    motors[i].driver.TCOOLTHRS(0xFFFFF); // 20bit max
+    // motors[i].driver.TCOOLTHRS(0xFFFFF); // 20bit max
     motors[i].driver.THIGH(0);
     motors[i].driver.semin(5);
     motors[i].driver.semax(2);
@@ -114,58 +115,61 @@ void setupMotors(){
     motors[i].driver.en_pwm_mode(1);      // Enable extremely quiet stepping
     motors[i].driver.pwm_autoscale(1);
 
+    motors[i].driver.diag0_stall(true);
+    motors[i].driver.diag1_stall(true);
+    motors[i].driver.diag0_int_pushpull(true);
+    motors[i].driver.diag1_pushpull(true);
+    // motors[i].driver.en_pwm_mode(false);
+    motors[i].driver.TCOOLTHRS(460);
+
     motors[i].microsteps(motors[i].usteps);
+    motors[i].rpm(60.0);
   }
 
   #if MOTORS_PRESCALER != 8
     #error MOTORS_PRESCALER is not set to 8 !!!
   #endif
 
+  // OCR##t##A = F_CPU / MOTORS_PRESCALER / 1000;
+  // TIMSK##t |= (1 << OCIE##t##A);
+  // TIMSK##t = 0;
   #define SETUP_TIMER(t) \
     TCCR##t##A = 0; \
     TCCR##t##B = 0; \
     TCNT##t  = 0; \
-    OCR##t##A = F_CPU / MOTORS_PRESCALER / 1000; \
     TCCR##t##B |= (1 << WGM##t##2); \
     TCCR##t##B |= (1 << CS##t##1);  \
-    // TIMSK##t |= (1 << OCIE##t##A); \
     TIMSK##t = 0;
 
   cli();
+  // setup acceleration timer
+  TCCR2A = 0;
+  TCCR2B = 0;
+  TCNT2  = 0;
+  OCR2A = 0xFF;
+  TCCR2A |= (1 << WGM21);
+  TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);
+  TIMSK2 |= (1 << OCIE2A);
+
   SETUP_TIMER(1);
   SETUP_TIMER(3);
   SETUP_TIMER(4);
   SETUP_TIMER(5);
+
+  // setup diag pin interrupt
+  PCICR |= (1 << PCIE2);
+  PCMSK2 = 0;
+  PCMSK2 |= (1 << PCINT18); // X_DIAG
+  PCMSK2 |= (1 << PCINT19); // E0_DIAG
+  PCMSK2 |= (1 << PCINT22); // Z_DIAG
+  PCMSK2 |= (1 << PCINT23); // Y_DIAG
   sei();
 
   #undef SETUP_TIMER
 
-  for(size_t i = 0; i < MOTORS_MAX; i++) motors[i].rpm(motors[i].rpm());
-
 }
 
 
-// #define MOTOR_STEP_ISR(t, m) ISR(TIMER##t##_COMPA_vect){  \
-//   PORTC ^= 1 << PINC##m;  \
-//   counter##t += 1; \
-// }
-//
-// MOTOR_STEP_ISR(1, 0)
-// MOTOR_STEP_ISR(3, 1)
-// MOTOR_STEP_ISR(4, 2)
-// MOTOR_STEP_ISR(5, 3)
-//
-// #undef MOTOR_STEP_ISR
-
-
-// void setupTimer0() {
-// 	OCR0A = 0xAF;
-// 	TIMSK0 |= _BV(OCIE0A);
-// }
-//
-// ISR(TIMER0_COMPA_vect) {
-// 	encoderRead();
-// }
 
 // shamelessly stolen from CW1 FW
 void readEncoder() {
@@ -289,13 +293,12 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   diag_pin(diag_pin),
   step_port(step_port),
   step_bit(step_bit),
-  timer_compare_port(timer_compare_port),
-  timer_counter_port(timer_counter_port),
-  timer_enable_port(timer_enable_port),
-  timer_enable_bit(timer_enable_bit),
   driver(cs_pin, 0.2f),
-  usteps(32),
+  usteps(16),
+  stop_on_stallguard(true),
+  print_stallguard_to_serial(false),
   running(false),
+  stallguard_triggered(false),
   steps_to_do(0),
   steps_total(0),
 
@@ -304,24 +307,26 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   // decel(800.0),
   accel(40.0),
   decel(120.0),
-  ramp_interval(30),
-
-  do_delay(true),
-  do_toggle(true),
+  // accel(450.0),
+  // decel(1000.0),
+  // ramp_interval(30),
 
   last_speed_change(last_speed_change),
 
-  _rpm(0.0){
+  _rpm(0.0),
+  timer_compare_port(timer_compare_port),
+  timer_counter_port(timer_counter_port),
+  timer_enable_port(timer_enable_port),
+  timer_enable_bit(timer_enable_bit){
     pinModeOutput(enable_pin);
     pinModeOutput(dir_pin);
     pinModeOutput(step_pin);
     pinModeOutput(cs_pin);
+    pinModeInput(diag_pin, true);
     digitalWriteExt(enable_pin, HIGH);
     digitalWriteExt(dir_pin, LOW);
     digitalWriteExt(step_pin, LOW);
     digitalWriteExt(cs_pin, HIGH);
-    ramp_off();
-    rpm(0.0);
   }
 
 
@@ -342,9 +347,10 @@ bool Motor::is_on(){
 }
 
 
-void Motor::start(){
+void Motor::start(bool start_running){
   if(!is_on()) on();
-  running = true;
+  running = start_running;
+  *timer_counter_port = 0;
   *timer_enable_port |= (1 << timer_enable_bit);
   if(millis() > 300) SERIAL_PRINTLN("start");
 }
@@ -353,17 +359,16 @@ void Motor::start(){
 void Motor::stop(){
   *timer_enable_port = 0;
   running = false;
+  steps_to_do = 0;
   ramp_off();
   if(millis() > 300) SERIAL_PRINTLN("stop");
 }
 
 
 void Motor::step(){
-  // *step_port ^= 1 << step_bit;
-  // *step_port ^= 1 << step_bit;
   *step_port ^= 1 << step_bit;
-  if(do_delay) delayMicroseconds(2);
-  if(do_toggle) *step_port ^= 1 << step_bit;
+  // delayMicroseconds(2);
+  *step_port ^= 1 << step_bit;
   steps_total++;
 }
 
@@ -409,20 +414,18 @@ void Motor::rpm(float value){
   }
 
   if(*timer_compare_port != ocr ){
-    // SERIAL_PRINT("ocrD=");
-    // SERIAL_PRINT(*timer_compare_port - ocr);
-    // SERIAL_PRINT("\t");
-
-    // *timer_counter_port -= *timer_compare_port - ocr;
-    *timer_counter_port = 0;
+    cli();
+    // *timer_counter_port = 0;
     *timer_compare_port = ocr;
+    sei();
 
-    // float new_rpm = ocr2rpm(ocr, usteps);
-    // _rpm = new_rpm;
-
-    if(millis() > 300){
+    static uint32_t last_millis = 0;
+    uint32_t _millis = millis();
+    if(_millis > 300){
+    // if(1){
       SERIAL_PRINT("new ocr=");
       SERIAL_PRINT(ocr);
+      last_millis = _millis;
       // SERIAL_PRINT("\tnew rpm=");
       // SERIAL_PRINT(new_rpm);
       SERIAL_PRINTLN();
@@ -436,11 +439,14 @@ float Motor::rpm(){
 }
 
 
-void Motor::ramp_to(float value){
+void Motor::ramp_to(float value, bool keep_running){
+  last_speed_change = millis();
   target_rpm = value;
   // target_rpm = ocr2rpm(rpm2ocr(value, usteps), usteps);
-  last_speed_change = millis();
-  if(!running) start();
+  if(!running){
+    rpm(rpm()); // update timer
+    start(keep_running);
+  }
 }
 
 
@@ -448,3 +454,32 @@ void Motor::ramp_off(){
   target_rpm = -1.0;
   last_speed_change = millis();
 }
+
+
+MotorStallguardInfo Motor::get_stallguard_info(){
+  TMC2130_n::DRV_STATUS_t drv_status{0};
+  drv_status.sr = driver.DRV_STATUS();
+
+  MotorStallguardInfo result{0};
+  result.sg_result = drv_status.sg_result;
+  result.fsactive = drv_status.fsactive;
+  result.cs_actual = drv_status.cs_actual;
+  result.rms = driver.cs2rms(drv_status.cs_actual);
+  return result;
+}
+
+
+// stepping timer
+#define TIMER_ISR(t, m) ISR(TIMER##t##_COMPA_vect){ \
+  if(motors[m].running){  \
+    motors[m].step(); \
+  }else if(motors[m].steps_to_do){  \
+    motors[m].steps_to_do--;  \
+    motors[m].step(); \
+  } \
+}
+TIMER_ISR(1, 0)
+TIMER_ISR(3, 1)
+TIMER_ISR(4, 2)
+TIMER_ISR(5, 3)
+#undef TIMER_ISR

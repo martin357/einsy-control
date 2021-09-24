@@ -1,8 +1,9 @@
 #ifndef _hardware_h_
 #define _hardware_h_
 
+#include "src/LiquidCrystal_Prusa.h"
 #include "src/TMCStepper.h"
-// #include "pins.h"
+
 
 // #define DEBUG_PRINT
 #ifdef DEBUG_PRINT
@@ -36,13 +37,21 @@ float ocr2rpm(uint16_t, uint16_t);
 float ocr2rps(uint16_t, uint16_t);
 
 
+struct MotorStallguardInfo {
+  uint16_t sg_result;
+  bool fsactive;
+  uint8_t cs_actual;
+  uint16_t rms;
+};
+
+
 class Motor{
 public:
   Motor(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*, uint8_t, uint16_t*, uint16_t*, uint8_t*, uint8_t);
   void on();
   void off();
   bool is_on();
-  void start();
+  void start(bool = false);
   void stop();
   void step();
   bool dir();
@@ -51,8 +60,9 @@ public:
   void microsteps(uint16_t);
   void rpm(float);
   float rpm();
-  void ramp_to(float);
+  void ramp_to(float, bool = false);
   void ramp_off();
+  MotorStallguardInfo get_stallguard_info();
   uint8_t step_pin;
   uint8_t dir_pin;
   uint8_t enable_pin;
@@ -60,27 +70,26 @@ public:
   uint8_t diag_pin;
   uint8_t* step_port;
   uint8_t step_bit;
-  uint16_t* timer_compare_port;
-  uint16_t* timer_counter_port;
-  uint8_t* timer_enable_port;
-  uint8_t timer_enable_bit;
   TMC2130Stepper driver;
   uint16_t usteps;
-  bool running;
+  bool stop_on_stallguard;
+  bool print_stallguard_to_serial;
+  volatile bool running;
+  volatile bool stallguard_triggered;
   volatile uint32_t steps_to_do;
   volatile uint32_t steps_total;
 
   volatile float target_rpm;
   float accel;
   float decel;
-  uint16_t ramp_interval;
-
-  bool do_delay;
-  bool do_toggle;
 
   volatile uint32_t last_speed_change;
 private:
   volatile float _rpm;
+  uint16_t* timer_compare_port;
+  uint16_t* timer_counter_port;
+  uint8_t* timer_enable_port;
+  uint8_t timer_enable_bit;
 };
 
 

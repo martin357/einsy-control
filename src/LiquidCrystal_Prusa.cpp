@@ -207,15 +207,10 @@ void LiquidCrystal_Prusa::print(uint8_t number, uint8_t col, uint8_t row, uint8_
 	SimplePrint::print(number, denom, filler);
 }
 
-void LiquidCrystal_Prusa::print(float number, uint8_t col, uint8_t row) {
-	setCursor(col, row);
-	SimplePrint::print(number);
-}
-
-void LiquidCrystal_Prusa::printTime(uint16_t time, uint8_t col, uint8_t row) {
-	setCursor(col, row);
-	SimplePrint::printTime(time);
-}
+// void LiquidCrystal_Prusa::print(float number, uint8_t col, uint8_t row) {
+// 	setCursor(col, row);
+// 	SimplePrint::print(number);
+// }
 
 void LiquidCrystal_Prusa::print(const char *str, uint8_t col, uint8_t row) {
 	setCursor(col, row);

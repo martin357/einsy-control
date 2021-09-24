@@ -1,10 +1,7 @@
 // #include <avr/pgmspace.h>
 #include <Arduino.h>
-#include "src/LiquidCrystal_Prusa.h"
-// #include <inttypes.h>
 #include "menus.h"
 #include "hardware.h"
-// #include <Arduino.h>
 
 
 // motor on/off
@@ -18,7 +15,7 @@ MenuItemToggleCallable motor_on_off(&is_motor_on, "Driver: on", "Driver: off", &
 bool is_motor_running(){ return motors[last_entered_motor_menu].running; }
 void do_motor_start(){
   motors[last_entered_motor_menu].rpm( motors[last_entered_motor_menu].rpm() );
-  motors[last_entered_motor_menu].start();
+  motors[last_entered_motor_menu].start(true);
 }
 void do_motor_stop(){ motors[last_entered_motor_menu].stop(); }
 MenuItemToggleCallable motor_start_stop(&is_motor_running, "Stop", "Run continuously", &do_motor_stop, &do_motor_start);
@@ -32,14 +29,21 @@ MenuItem motor_speed("Speed [RPM]", &menu_motor_speed);
 bool get_motor_direction(){ return motors[last_entered_motor_menu].dir(); }
 void set_motor_direction_left(){ motors[last_entered_motor_menu].dir(true); }
 void set_motor_direction_right(){ motors[last_entered_motor_menu].dir(false); }
-MenuItemToggleCallable motor_direction(&get_motor_direction, "Direction: left", "Direction: right", &set_motor_direction_right, &set_motor_direction_left);
+MenuItemToggleCallable motor_direction(&get_motor_direction, "Direction: left", "Direction: right",
+  &set_motor_direction_right, &set_motor_direction_left);
 
 
 // motor double edge
 bool is_motor_dedge_on(){ return motors[last_entered_motor_menu].driver.dedge(); }
 void do_motor_dedge_on(){ motors[last_entered_motor_menu].driver.dedge(true); }
 void do_motor_dedge_off(){ motors[last_entered_motor_menu].driver.dedge(false); }
-MenuItemToggleCallable motor_dedge_on_off(&is_motor_dedge_on, "Double edge: on", "Double edge: off", &do_motor_dedge_off, &do_motor_dedge_on);
+MenuItemToggleCallable motor_dedge_on_off(&is_motor_dedge_on, "Double edge: on", "Double edge: off",
+  &do_motor_dedge_off, &do_motor_dedge_on);
+
+
+// motor current
+MenuListMotorCurrent menu_motor_current;
+MenuItem motor_current("Current", &menu_motor_current);
 
 
 // motor microstepping
@@ -77,6 +81,29 @@ Menu menu_motor_stallguard_value(motor_stallguard_value_items, sizeof(motor_stal
 MenuItem motor_stallguard_value("Show stallGuard", &menu_motor_stallguard_value);
 
 
+// motor stallguard sensitivity
+MenuRangeMotorSgThreshold menu_motor_sg_threshold;
+MenuItem motor_sg_threshold("Stallgaurd sens.", &menu_motor_sg_threshold);
+
+
+// motor stop on stallguard
+bool is_motor_stop_on_stallguard_on(){ return motors[last_entered_motor_menu].print_stallguard_to_serial; }
+void do_motor_stop_on_stallguard_on(){ motors[last_entered_motor_menu].print_stallguard_to_serial = true; }
+void do_motor_stop_on_stallguard_off(){ motors[last_entered_motor_menu].print_stallguard_to_serial = false; }
+MenuItemToggleCallable motor_stop_on_stallguard_on_off(&is_motor_stop_on_stallguard_on,
+  "Echo Sg2serial: on", "Echo Sg2serial: off", &do_motor_stop_on_stallguard_off, &do_motor_stop_on_stallguard_on);
+
+
+// motor print stallguard to serial
+bool is_motor_stallguard_to_serial_on(){ return motors[last_entered_motor_menu].print_stallguard_to_serial; }
+void do_motor_stallguard_to_serial_on(){ motors[last_entered_motor_menu].print_stallguard_to_serial = true; }
+void do_motor_stallguard_to_serial_off(){ motors[last_entered_motor_menu].print_stallguard_to_serial = false; }
+MenuItemToggleCallable motor_stallguard_to_serial_on_off(&is_motor_stallguard_to_serial_on,
+  "Echo Sg2serial: on", "Echo Sg2serial: off", &do_motor_stallguard_to_serial_off, &do_motor_stallguard_to_serial_on);
+
+
+
+
 // motor
 MenuItem* motor_items[] = {
   &back,
@@ -85,6 +112,9 @@ MenuItem* motor_items[] = {
   &motor_direction,
   &motor_start_stop,
   &motor_stallguard_value,
+  &motor_sg_threshold,
+  &motor_stallguard_to_serial_on_off,
+  &motor_current,
   &motor_msteps,
   &motor_blank_time,
   &motor_off_time,

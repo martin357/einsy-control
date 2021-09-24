@@ -1,6 +1,5 @@
 // #include <avr/pgmspace.h>
 #include <Arduino.h>
-#include "src/LiquidCrystal_Prusa.h"
 #include "menu_system_basics.h"
 #include "hardware.h"
 
@@ -327,6 +326,7 @@ void MenuRange<T>::move(int8_t amount){
 }
 
 
+template class MenuRange<int8_t>;
 template class MenuRange<uint8_t>;
 template class MenuRange<uint16_t>;
 

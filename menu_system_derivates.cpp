@@ -73,6 +73,32 @@ void MenuListMotorBlankTime::loop(){
 
 
 /*
+  menu list motor current
+*/
+uint16_t motor_current_items[] = {200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400};
+MenuListMotorCurrent::MenuListMotorCurrent():
+  MenuList("Current", &value, motor_current_items, sizeof(motor_current_items) / sizeof(motor_current_items[0])),
+  value(1){}
+
+
+void MenuListMotorCurrent::on_enter(){
+  value = motors[last_entered_motor_menu].driver.rms_current();
+  MenuList::on_enter();
+}
+
+
+void MenuListMotorCurrent::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.rms_current()) motors[last_entered_motor_menu].driver.rms_current(value);
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
   menu range motor off time
 */
 MenuRangeMotorOffTime::MenuRangeMotorOffTime():
@@ -119,6 +145,31 @@ void MenuRangeMotorRPM::loop(){
       motors[last_entered_motor_menu].target_rpm = -1.0;
       motors[last_entered_motor_menu].rpm(value);
     }
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
+  menu range motor sg threshold
+*/
+MenuRangeMotorSgThreshold::MenuRangeMotorSgThreshold():
+  MenuRange("Sg thres", value, -63, 63),
+  value(2){}
+
+
+void MenuRangeMotorSgThreshold::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].driver.sgt();
+}
+
+
+void MenuRangeMotorSgThreshold::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.sgt()) motors[last_entered_motor_menu].driver.sgt(value);
     last_loop = _millis;
   }
 }

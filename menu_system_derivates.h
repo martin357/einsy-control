@@ -31,6 +31,15 @@ public:
 };
 
 
+class MenuListMotorCurrent: public MenuList<uint16_t>{
+public:
+  MenuListMotorCurrent();
+  void on_enter();
+  void loop();
+  uint16_t value;
+};
+
+
 class MenuRangeMotorOffTime: public MenuRange<uint8_t>{
 public:
   MenuRangeMotorOffTime();
@@ -48,6 +57,14 @@ public:
   uint16_t value;
 };
 
+
+class MenuRangeMotorSgThreshold: public MenuRange<int8_t>{
+public:
+  MenuRangeMotorSgThreshold();
+  void on_enter();
+  void loop();
+  int8_t value;
+};
 
 
 #endif
