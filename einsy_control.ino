@@ -137,6 +137,12 @@ void setup() {
   menu_motor_stallguard_value.redraw_interval = 50;
   Serial.println("ready!");
 
+  /// custom stuff
+  motors[0].driver.rms_current(600);
+  motors[1].driver.rms_current(600);
+
+  motors[0].driver.sgt(6);
+  motors[1].driver.sgt(6);
 }
 
 

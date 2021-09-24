@@ -151,8 +151,42 @@ MenuRange<uint16_t> menu_timer5("OCR5A", *timer_ptr5, 1, 255);
 MenuItem timer5("OCR5A", &menu_timer5);
 
 
+
+/// custom stuff
+uint8_t rotations_no = 1;
+MenuRange<uint8_t> menu_rotations_no("Rotations no.:", rotations_no, 1, 255);
+MenuItem item_rotations_no("Rotations no.", &menu_rotations_no);
+
+
+void do_run_rotations(){
+  if(motors[0].steps_to_do || motors[1].steps_to_do){
+    beep(30);
+    return;
+  }
+  motors[0].on();
+  motors[0].dir(!motors[0].dir());
+  motors[0].steps_to_do = 200ul * motors[0].usteps;
+  motors[0].steps_to_do *= rotations_no;
+  motors[0].rpm(60.0);
+
+  motors[1].on();
+  motors[1].dir(!motors[0].dir());
+  motors[1].steps_to_do = 200ul * motors[1].usteps;
+  motors[1].steps_to_do *= rotations_no;
+  motors[1].rpm(60.0);
+
+  cli();
+  motors[0].ramp_to(120.0);
+  motors[1].ramp_to(120.0);
+  sei();
+}
+MenuItemCallable run_rotations("Single rotation", &do_run_rotations, false);
+
+
 // main menu
 MenuItem* main_menu_items[] = {
+  &item_rotations_no,
+  &run_rotations,
   &motor_x,
   &motor_y,
   &motor_z,
