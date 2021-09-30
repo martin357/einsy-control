@@ -99,8 +99,8 @@ public:
   volatile uint32_t steps_total;
 
   volatile float target_rpm;
-  float accel;
-  float decel;
+  uint16_t accel;
+  uint16_t decel;
 
   volatile uint32_t last_speed_change;
 

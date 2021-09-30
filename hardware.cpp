@@ -305,12 +305,12 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   steps_total(0),
 
   target_rpm(-1.0),
-  // accel(400.0),
-  // decel(800.0),
-  accel(40.0),
-  decel(120.0),
-  // accel(450.0),
-  // decel(1000.0),
+  // accel(400),
+  // decel(800),
+  accel(40),
+  decel(120),
+  // accel(450),
+  // decel(1000),
   // ramp_interval(30),
 
   last_speed_change(last_speed_change),

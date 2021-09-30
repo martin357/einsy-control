@@ -67,7 +67,7 @@ ISR(TIMER2_COMPA_vect){
 
           if(rpm_delta > 0.0){
             // accelerating
-            change_fraction = motors[i].accel / 1000 * delta_t;
+            change_fraction = motors[i].accel / 1000.0 * delta_t;
             rpm += change_fraction;
             if(rpm >= motors[i].target_rpm){
               rpm = motors[i].target_rpm;
@@ -76,7 +76,7 @@ ISR(TIMER2_COMPA_vect){
 
           }else{
             // decelerating
-            change_fraction = motors[i].decel / 1000 * delta_t;
+            change_fraction = motors[i].decel / 1000.0 * delta_t;
             rpm -= change_fraction;
             if(rpm <= motors[i].target_rpm){
               rpm = motors[i].target_rpm;
@@ -169,8 +169,8 @@ void setup() {
   motors[0].driver.sgt(12);
   motors[1].driver.sgt(12);
 
-  motors[0].accel = 200.0;
-  motors[1].accel = 200.0;
+  motors[0].accel = 800;
+  motors[1].accel = 800;
 }
 
 

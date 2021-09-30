@@ -173,3 +173,53 @@ void MenuRangeMotorSgThreshold::loop(){
     last_loop = _millis;
   }
 }
+
+
+
+/*
+  menu range motor accel
+*/
+MenuRangeMotorAccel::MenuRangeMotorAccel():
+  MenuRange("Accel [RPM2]", value, 1, 1200),
+  value(1){}
+
+
+void MenuRangeMotorAccel::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].accel;
+}
+
+
+void MenuRangeMotorAccel::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].accel) motors[last_entered_motor_menu].accel = value;
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
+  menu range motor decel
+*/
+MenuRangeMotorDecel::MenuRangeMotorDecel():
+  MenuRange("Decel [RPM2]", value, 1, 1200),
+  value(1){}
+
+
+void MenuRangeMotorDecel::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].decel;
+}
+
+
+void MenuRangeMotorDecel::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].decel) motors[last_entered_motor_menu].decel = value;
+    last_loop = _millis;
+  }
+}

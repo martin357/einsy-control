@@ -67,4 +67,22 @@ public:
 };
 
 
+class MenuRangeMotorAccel: public MenuRange<uint16_t>{
+public:
+  MenuRangeMotorAccel();
+  void on_enter();
+  void loop();
+  uint16_t value;
+};
+
+
+class MenuRangeMotorDecel: public MenuRange<uint16_t>{
+public:
+  MenuRangeMotorDecel();
+  void on_enter();
+  void loop();
+  uint16_t value;
+};
+
+
 #endif

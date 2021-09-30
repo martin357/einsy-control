@@ -25,6 +25,14 @@ MenuItemToggleCallable motor_start_stop(&is_motor_running, "Stop", "Run continuo
 MenuRangeMotorRPM menu_motor_speed;
 MenuItem motor_speed("Speed [RPM]", &menu_motor_speed);
 
+// motor accel
+MenuRangeMotorAccel menu_motor_accel;
+MenuItem motor_accel("Accel [RPM2]", &menu_motor_accel);
+
+// motor decel
+MenuRangeMotorAccel menu_motor_decel;
+MenuItem motor_decel("Decel [RPM2]", &menu_motor_decel);
+
 // motor direction
 bool get_motor_direction(){ return motors[last_entered_motor_menu].dir(); }
 void set_motor_direction_left(){ motors[last_entered_motor_menu].dir(true); }
@@ -111,6 +119,8 @@ MenuItem* motor_items[] = {
   &motor_speed,
   &motor_direction,
   &motor_start_stop,
+  &motor_accel,
+  &motor_decel,
   &motor_stallguard_value,
   &motor_sg_threshold,
   &motor_stop_on_stallguard_on_off,
