@@ -87,11 +87,11 @@ MenuItem motor_sg_threshold("Stallgaurd sens.", &menu_motor_sg_threshold);
 
 
 // motor stop on stallguard
-bool is_motor_stop_on_stallguard_on(){ return motors[last_entered_motor_menu].print_stallguard_to_serial; }
-void do_motor_stop_on_stallguard_on(){ motors[last_entered_motor_menu].print_stallguard_to_serial = true; }
-void do_motor_stop_on_stallguard_off(){ motors[last_entered_motor_menu].print_stallguard_to_serial = false; }
+bool is_motor_stop_on_stallguard_on(){ return motors[last_entered_motor_menu].stop_on_stallguard; }
+void do_motor_stop_on_stallguard_on(){ motors[last_entered_motor_menu].stop_on_stallguard = true; }
+void do_motor_stop_on_stallguard_off(){ motors[last_entered_motor_menu].stop_on_stallguard = false; }
 MenuItemToggleCallable motor_stop_on_stallguard_on_off(&is_motor_stop_on_stallguard_on,
-  "Echo Sg2serial: on", "Echo Sg2serial: off", &do_motor_stop_on_stallguard_off, &do_motor_stop_on_stallguard_on);
+  "Stop on SG: on", "Stop on SG: off", &do_motor_stop_on_stallguard_off, &do_motor_stop_on_stallguard_on);
 
 
 // motor print stallguard to serial
@@ -113,6 +113,7 @@ MenuItem* motor_items[] = {
   &motor_start_stop,
   &motor_stallguard_value,
   &motor_sg_threshold,
+  &motor_stop_on_stallguard_on_off,
   &motor_stallguard_to_serial_on_off,
   &motor_current,
   &motor_msteps,
@@ -132,23 +133,33 @@ MenuItem motor_e("Motor E", &menu_motor_e);
 
 // OCR1A
 uint16_t* timer_ptr1 = &OCR1A;
-MenuRange<uint16_t> menu_timer1("OCR1A", *timer_ptr1, 1, 255);
+MenuRange<uint16_t> menu_timer1("OCR1A", *timer_ptr1, 1, 65535);
 MenuItem timer1("OCR1A", &menu_timer1);
 
 // OCR3A
 uint16_t* timer_ptr3 = &OCR3A;
-MenuRange<uint16_t> menu_timer3("OCR3A", *timer_ptr3, 1, 255);
+MenuRange<uint16_t> menu_timer3("OCR3A", *timer_ptr3, 1, 65535);
 MenuItem timer3("OCR3A", &menu_timer3);
 
 // OCR4A
 uint16_t* timer_ptr4 = &OCR4A;
-MenuRange<uint16_t> menu_timer4("OCR4A", *timer_ptr4, 1, 255);
+MenuRange<uint16_t> menu_timer4("OCR4A", *timer_ptr4, 1, 65535);
 MenuItem timer4("OCR4A", &menu_timer4);
 
 // OCR5A
 uint16_t* timer_ptr5 = &OCR5A;
-MenuRange<uint16_t> menu_timer5("OCR5A", *timer_ptr5, 1, 255);
+MenuRange<uint16_t> menu_timer5("OCR5A", *timer_ptr5, 1, 65535);
 MenuItem timer5("OCR5A", &menu_timer5);
+
+// OCR2A
+uint8_t* timer_ptr2a = &OCR2A;
+MenuRange<uint8_t> menu_timer2a("OCR2A", *timer_ptr2a, 1, 255);
+MenuItem timer2a("OCR2A", &menu_timer2a);
+
+// OCR2B
+uint8_t* timer_ptr2b = &OCR2B;
+MenuRange<uint8_t> menu_timer2b("OCR2B", *timer_ptr2b, 1, 255);
+MenuItem timer2b("OCR2B", &menu_timer2b);
 
 
 
@@ -192,6 +203,8 @@ MenuItem* main_menu_items[] = {
   &motor_z,
   &motor_e,
   &timer1,
+  &timer2a,
+  &timer2b,
   &timer3,
   &timer4,
   &timer5,

@@ -149,7 +149,7 @@ void setupMotors(){
   OCR2A = 0xFF;
   TCCR2A |= (1 << WGM21);
   TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);
-  TIMSK2 |= (1 << OCIE2A);
+  TIMSK2 |= (1 << OCIE2A) | (1 << OCIE2B);
 
   SETUP_TIMER(1);
   SETUP_TIMER(3);
@@ -295,6 +295,8 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   step_bit(step_bit),
   driver(cs_pin, 0.2f),
   usteps(16),
+  pause_steps(false),
+  enabled(false),
   stop_on_stallguard(true),
   print_stallguard_to_serial(false),
   running(false),
@@ -338,6 +340,7 @@ void Motor::on(){
 
 void Motor::off(){
   digitalWriteExt(enable_pin, HIGH);
+  stop();
   if(millis() > 300) SERIAL_PRINTLN("off");
 }
 
@@ -350,6 +353,7 @@ bool Motor::is_on(){
 void Motor::start(bool start_running){
   if(!is_on()) on();
   running = start_running;
+  enabled = true;
   *timer_counter_port = 0;
   *timer_enable_port |= (1 << timer_enable_bit);
   if(millis() > 300) SERIAL_PRINTLN("start");
@@ -358,6 +362,7 @@ void Motor::start(bool start_running){
 
 void Motor::stop(){
   *timer_enable_port = 0;
+  enabled = false;
   running = false;
   steps_to_do = 0;
   ramp_off();
@@ -469,14 +474,101 @@ MotorStallguardInfo Motor::get_stallguard_info(){
 }
 
 
+uint8_t Motor::next_queue_index(){
+  return queue_index + 1 >= MOTOR_QUEUE_LEN ? 0 : queue_index + 1;
+}
+
+
+void Motor::set_queue_item(uint8_t index, MotorQueueItemType type, uint32_t steps = 0, uint16_t rpm = 0){
+  queue[index].type = type;
+  queue[index].steps = steps;
+  queue[index].rpm = rpm;
+}
+
+
+bool Motor::process_next_queue_item(){
+  Serial.print("PNQ=");
+  uint8_t next = next_queue_index();
+  Serial.println(next);
+
+  if(queue[next].type == MotorQueueItemType::NOOP){
+    Serial.println(" empty, stopping");
+    stop();
+    return false;
+  }
+
+  switch (queue[next].type) {
+    case MotorQueueItemType::RUN_CONTINUOUS: {
+      stop_on_stallguard = false;
+      start(true);
+      Serial.println(" run cont");
+      break;
+    }
+    case MotorQueueItemType::RUN_UNTIL_STALLGUARD: {
+      stop_on_stallguard = true;
+      start(true);
+      Serial.println(" run until sg");
+      break;
+    }
+    case MotorQueueItemType::DO_STEPS: {
+      if(queue[next].rpm > 0) rpm(queue[next].rpm);
+      steps_to_do += queue[next].steps;
+
+      Serial.println(" do steps");
+      if(queue[next].rpm > 0){
+        Serial.print(" new rpm ");
+        Serial.println(queue[next].rpm);
+      }
+      break;
+    }
+    case MotorQueueItemType::DO_STEPS_WITH_RAMP: {
+      Serial.println(" do steps w/ ramp");
+      if(queue[next].rpm > 0) rpm(queue[next].rpm);
+      steps_to_do += queue[next].steps;
+      break;
+    }
+
+  }
+  memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
+  queue_index = next;
+  debugPrintQueue();
+  return true;
+
+}
+
+
+void Motor::debugPrintQueue(){
+  for (size_t i = 0; i < MOTOR_QUEUE_LEN; i++) {
+    if(queue_index == i) Serial.print("-> ");
+    Serial.print(i);
+    Serial.print(":\tT:");
+    Serial.print(queue[i].type);
+    Serial.print("\tsteps:");
+    Serial.print(queue[i].steps);
+    Serial.print("\trpm:");
+    Serial.print(queue[i].rpm);
+    Serial.println();
+  }
+}
+
+
 // stepping timer
-#define TIMER_ISR(t, m) ISR(TIMER##t##_COMPA_vect){ \
+#define TIMER_ISR(t, m) ISR(TIMER##t##_COMPA_vect){  \
+  if(motors[m].running) return;  \
   if(motors[m].running){  \
-    motors[m].step(); \
+    motors[m].step();  \
   }else if(motors[m].steps_to_do){  \
     motors[m].steps_to_do--;  \
-    motors[m].step(); \
-  } \
+    motors[m].step();  \
+  /*}else{  \
+    cli();  \
+    Serial.println("[e]");  \
+    motors[m].process_next_queue_item();  \
+    Serial.print("s2d=");  \
+    Serial.println(motors[m].steps_to_do);  \
+    Serial.flush();  \
+    sei();*/  \
+  }  \
 }
 TIMER_ISR(1, 0)
 TIMER_ISR(3, 1)

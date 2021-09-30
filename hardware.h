@@ -15,6 +15,7 @@
 #endif
 
 #define FSTEPS_PER_REVOLUTION 200
+#define MOTOR_QUEUE_LEN 8
 #define MOTORS_PRESCALER  8
 #define MOTORS_MAX  4
 #define MOTOR_X 0
@@ -35,6 +36,22 @@ uint16_t rpm2ocr(float, uint16_t);
 uint16_t rps2ocr(float, uint16_t);
 float ocr2rpm(uint16_t, uint16_t);
 float ocr2rps(uint16_t, uint16_t);
+
+
+enum MotorQueueItemType: uint8_t {
+  NOOP = 0,
+  RUN_CONTINUOUS,
+  RUN_UNTIL_STALLGUARD,
+  DO_STEPS,
+  DO_STEPS_WITH_RAMP,
+};
+
+
+struct MotorQueueItem {
+  MotorQueueItemType type;
+  uint32_t steps;
+  uint16_t rpm;
+};
 
 
 struct MotorStallguardInfo {
@@ -72,6 +89,8 @@ public:
   uint8_t step_bit;
   TMC2130Stepper driver;
   uint16_t usteps;
+  bool pause_steps;
+  bool enabled;
   bool stop_on_stallguard;
   bool print_stallguard_to_serial;
   volatile bool running;
@@ -84,6 +103,13 @@ public:
   float decel;
 
   volatile uint32_t last_speed_change;
+
+  volatile uint8_t queue_index;
+  MotorQueueItem queue[MOTOR_QUEUE_LEN] = {0};
+  uint8_t next_queue_index();
+  void set_queue_item(uint8_t, MotorQueueItemType, uint32_t, uint16_t);
+  bool process_next_queue_item();
+  void debugPrintQueue();
 private:
   volatile float _rpm;
   uint16_t* timer_compare_port;

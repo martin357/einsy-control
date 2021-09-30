@@ -8,10 +8,35 @@ uint16_t print_stallguard_to_serial_interval = 50;
 uint32_t last_stallguard_print_to_serial = 0;
 
 
+uint16_t counter = 0;
+
+
+// motors queue handling
+ISR(TIMER2_COMPB_vect){
+  // counter++;
+
+  for(size_t i = 0; i < MOTORS_MAX; i++){
+    if(motors[i].enabled && !motors[i].running && motors[i].steps_to_do == 0){
+      // cli();
+      if(motors[i].process_next_queue_item()){
+        Serial.println("[e]");
+        Serial.print("s2d=");
+        Serial.println(motors[i].steps_to_do);
+        // Serial.flush();
+
+      }
+      // sei();
+    }
+  }
+}
+
+
+// acceleration handling
 ISR(TIMER2_COMPA_vect){
   static uint8_t cnt = 0;
   static uint32_t last_tick = 0;
   if(cnt++ >= 5){ // 5=100ms interval
+    // counter++;
     uint32_t _millis = millis();
     // Serial.print("acc:");
     // uint32_t delta_t = _millis - last_tick;
@@ -138,16 +163,31 @@ void setup() {
   Serial.println("ready!");
 
   /// custom stuff
-  motors[0].driver.rms_current(600);
-  motors[1].driver.rms_current(600);
+  motors[0].driver.rms_current(800);
+  motors[1].driver.rms_current(800);
 
-  motors[0].driver.sgt(6);
-  motors[1].driver.sgt(6);
+  motors[0].driver.sgt(12);
+  motors[1].driver.sgt(12);
+
+  motors[0].accel = 200.0;
+  motors[1].accel = 200.0;
 }
 
 
 void loop() {
   uint32_t _millis = millis();
+
+  static uint32_t last_report = 0;
+  if(_millis > last_report + 1000){
+    uint16_t cnt = counter;
+    counter = 0;
+    if(cnt){
+      Serial.print(cnt);
+      Serial.print("\t");
+      Serial.println(1000.0 / cnt);
+    }
+    last_report = _millis;
+  }
 
   readEncoder();
 
@@ -203,8 +243,18 @@ void loop() {
       motors[0].on();
 
       motors[0].steps_to_do += 200ul * motors[0].usteps;
-      motors[0].start();
       uint32_t steps_to_do = motors[0].steps_to_do;
+      motors[0].start();
+
+      // test motor queue
+      uint8_t next = motors[0].next_queue_index();
+      motors[0].set_queue_item(next, MotorQueueItemType::DO_STEPS, 6400, 60);
+      motors[0].set_queue_item(next + 1, MotorQueueItemType::DO_STEPS, 1200, 30);
+      motors[0].set_queue_item(next + 2, MotorQueueItemType::DO_STEPS, 12800, 120);
+      motors[0].set_queue_item(next + 3, MotorQueueItemType::DO_STEPS, 12800, 120);
+      motors[0].set_queue_item(next + 4, MotorQueueItemType::DO_STEPS, 12800, 120);
+
+      motors[0].debugPrintQueue();
 
       Serial.print("Motor X do ");
       Serial.print(steps_to_do);
@@ -227,21 +277,17 @@ void loop() {
         motors[i].ramp_to(0.0);
       }
 
-    // }else if(ch == 'd'){
-    //   for (size_t i = 0; i < MOTORS_MAX; i++) {
-    //     motors[i].do_delay = !motors[i].do_delay;
-    //   }
-    //   Serial.print("do delay: ");
-    //   Serial.println(motors[0].do_delay ? "true" : "false");
-    //
-    // }else if(ch == 'b'){
-    //   for (size_t i = 0; i < MOTORS_MAX; i++) {
-    //     motors[i].do_toggle = !motors[i].do_toggle;
-    //   }
-    //   Serial.print("do toggle: ");
-    //   Serial.println(motors[0].do_toggle ? "true" : "false");
+    }else if(ch == 'm'){
+      Serial.println("start motor0");
+      Serial.print("queue index = ");
+      Serial.println(motors[0].queue_index);
+      motors[0].start();
+
+    }else if(ch == 'd'){
+      motors[0].debugPrintQueue();
 
     }
+
   }
 
   static bool motor_moving = false;
