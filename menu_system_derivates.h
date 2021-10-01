@@ -1,6 +1,4 @@
-#ifndef _menu_system_derivates_h_
-#define _menu_system_derivates_h_
-
+#pragma once
 #include "menu_system_basics.h"
 
 
@@ -83,6 +81,3 @@ public:
   void loop();
   uint16_t value;
 };
-
-
-#endif

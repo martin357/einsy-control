@@ -1,6 +1,4 @@
-// #include <avr/pgmspace.h>
 #include <Arduino.h>
-// #include "src/LiquidCrystal_Prusa.h"
 #include "menu_system_derivates.h"
 #include "hardware.h"
 

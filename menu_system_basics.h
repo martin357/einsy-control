@@ -1,7 +1,4 @@
-#ifndef _menu_system_basics_h_
-#define _menu_system_basics_h_
-
-
+#pragma once
 #define COUNT_ARRAY_ITEMS(X) (sizeof(X) / sizeof(X[0]))
 
 
@@ -144,7 +141,3 @@ extern MenuItemBack back;
 extern Menu* current_menu;
 extern uint8_t last_entered_motor_menu;
 extern uint32_t last_menu_redraw;
-
-
-
-#endif

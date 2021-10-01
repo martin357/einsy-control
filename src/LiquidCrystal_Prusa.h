@@ -1,7 +1,6 @@
 #pragma once
 
 #include <inttypes.h>
-// #include "defines.h"
 #include "../pins.h"
 #include "simple_print.h"
 

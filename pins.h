@@ -1,6 +1,4 @@
-#ifndef _pins_h_
-#define _pins_h_
-
+#pragma once
 void pinModeInput(const uint8_t, const bool = false);
 void pinModeOutput(const uint8_t);
 bool digitalReadExt(const uint8_t);
@@ -300,5 +298,3 @@ void digitalWriteExt(const uint8_t, const bool);
 // 	/* Put data into buffer, sends the data */ \
 // 	LOGIC_ANALYZER_SERIAL_TX_WRITE_NC(C); \
 // } while (0)
-
-#endif

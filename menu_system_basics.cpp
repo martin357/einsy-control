@@ -1,4 +1,3 @@
-// #include <avr/pgmspace.h>
 #include <Arduino.h>
 #include "menu_system_basics.h"
 #include "hardware.h"

@@ -1,6 +1,6 @@
-// #include <stdint.h>
 #include "pins.h"
 #include "hardware.h"
+#include "serial.h"
 #include "menu_system_derivates.h"
 #include "menus.h"
 
@@ -11,144 +11,10 @@ uint32_t last_stallguard_print_to_serial = 0;
 uint16_t counter = 0;
 
 
-// motors queue handling
-ISR(TIMER2_COMPB_vect){
-  // counter++;
-
-  for(size_t i = 0; i < MOTORS_MAX; i++){
-    if(motors[i].enabled && !motors[i].running && motors[i].steps_to_do == 0){
-      // cli();
-      if(motors[i].process_next_queue_item()){
-        Serial.println("[e]");
-        Serial.print("s2d=");
-        Serial.println(motors[i].steps_to_do);
-        // Serial.flush();
-
-      }
-      // sei();
-    }
-  }
-}
-
-
-// acceleration handling
-ISR(TIMER2_COMPA_vect){
-  static uint8_t cnt = 0;
-  static uint32_t last_tick = 0;
-  if(cnt++ >= 5){ // 5=100ms interval
-    // counter++;
-    uint32_t _millis = millis();
-    // Serial.print("acc:");
-    // uint32_t delta_t = _millis - last_tick;
-
-    // Serial.print("tD:");
-    // Serial.println(delta_t);
-
-    cli();
-    for(size_t i = 0; i < MOTORS_MAX; i++){
-      // Serial.print(i);
-      if((motors[i].target_rpm >= 0.0) && (motors[i].running || motors[i].steps_to_do)){
-        SERIAL_PRINT("M");
-        SERIAL_PRINT(i);
-        SERIAL_PRINT(": ");
-        // SERIAL_PRINT(bool(motors[i].target_rpm >= 0.0) ? '1' : '0');
-        // SERIAL_PRINT(bool(motors[i].running || motors[i].steps_to_do) ? '1' : '0');
-        // SERIAL_PRINT(bool(_millis >= motors[i].last_speed_change + motors[i].ramp_interval) ? '1' : '0');
-        // SERIAL_PRINT(" ");
-        SERIAL_PRINT(motors[i].target_rpm);
-        SERIAL_PRINT("\t");
-
-        float rpm = motors[i].rpm();
-        float rpm_delta = motors[i].target_rpm - rpm;
-        // if(abs(rpm_delta) > 1.0){
-          // SERIAL_PRINTLN("ramp");
-          uint16_t delta_t = _millis - motors[i].last_speed_change;
-          float change_fraction;
-
-          if(rpm_delta > 0.0){
-            // accelerating
-            change_fraction = motors[i].accel / 1000.0 * delta_t;
-            rpm += change_fraction;
-            if(rpm >= motors[i].target_rpm){
-              rpm = motors[i].target_rpm;
-              motors[i].target_rpm = -1.0;  // stop ramping since we reached set
-            }
-
-          }else{
-            // decelerating
-            change_fraction = motors[i].decel / 1000.0 * delta_t;
-            rpm -= change_fraction;
-            if(rpm <= motors[i].target_rpm){
-              rpm = motors[i].target_rpm;
-              motors[i].target_rpm = -1.0;  // stop ramping since we reached set
-            }
-
-          }
-
-          SERIAL_PRINT("rpmD ");
-          SERIAL_PRINT(rpm_delta);
-          SERIAL_PRINT("\ttD ");
-          SERIAL_PRINT(delta_t);
-          SERIAL_PRINT("\tchF ");
-          SERIAL_PRINT(change_fraction);
-          SERIAL_PRINT("\trpmN ");
-          SERIAL_PRINT(rpm);
-          SERIAL_PRINTLN();
-
-          motors[i].rpm(rpm);
-
-          // }
-
-          motors[i].last_speed_change = _millis;
-        }
-
-    }
-    sei();
-    // Serial.print(" ");
-    // Serial.print(_millis - last_tick);
-    // Serial.println();
-
-
-    last_tick = _millis;
-    cnt = 0;
-  }
-  // counter2++;
-}
-
-
-// stallguard pin change interrupt
-ISR(PCINT2_vect){
-  const bool sg[MOTORS_MAX] = {
-    PINK & (1 << PINK2), // X_DIAG
-    PINK & (1 << PINK7), // Y_DIAG
-    PINK & (1 << PINK6), // Z_DIAG
-    PINK & (1 << PINK3), // E0_DIAG
-  };
-
-  for(size_t i = 0; i < MOTORS_MAX; i++){
-    motors[i].stallguard_triggered = sg[i];
-    if(motors[i].stop_on_stallguard && sg[i]){
-      const float rpm = motors[i].rpm();
-      motors[i].stop();
-      Serial.print("Motor ");
-      Serial.print(i);
-      Serial.print(" stalled at ");
-      Serial.print(rpm);
-      Serial.print(" RPM!");
-      Serial.println();
-      beep(30);
-
-    }
-
-  }
-
-}
-
-
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(250000);
   Serial.setTimeout(100);
-  Serial.println("init...");
+  Serial.println(F("init..."));
 
   setupPins();
   SPI.begin();
@@ -160,7 +26,7 @@ void setup() {
   current_menu->draw();
 
   menu_motor_stallguard_value.redraw_interval = 50;
-  Serial.println("ready!");
+  Serial.println(F("ready!"));
 
   /// custom stuff
   motors[0].driver.rms_current(800);
@@ -169,8 +35,11 @@ void setup() {
   motors[0].driver.sgt(12);
   motors[1].driver.sgt(12);
 
-  motors[0].accel = 800;
-  motors[1].accel = 800;
+  // motors[0].accel = 800;
+  // motors[1].accel = 800;
+  motors[0].accel = 40;
+  motors[1].accel = 40;
+
 }
 
 
@@ -212,6 +81,8 @@ void loop() {
     digitalWriteExt(BEEPER, LOW);
   }
 
+  handleSerial();
+
   if(_millis >= last_stallguard_print_to_serial + print_stallguard_to_serial_interval){
     // bool printed_something = false;
     for(size_t i = 0; i < MOTORS_MAX; i++){
@@ -237,7 +108,8 @@ void loop() {
   }
 
 
-  if(Serial.available()){
+  // if(Serial.available()){
+  if(0){
     char ch = Serial.read();
     if(ch == 'r'){
       motors[0].on();
@@ -248,11 +120,12 @@ void loop() {
 
       // test motor queue
       uint8_t next = motors[0].next_queue_index();
-      motors[0].set_queue_item(next, MotorQueueItemType::DO_STEPS, 6400, 60);
-      motors[0].set_queue_item(next + 1, MotorQueueItemType::DO_STEPS, 1200, 30);
-      motors[0].set_queue_item(next + 2, MotorQueueItemType::DO_STEPS, 12800, 120);
-      motors[0].set_queue_item(next + 3, MotorQueueItemType::DO_STEPS, 12800, 120);
-      motors[0].set_queue_item(next + 4, MotorQueueItemType::DO_STEPS, 12800, 120);
+      motors[0].set_queue_item(next, MotorQueueItemType::DO_STEPS, 0, 1);
+      motors[0].set_queue_item(next + 1, MotorQueueItemType::DO_STEPS_WITH_RAMP, 12800, 60);
+      motors[0].set_queue_item(next + 2, MotorQueueItemType::DO_STEPS, 1200, 30);
+      motors[0].set_queue_item(next + 3, MotorQueueItemType::DO_STEPS_WITH_RAMP, 12800, 120);
+      motors[0].set_queue_item(next + 4, MotorQueueItemType::DO_STEPS_WITH_RAMP, 12800, 60);
+      motors[0].set_queue_item(next + 5, MotorQueueItemType::DO_STEPS_WITH_RAMP, 12800, 120);
 
       motors[0].debugPrintQueue();
 
@@ -309,6 +182,21 @@ void loop() {
 
     last_motor_change = _millis;
     motor_moving = new_motor_moving;
+  }
+
+  for(size_t i = 0; i < MOTORS_MAX; i++){
+    if(motors[i].stallguard_triggered){
+      motors[i].stallguard_triggered = false;
+      const float rpm = motors[i].rpm();
+      Serial.print("Motor ");
+      Serial.print("XYZE"[i]);
+      Serial.print(" stalled at ");
+      Serial.print(rpm);
+      Serial.print(" RPM!");
+      Serial.println();
+
+    }
+
   }
 
 }
