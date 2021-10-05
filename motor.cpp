@@ -47,45 +47,57 @@ void setupMotorTimers(){
 }
 
 
-float rpm2rps(float rpm){
+int8_t axis2motor(const char axis){
+  for (size_t i = 0; i < MOTORS_MAX; i++) if(motors[i].axis == axis) return i;
+  return -1;
+}
+
+
+float _rpm2rps(float rpm){
   return rpm / 60;
 }
 
 
-uint16_t rps2sps(float rps, uint16_t usteps){
+uint16_t _rps2sps(float rps, uint16_t usteps){
   return uint16_t(FSTEPS_PER_REVOLUTION * usteps * rps);
 }
 
 
-uint16_t sps2ocr(uint16_t sps){
+uint16_t _sps2ocr(uint16_t sps){
   return F_CPU / MOTORS_PRESCALER / sps;
 }
 
 
-uint16_t rpm2ocr(float rpm, uint16_t usteps){
-  return rps2ocr(rpm / 60, usteps);
+uint16_t _rpm2ocr(float rpm, uint16_t usteps){
+  return _rps2ocr(rpm / 60, usteps);
 }
 
 
-uint16_t rps2ocr(float rps, uint16_t usteps){
+uint16_t _rps2ocr(float rps, uint16_t usteps){
   return F_CPU / MOTORS_PRESCALER / (FSTEPS_PER_REVOLUTION * usteps * rps);
 }
 
 
-float ocr2rpm(uint16_t ocr, uint16_t usteps){
-  return ocr2rps(ocr, usteps) * 60;
+float _ocr2rpm(uint16_t ocr, uint16_t usteps){
+  return _ocr2rps(ocr, usteps) * 60;
 }
 
 
-float ocr2rps(uint16_t ocr, uint16_t usteps){
+float _ocr2rps(uint16_t ocr, uint16_t usteps){
   return F_CPU / MOTORS_PRESCALER / ocr / usteps / FSTEPS_PER_REVOLUTION;
+}
+
+
+float _rot2usteps(float rot, uint16_t usteps){
+  return rot * usteps * FSTEPS_PER_REVOLUTION;
 }
 
 
 
 Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_pin, uint8_t diag_pin,
     uint8_t* step_port, uint8_t step_bit, uint16_t* timer_compare_port, uint16_t* timer_counter_port,
-    uint8_t* timer_enable_port, uint8_t timer_enable_bit):
+    uint8_t* timer_enable_port, uint8_t timer_enable_bit, const char axis):
+  axis(axis),
   step_pin(step_pin),
   dir_pin(dir_pin),
   enable_pin(enable_pin),
@@ -134,14 +146,12 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
 
 void Motor::on(){
   digitalWriteExt(enable_pin, LOW);
-  if(millis() > 300) SERIAL_PRINTLN("on");
 }
 
 
 void Motor::off(){
   digitalWriteExt(enable_pin, HIGH);
   stop();
-  if(millis() > 300) SERIAL_PRINTLN("off");
 }
 
 
@@ -156,7 +166,6 @@ void Motor::start(bool start_running){
   enabled = true;
   *timer_counter_port = 0;
   *timer_enable_port |= (1 << timer_enable_bit);
-  if(millis() > 300) SERIAL_PRINTLN("start");
 }
 
 
@@ -166,7 +175,6 @@ void Motor::stop(){
   running = false;
   steps_to_do = 0;
   ramp_off();
-  if(millis() > 300) SERIAL_PRINTLN("stop");
 }
 
 
@@ -209,7 +217,7 @@ void Motor::microsteps(uint16_t microstepping){
 
 void Motor::rpm(float value){
   _rpm = value;
-  uint32_t ocr = rpm2ocr(value, usteps);
+  uint32_t ocr = rpm2ocr(value);
   if(ocr < 70) ocr = 70;
   if(ocr > 65535) ocr = 65535;
 
@@ -261,6 +269,11 @@ void Motor::ramp_off(){
 }
 
 
+bool Motor::is_expecting_stallguard(){
+  return (queue[queue_index].type == MotorQueueItemType::RUN_UNTIL_STALLGUARD);
+}
+
+
 MotorStallguardInfo Motor::get_stallguard_info(){
   TMC2130_n::DRV_STATUS_t drv_status{0};
   drv_status.sr = driver.DRV_STATUS();
@@ -274,57 +287,144 @@ MotorStallguardInfo Motor::get_stallguard_info(){
 }
 
 
+float Motor::rot2usteps(float rot){
+  return _rot2usteps(rot, usteps);
+}
+
+
+uint16_t Motor::rpm2ocr(float rpm){
+  return _rpm2ocr(rpm, usteps);
+}
+
+
 uint8_t Motor::next_queue_index(){
   return queue_index + 1 >= MOTOR_QUEUE_LEN ? 0 : queue_index + 1;
 }
 
 
-void Motor::set_queue_item(uint8_t index, MotorQueueItemType type, uint32_t steps = 0, uint16_t rpm = 0){
+int16_t Motor::next_empty_queue_index(){
+  uint8_t next = queue_index;
+  for (size_t i = 0; i < MOTOR_QUEUE_LEN - 1; i++) {
+    if(++next >= MOTOR_QUEUE_LEN) next = 0;
+    if(queue[next].processed || queue[next].type == MotorQueueItemType::NOOP) return next;
+  }
+  return -1;
+}
+
+
+void Motor::set_queue_item(uint8_t index, MotorQueueItemType type, uint32_t value){
+  while(index >= MOTOR_QUEUE_LEN) index -= MOTOR_QUEUE_LEN;
   queue[index].type = type;
-  queue[index].steps = steps;
-  queue[index].rpm = rpm;
+  queue[index].value = value;
+  queue[index].processed = false;
+}
+
+
+bool Motor::set_next_empty_queue_item(MotorQueueItemType type, uint32_t value){
+  const int16_t empty = next_empty_queue_index();
+  if(empty < 0) return false;
+  set_queue_item(empty, type, value);
+  return true;
+}
+
+
+void Motor::empty_queue(){
+  queue_index = 0;
+  memset(&queue, 0, sizeof(queue));
 }
 
 
 bool Motor::process_next_queue_item(){
-  Serial.print("PNQ=");
+  Serial.print(F("PNQ="));
   uint8_t next = next_queue_index();
   Serial.println(next);
 
   if(queue[next].processed || queue[next].type == MotorQueueItemType::NOOP){
-    Serial.println(" empty, stopping");
+    Serial.println(F(" empty, stopping"));
     stop();
     return false;
   }
 
   switch (queue[next].type) {
+    case MotorQueueItemType::TURN_ON: {
+      on();
+      Serial.println(F(" turn on"));
+      break;
+    }
+    case MotorQueueItemType::TURN_OFF: {
+      off();
+      Serial.println(F(" turn off"));
+      break;
+    }
+    case MotorQueueItemType::STOP: {
+      stop();
+      Serial.println(F(" stop"));
+      break;
+    }
     case MotorQueueItemType::RUN_CONTINUOUS: {
       stop_on_stallguard = false;
       start(true);
-      Serial.println(" run cont");
+      Serial.println(F(" run cont"));
       break;
     }
     case MotorQueueItemType::RUN_UNTIL_STALLGUARD: {
-      stop_on_stallguard = true;
+      // stop_on_stallguard = true;
       start(true);
-      Serial.println(" run until sg");
+      Serial.println(F(" run until sg"));
       break;
     }
     case MotorQueueItemType::DO_STEPS: {
-      if(queue[next].rpm > 0) rpm(queue[next].rpm);
-      steps_to_do += queue[next].steps;
+      steps_to_do += queue[next].value;
 
-      Serial.println(" do steps");
-      if(queue[next].rpm > 0){
-        Serial.print(" new rpm ");
-        Serial.println(queue[next].rpm);
-      }
+      Serial.println(F(" do steps"));
       break;
     }
-    case MotorQueueItemType::DO_STEPS_WITH_RAMP: {
-      Serial.println(" do steps w/ ramp");
-      if(queue[next].rpm > 0) ramp_to(queue[next].rpm);
-      steps_to_do += queue[next].steps;
+    case MotorQueueItemType::RAMP_TO: {
+      // *reinterpret_cast<float*>(&queue[next].value)
+      ramp_to(queue[next].value / 100.0);
+
+      Serial.println(F(" do steps w/ ramp"));
+      break;
+    }
+    case MotorQueueItemType::SET_DIRECTION: {
+      dir((bool)queue[next].value);
+
+      Serial.println(F(" set direction"));
+      break;
+    }
+    case MotorQueueItemType::SET_RPM: {
+      rpm(queue[next].value / 100.0);
+
+      Serial.print(F(" set rpm to "));
+      Serial.println(_rpm);
+      break;
+    }
+    case MotorQueueItemType::SET_ACCEL: {
+      accel = queue[next].value / 100.0;
+
+      Serial.print(F(" set accel to "));
+      Serial.print(accel);
+      Serial.println();
+      break;
+    }
+    case MotorQueueItemType::SET_DECEL: {
+      decel = queue[next].value / 100.0;
+
+      Serial.print(F(" set decel to "));
+      Serial.print(decel);
+      Serial.println();
+      break;
+    }
+    case MotorQueueItemType::SET_STOP_ON_STALLGUARD: {
+      stop_on_stallguard = (bool)queue[next].value;
+
+      Serial.println(F(" set stop-on-stallguard"));
+      break;
+    }
+    case MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL: {
+      print_stallguard_to_serial = (bool)queue[next].value;
+
+      Serial.println(F(" set print sg to serial"));
       break;
     }
 
@@ -340,14 +440,15 @@ bool Motor::process_next_queue_item(){
 
 void Motor::debugPrintQueue(){
   for (size_t i = 0; i < MOTOR_QUEUE_LEN; i++) {
-    if(queue_index == i) Serial.print("-> ");
+    if(queue_index == i) Serial.print(F("-> "));
     Serial.print(i);
-    Serial.print(":\tT:");
+    Serial.print(F(":\tT:"));
     Serial.print(queue[i].type);
-    Serial.print("\tsteps:");
-    Serial.print(queue[i].steps);
-    Serial.print("\trpm:");
-    Serial.print(queue[i].rpm);
+
+    Serial.print(queue[i].processed ? F("\t[x]") : F("\t[ ]"));
+
+    Serial.print(F("\tv:"));
+    Serial.print(queue[i].value);
     Serial.println();
   }
 }
@@ -486,8 +587,21 @@ ISR(PCINT2_vect){
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(sg[i]){
-      motors[i].stallguard_triggered = true;
-      if(motors[i].stop_on_stallguard) motors[i].stop();
+      if(motors[i].is_expecting_stallguard()){
+        motors[i].running = false;
+        motors[i].pause_steps = true;
+        Serial.println("[sg]");
+        motors[i].process_next_queue_item();
+        Serial.print("s2d=");
+        Serial.println(motors[i].steps_to_do);
+        motors[i].steps_to_do = 0;
+        motors[i].pause_steps = false;
+
+      }else{
+        motors[i].stallguard_triggered = true;
+        if(motors[i].stop_on_stallguard) motors[i].stop();
+
+      }
     }
   }
 

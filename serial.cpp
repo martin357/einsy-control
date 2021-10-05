@@ -1,5 +1,6 @@
 #include "serial.h"
 #include "hardware.h"
+#include "gcode.h"
 
 
 uint8_t rx_buf_pos = 0;
@@ -25,7 +26,7 @@ void processCommand(const __FlashStringHelper *cmd){
 
 
 void processCommand(const char *cmd, size_t len){
-  // count param delimiters and record their positions
+  bool ok = true;
   rx_params = 0;
   memset(rx_command, 0, RX_COMMAND_LEN);
   memset(rx_param, 0, RX_PARAMS * RX_PARAM_LEN);
@@ -55,32 +56,27 @@ void processCommand(const char *cmd, size_t len){
   }
 
   strToLower(rx_command);
-  if(strstr_P(rx_command, F("mv")) || strstr_P(rx_command, F("move")) || strstr_P(rx_command, F("g0"))){
-    Serial.println(F("motor move!"));
-    for (size_t i = 0; i < rx_params; i++) {
-      const uint8_t len = strlen(rx_param[i]);
-      if(len > 1){
-        strToLower(rx_param[i]);
-        int index = -1;
-        int32_t value = atoi(&rx_param[i][1]);
-        switch (rx_param[i][0]) {
-          case 'x': index = 0; break;
-          case 'y': index = 1; break;
-          case 'z': index = 2; break;
-          case 'e': index = 3; break;
-        }
-
-        if(index > -1){
-          motors[index].start(true);
-          motors[index].ramp_to(value);
-        }
-
-      }
-    }
+  if(strcmp_P(rx_command, F("on"))) gcode_on();
+  else if(strcmp_P(rx_command, F("off"))) gcode_off();
+  else if(strcmp_P(rx_command, F("start"))) gcode_start();
+  else if(strcmp_P(rx_command, F("stop"))) gcode_stop();
+  else if(strcmp_P(rx_command, F("halt"))) gcode_halt();
+  else if(strcmp_P(rx_command, F("rpm"))) gcode_rpm();
+  else if(strcmp_P(rx_command, F("accel"))) gcode_accel();
+  else if(strcmp_P(rx_command, F("decel"))) gcode_decel();
+  else if(strcmp_P(rx_command, F("ramp")) || strcmp_P(rx_command, F("ramp_to"))) gcode_ramp_to();
+  else if(strcmp_P(rx_command, F("move_rot"))) gcode_move_rot();
+  else if(strcmp_P(rx_command, F("home"))) gcode_home();
+  else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
+  else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
+  else{
+    ok = false;
+    Serial.print(F("unknown command "));
+    Serial.println(rx_command);
   }
 
 
-  Serial.println("ok");
+  if(ok) Serial.println("ok");
 
 }
 
@@ -103,14 +99,14 @@ void handleSerial(){
 
 
 
-int strstr_P(const char *s1, const __FlashStringHelper *s2){
+bool strcmp_P(const char *s1, const __FlashStringHelper *s2){
   PGM_P ptr = reinterpret_cast<PGM_P>(s2);
   char buf[RX_BUF_LEN];
   size_t len = 0;
   while(1){
     if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
   }
-  return strstr(s1, buf);
+  return strcmp(s1, buf) == 0;
 }
 
 

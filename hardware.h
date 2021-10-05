@@ -18,6 +18,8 @@ void setupLcd();
 void setupMotors();
 void readEncoder();
 void beep(uint16_t = 200);
+void store_float_to_uint32(uint32_t*, const float);
+float read_float_from_uint32(uint32_t*);
 
 
 

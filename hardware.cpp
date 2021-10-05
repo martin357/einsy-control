@@ -5,12 +5,12 @@
 int8_t enc_diff = 0;
 uint8_t enc_click = 0;
 uint32_t beeper_off_at = 0;
-#define INIT_MOTOR(i, d, n) Motor(d##_STEP_PIN, d##_DIR_PIN, d##_ENABLE_PIN, d##_TMC2130_CS, d##_TMC2130_DIAG, &PORTC, PINC##i, &OCR##n##A, &TCNT##n, &TIMSK##n, OCIE##n##A)
+#define INIT_MOTOR(i, d, n, a) Motor(d##_STEP_PIN, d##_DIR_PIN, d##_ENABLE_PIN, d##_TMC2130_CS, d##_TMC2130_DIAG, &PORTC, PINC##i, &OCR##n##A, &TCNT##n, &TIMSK##n, OCIE##n##A, a)
 Motor motors[] = {
-  INIT_MOTOR(0, X, 1),
-  INIT_MOTOR(1, Y, 3),
-  INIT_MOTOR(2, Z, 4),
-  INIT_MOTOR(3, E0, 5),
+  INIT_MOTOR(0, X, 1, 'x'),
+  INIT_MOTOR(1, Y, 3, 'y'),
+  INIT_MOTOR(2, Z, 4, 'z'),
+  INIT_MOTOR(3, E0, 5, 'e'),
 };
 #undef INIT_MOTOR
 
@@ -202,4 +202,18 @@ void readEncoder() {
 void beep(uint16_t duration){
   digitalWriteExt(BEEPER, HIGH);
   beeper_off_at = millis() + duration;
+}
+
+
+
+void store_float_to_uint32(uint32_t *target, const float value){
+  float* view = reinterpret_cast<float*>(*&target);
+  *view = value;
+}
+
+
+
+float read_float_from_uint32(uint32_t *source){
+  float* view = reinterpret_cast<float*>(*&source);
+  return *view;
 }

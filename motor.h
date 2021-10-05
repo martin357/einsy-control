@@ -12,7 +12,7 @@
 #endif
 
 #define FSTEPS_PER_REVOLUTION 200
-#define MOTOR_QUEUE_LEN 8
+#define MOTOR_QUEUE_LEN 64
 #define MOTORS_PRESCALER  8
 #define MOTORS_MAX  4
 #define MOTOR_X 0
@@ -21,29 +21,39 @@
 #define MOTOR_E 3
 
 void setupMotorTimers();
-float rpm2rps(float);
-uint16_t rps2sps(float, uint16_t);
-uint16_t sps2ocr(uint16_t);
-uint16_t rpm2ocr(float, uint16_t);
-uint16_t rps2ocr(float, uint16_t);
-float ocr2rpm(uint16_t, uint16_t);
-float ocr2rps(uint16_t, uint16_t);
+int8_t axis2motor(const char);
+float _rpm2rps(float);
+uint16_t _rps2sps(float, uint16_t);
+uint16_t _sps2ocr(uint16_t);
+uint16_t _rpm2ocr(float, uint16_t);
+uint16_t _rps2ocr(float, uint16_t);
+float _ocr2rpm(uint16_t, uint16_t);
+float _ocr2rps(uint16_t, uint16_t);
+float _rot2usteps(float, uint16_t);
 
 
 enum MotorQueueItemType: uint8_t {
   NOOP = 0,
+  TURN_ON,
+  TURN_OFF,
+  STOP,
   RUN_CONTINUOUS,
   RUN_UNTIL_STALLGUARD,
   DO_STEPS,
-  DO_STEPS_WITH_RAMP,
+  RAMP_TO,
+  SET_DIRECTION,
+  SET_RPM,
+  SET_ACCEL,
+  SET_DECEL,
+  SET_STOP_ON_STALLGUARD,
+  SET_PRINT_STALLGUARD_TO_SERIAL,
 };
 
 
 struct MotorQueueItem {
   volatile bool processed;
   MotorQueueItemType type;
-  uint32_t steps;
-  uint16_t rpm;
+  uint32_t value;
 };
 
 
@@ -57,7 +67,7 @@ struct MotorStallguardInfo {
 
 class Motor{
 public:
-  Motor(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*, uint8_t, uint16_t*, uint16_t*, uint8_t*, uint8_t);
+  Motor(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*, uint8_t, uint16_t*, uint16_t*, uint8_t*, uint8_t, const char);
   void on();
   void off();
   bool is_on();
@@ -72,7 +82,11 @@ public:
   float rpm();
   void ramp_to(float, bool = false);
   void ramp_off();
+  bool is_expecting_stallguard();
   MotorStallguardInfo get_stallguard_info();
+  float rot2usteps(float);
+  uint16_t rpm2ocr(float);
+  const char axis;
   uint8_t step_pin;
   uint8_t dir_pin;
   uint8_t enable_pin;
@@ -100,7 +114,10 @@ public:
   volatile uint8_t queue_index;
   MotorQueueItem queue[MOTOR_QUEUE_LEN] = {0};
   uint8_t next_queue_index();
-  void set_queue_item(uint8_t, MotorQueueItemType, uint32_t, uint16_t);
+  int16_t next_empty_queue_index();
+  void set_queue_item(uint8_t, MotorQueueItemType, uint32_t = 0);
+  bool set_next_empty_queue_item(MotorQueueItemType, uint32_t = 0);
+  void empty_queue();
   bool process_next_queue_item();
   void debugPrintQueue();
 private:

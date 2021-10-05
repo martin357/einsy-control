@@ -11,7 +11,7 @@
 void processCommand(const __FlashStringHelper*);
 void processCommand(const char*, size_t);
 void handleSerial();
-int strstr_P(const char*, const __FlashStringHelper*);
+bool strcmp_P(const char*, const __FlashStringHelper*);
 void strToLower(char*);
 void strToUpper(char*);
 
