@@ -69,6 +69,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("home"))) gcode_home();
   else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
+  else if(strcmp_P(rx_command, F("wait_for_motor"))) gcode_wait_for_motor();
   else{
     ok = false;
     Serial.print(F("unknown command "));

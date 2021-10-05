@@ -118,7 +118,7 @@ void gcode_home(){
   const int dir = (bool)value;
   uint8_t next = motors[index].next_queue_index();
 
-  motors[index].set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 1);
+  // motors[index].set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 1);
   // backstep
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_RPM, 12000);
@@ -138,7 +138,7 @@ void gcode_home(){
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, (bool)dir);
   motors[index].set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
 
-  motors[index].set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 0);
+  // motors[index].set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 0);
   motors[index].start(false);
 
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
@@ -156,6 +156,28 @@ void gcode_empty_queue(){
   FOREACH_PARAM_AS_AXIS;
   motors[index].empty_queue();
   FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_wait_for_motor(){
+  bool keep_waiting = true;
+  while(keep_waiting){
+    keep_waiting = false;
+    for (size_t i = 0; i < rx_params; i++) {
+      const uint8_t len = strlen(rx_param[i]);
+      if(len > 0){
+        strToLower(rx_param[i]);
+        const int index = axis2motor(rx_param[i][0]);
+        if(index > -1){
+          if(motors[index].pause_steps || motors[index].running || motors[index].steps_to_do > 0){
+            keep_waiting = true;
+            break;
+          }
+        }
+      }
+    }
+    delay(10);
+  }
 }
 
 

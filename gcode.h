@@ -15,3 +15,4 @@ void gcode_move_rot();
 void gcode_home();
 void gcode_print_queue();
 void gcode_empty_queue();
+void gcode_wait_for_motor();

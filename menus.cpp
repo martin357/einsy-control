@@ -29,7 +29,7 @@ MenuRangeMotorAccel menu_motor_accel;
 MenuItem motor_accel("Accel [RPM2]", &menu_motor_accel);
 
 // motor decel
-MenuRangeMotorAccel menu_motor_decel;
+MenuRangeMotorDecel menu_motor_decel;
 MenuItem motor_decel("Decel [RPM2]", &menu_motor_decel);
 
 // motor direction
@@ -173,7 +173,7 @@ MenuItem timer2b("OCR2B", &menu_timer2b);
 
 
 /// custom stuff
-uint8_t rotations_no = 1;
+uint8_t rotations_no = 10;
 MenuRange<uint8_t> menu_rotations_no("Rotations no.:", rotations_no, 1, 255);
 MenuItem item_rotations_no("Rotations no.", &menu_rotations_no);
 
@@ -205,8 +205,8 @@ MenuItemCallable run_rotations("Single rotation", &do_run_rotations, false);
 
 // main menu
 MenuItem* main_menu_items[] = {
-  &item_rotations_no,
   &run_rotations,
+  &item_rotations_no,
   &motor_x,
   &motor_y,
   &motor_z,

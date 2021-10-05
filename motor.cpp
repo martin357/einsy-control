@@ -590,11 +590,11 @@ ISR(PCINT2_vect){
       if(motors[i].is_expecting_stallguard()){
         motors[i].running = false;
         motors[i].pause_steps = true;
+        motors[i].steps_to_do = 0;
         Serial.println("[sg]");
         motors[i].process_next_queue_item();
         Serial.print("s2d=");
         Serial.println(motors[i].steps_to_do);
-        motors[i].steps_to_do = 0;
         motors[i].pause_steps = false;
 
       }else{
