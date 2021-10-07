@@ -12,6 +12,7 @@ void gcode_accel();
 void gcode_decel();
 void gcode_ramp_to();
 void gcode_move_rot();
+void gcode_move_ramp();
 void gcode_home();
 void gcode_print_queue();
 void gcode_empty_queue();

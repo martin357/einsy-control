@@ -66,6 +66,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("decel"))) gcode_decel();
   else if(strcmp_P(rx_command, F("ramp")) || strcmp_P(rx_command, F("ramp_to"))) gcode_ramp_to();
   else if(strcmp_P(rx_command, F("move_rot"))) gcode_move_rot();
+  else if(strcmp_P(rx_command, F("move_ramp"))) gcode_move_ramp();
   else if(strcmp_P(rx_command, F("home"))) gcode_home();
   else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();

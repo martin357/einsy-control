@@ -120,7 +120,7 @@ public:
   void empty_queue();
   bool process_next_queue_item();
   void debugPrintQueue();
-private:
+// private:
   volatile float _rpm;
   uint16_t* timer_compare_port;
   uint16_t* timer_counter_port;

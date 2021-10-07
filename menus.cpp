@@ -4,9 +4,9 @@
 
 
 // motor on/off
-bool is_motor_on(){ return motors[last_entered_motor_menu].is_on(); }
-void do_motor_on(){ motors[last_entered_motor_menu].on(); }
-void do_motor_off(){ motors[last_entered_motor_menu].off(); }
+bool is_motor_on(){return motors[0].is_on(); /*motors[last_entered_motor_menu].is_on();*/ }
+void do_motor_on(){ motors[0].on(); motors[1].on(); /*motors[last_entered_motor_menu].on();*/ }
+void do_motor_off(){ motors[0].off(); motors[1].off(); /*motors[last_entered_motor_menu].off();*/ }
 MenuItemToggleCallable motor_on_off(&is_motor_on, "Driver: on", "Driver: off", &do_motor_off, &do_motor_on);
 
 
@@ -41,9 +41,9 @@ MenuItemToggleCallable motor_direction(&get_motor_direction, "Direction: left", 
 
 
 // motor double edge
-bool is_motor_dedge_on(){ return motors[last_entered_motor_menu].driver.dedge(); }
-void do_motor_dedge_on(){ motors[last_entered_motor_menu].driver.dedge(true); }
-void do_motor_dedge_off(){ motors[last_entered_motor_menu].driver.dedge(false); }
+bool is_motor_dedge_on(){ return motors[0].driver.dedge(); /*motors[last_entered_motor_menu].driver.dedge();*/ }
+void do_motor_dedge_on(){ motors[0].driver.dedge(true); motors[1].driver.dedge(true); /*motors[last_entered_motor_menu].driver.dedge(true);*/ }
+void do_motor_dedge_off(){ motors[0].driver.dedge(false); motors[1].driver.dedge(false); /*motors[last_entered_motor_menu].driver.dedge(false);*/ }
 MenuItemToggleCallable motor_dedge_on_off(&is_motor_dedge_on, "Double edge: on", "Double edge: off",
   &do_motor_dedge_off, &do_motor_dedge_on);
 
@@ -94,17 +94,17 @@ MenuItem motor_sg_threshold("Stallgaurd sens.", &menu_motor_sg_threshold);
 
 
 // motor stop on stallguard
-bool is_motor_stop_on_stallguard_on(){ return motors[last_entered_motor_menu].stop_on_stallguard; }
-void do_motor_stop_on_stallguard_on(){ motors[last_entered_motor_menu].stop_on_stallguard = true; }
-void do_motor_stop_on_stallguard_off(){ motors[last_entered_motor_menu].stop_on_stallguard = false; }
+bool is_motor_stop_on_stallguard_on(){ return motors[0].stop_on_stallguard; /*motors[last_entered_motor_menu].stop_on_stallguard;*/ }
+void do_motor_stop_on_stallguard_on(){ motors[0].stop_on_stallguard = true; motors[1].stop_on_stallguard = true; /*motors[last_entered_motor_menu].stop_on_stallguard = true;*/ }
+void do_motor_stop_on_stallguard_off(){ motors[0].stop_on_stallguard = false; motors[1].stop_on_stallguard = false; /*motors[last_entered_motor_menu].stop_on_stallguard = false;*/ }
 MenuItemToggleCallable motor_stop_on_stallguard_on_off(&is_motor_stop_on_stallguard_on,
   "Stop on SG: on", "Stop on SG: off", &do_motor_stop_on_stallguard_off, &do_motor_stop_on_stallguard_on);
 
 
 // motor print stallguard to serial
-bool is_motor_stallguard_to_serial_on(){ return motors[last_entered_motor_menu].print_stallguard_to_serial; }
-void do_motor_stallguard_to_serial_on(){ motors[last_entered_motor_menu].print_stallguard_to_serial = true; }
-void do_motor_stallguard_to_serial_off(){ motors[last_entered_motor_menu].print_stallguard_to_serial = false; }
+bool is_motor_stallguard_to_serial_on(){ return motors[0].print_stallguard_to_serial; /*motors[last_entered_motor_menu].print_stallguard_to_serial;*/ }
+void do_motor_stallguard_to_serial_on(){ motors[0].print_stallguard_to_serial = true; motors[1].print_stallguard_to_serial = true; /*motors[last_entered_motor_menu].print_stallguard_to_serial = true;*/ }
+void do_motor_stallguard_to_serial_off(){ motors[0].print_stallguard_to_serial = false; motors[1].print_stallguard_to_serial = false; /*motors[last_entered_motor_menu].print_stallguard_to_serial = false;*/ }
 MenuItemToggleCallable motor_stallguard_to_serial_on_off(&is_motor_stallguard_to_serial_on,
   "Echo Sg2serial: on", "Echo Sg2serial: off", &do_motor_stallguard_to_serial_off, &do_motor_stallguard_to_serial_on);
 
@@ -116,8 +116,8 @@ MenuItem* motor_items[] = {
   &back,
   &motor_on_off,
   &motor_speed,
-  &motor_direction,
-  &motor_start_stop,
+  // &motor_direction,
+  // &motor_start_stop,
   &motor_accel,
   &motor_decel,
   &motor_stallguard_value,
@@ -138,6 +138,8 @@ MenuItem motor_x("Motor X", &menu_motor_x);
 MenuItem motor_y("Motor Y", &menu_motor_y);
 MenuItem motor_z("Motor Z", &menu_motor_z);
 MenuItem motor_e("Motor E", &menu_motor_e);
+MenuMotor menu_motor_all(MOTOR_X, motor_items, sizeof(motor_items) / 2);
+MenuItem motor_all("Motors", &menu_motor_all);
 
 
 // OCR1A
@@ -174,8 +176,14 @@ MenuItem timer2b("OCR2B", &menu_timer2b);
 
 /// custom stuff
 uint8_t rotations_no = 10;
+uint8_t rpm_start = 60;
+uint8_t rpm_target = 120;
 MenuRange<uint8_t> menu_rotations_no("Rotations no.:", rotations_no, 1, 255);
 MenuItem item_rotations_no("Rotations no.", &menu_rotations_no);
+MenuRange<uint8_t> menu_rpm_start("RPM start:", rpm_start, 1, 255);
+MenuItem item_rpm_start("RPM start", &menu_rpm_start);
+MenuRange<uint8_t> menu_rpm_target("RPM target:", rpm_target, 1, 255);
+MenuItem item_rpm_target("RPM target", &menu_rpm_target);
 
 
 void do_run_rotations(){
@@ -187,17 +195,17 @@ void do_run_rotations(){
   motors[0].dir(!motors[0].dir());
   motors[0].steps_to_do = 200ul * motors[0].usteps;
   motors[0].steps_to_do *= rotations_no;
-  motors[0].rpm(60.0);
+  motors[0].rpm(rpm_start);
 
   motors[1].on();
   motors[1].dir(!motors[0].dir());
   motors[1].steps_to_do = 200ul * motors[1].usteps;
   motors[1].steps_to_do *= rotations_no;
-  motors[1].rpm(60.0);
+  motors[1].rpm(rpm_start);
 
   cli();
-  motors[0].ramp_to(120.0);
-  motors[1].ramp_to(120.0);
+  motors[0].ramp_to(rpm_target);
+  motors[1].ramp_to(rpm_target);
   sei();
 }
 MenuItemCallable run_rotations("Single rotation", &do_run_rotations, false);
@@ -207,15 +215,18 @@ MenuItemCallable run_rotations("Single rotation", &do_run_rotations, false);
 MenuItem* main_menu_items[] = {
   &run_rotations,
   &item_rotations_no,
-  &motor_x,
-  &motor_y,
-  &motor_z,
-  &motor_e,
-  &timer1,
-  &timer2a,
-  &timer2b,
-  &timer3,
-  &timer4,
-  &timer5,
+  &item_rpm_start,
+  &item_rpm_target,
+  &motor_all,
+  // &motor_x,
+  // &motor_y,
+  // &motor_z,
+  // &motor_e,
+  // &timer1,
+  // &timer2a,
+  // &timer2b,
+  // &timer3,
+  // &timer4,
+  // &timer5,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);

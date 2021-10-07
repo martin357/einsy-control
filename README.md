@@ -29,7 +29,7 @@ Enqueued command.
 
     halt [x|y|z|e]
 
-Stop motor immediately.
+Stop motor immediately. Turn off motor's driver and reset it's action queue.
 
 
     rpm [x60.0|y60.0|z60.0|e60.0]

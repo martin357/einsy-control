@@ -40,6 +40,13 @@ void setup() {
   motors[0].accel = 40;
   motors[1].accel = 40;
 
+  motors[0].driver.intpol(true);
+  motors[1].driver.intpol(true);
+
+  Serial.println( motors[0].driver.intpol() ? "true" : "false" );
+
+
+  // processCommand(F("home x"));
 }
 
 
@@ -56,6 +63,15 @@ void loop() {
       Serial.println(1000.0 / cnt);
     }
     last_report = _millis;
+  }
+
+  static bool rpm_report = false;
+  static uint32_t last_rpm_report = 0;
+  if(rpm_report && (_millis > last_rpm_report + 50)){
+    if(motors[0].steps_to_do || motors[0].running){
+      Serial.println(motors[0]._rpm);
+    }
+    last_rpm_report = _millis;
   }
 
   readEncoder();

@@ -64,6 +64,8 @@ void gcode_stop(){
 void gcode_halt(){
   FOREACH_PARAM_AS_AXIS;
   motors[index].stop();
+  motors[index].off();
+  motors[index].empty_queue();
   FOREACH_PARAM_AS_AXIS_END;
 }
 
@@ -111,12 +113,37 @@ void gcode_move_rot(){
 }
 
 
+void gcode_move_ramp(){
+  Serial.println(F("ramp move!"));
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  if(value > 0.0){
+    Serial.print("Mot");
+    Serial.print(index);
+    Serial.print(" ");
+    Serial.println(value);
+
+    uint8_t next = motors[index].next_empty_queue_index();
+    motors[index].set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
+    motors[index].set_queue_item(next++, MotorQueueItemType::SET_RPM, 100);
+
+    motors[index].set_queue_item(next++, MotorQueueItemType::RAMP_TO, 12000);
+    motors[index].set_queue_item(next++, MotorQueueItemType::DO_STEPS, motors[index].rot2usteps(5));
+
+    motors[index].set_queue_item(next++, MotorQueueItemType::RAMP_TO, 100);
+    motors[index].set_queue_item(next++, MotorQueueItemType::DO_STEPS, motors[index].rot2usteps(1.0));
+
+    motors[index].start(false);
+  }
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
 void gcode_home(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   // motors[index].stop();
   // motors[index].empty_queue();
   const int dir = (bool)value;
-  uint8_t next = motors[index].next_queue_index();
+  uint8_t next = motors[index].next_empty_queue_index();
 
   // motors[index].set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 1);
   // backstep
