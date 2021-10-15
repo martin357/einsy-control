@@ -3,9 +3,12 @@
 #include "serial.h"
 #include "menu_system_derivates.h"
 #include "menus.h"
+#include "custom.h"
+
 
 uint16_t print_stallguard_to_serial_interval = 30;
 uint32_t last_stallguard_print_to_serial = 0;
+uint32_t last_lcd_reinit = 0;
 
 
 uint16_t counter = 0;
@@ -15,6 +18,9 @@ void setup() {
   Serial.begin(250000);
   Serial.setTimeout(100);
   Serial.println(F("init..."));
+  #ifdef CUSTOM
+    Serial.println(F("custom_variant: " CUSTOM));
+  #endif
 
   setupPins();
   SPI.begin();
@@ -24,29 +30,14 @@ void setup() {
 
   current_menu = &main_menu;
   current_menu->draw();
-
   menu_motor_stallguard_value.redraw_interval = 50;
+
+  #ifdef CUSTOM
+    setupCustom();
+  #endif
+
   Serial.println(F("ready!"));
 
-  /// custom stuff
-  motors[0].driver.rms_current(800);
-  motors[1].driver.rms_current(800);
-
-  motors[0].driver.sgt(12);
-  motors[1].driver.sgt(12);
-
-  // motors[0].accel = 800;
-  // motors[1].accel = 800;
-  motors[0].accel = 40;
-  motors[1].accel = 40;
-
-  motors[0].driver.intpol(true);
-  motors[1].driver.intpol(true);
-
-  Serial.println( motors[0].driver.intpol() ? "true" : "false" );
-
-
-  // processCommand(F("home x"));
 }
 
 
@@ -92,34 +83,29 @@ void loop() {
 
   if(current_menu->redraw_interval > 0 && _millis > last_menu_redraw + current_menu->redraw_interval) current_menu->draw(false);
 
-  if(beeper_off_at && _millis > beeper_off_at){
-    beeper_off_at = 0;
-    digitalWriteExt(BEEPER, LOW);
-  }
-
   handleSerial();
 
   if(_millis >= last_stallguard_print_to_serial + print_stallguard_to_serial_interval){
-    // bool printed_something = false;
+    bool printed_something = false;
     for(size_t i = 0; i < MOTORS_MAX; i++){
       if(motors[i].print_stallguard_to_serial){
-        // printed_something = true;
+        printed_something = true;
         MotorStallguardInfo stallguard_info = motors[i].get_stallguard_info();
-        Serial.print("M");
-        Serial.print(i);
-        Serial.print("\t");
+        // Serial.print("M");
+        // Serial.print(i);
+        // Serial.print("\t");
         Serial.print(stallguard_info.sg_result);
         Serial.print("\t");
-        Serial.print(stallguard_info.fsactive);
-        Serial.print("\t");
-        Serial.print(stallguard_info.cs_actual);
-        Serial.print("\t");
+        // Serial.print(stallguard_info.fsactive);
+        // Serial.print("\t");
+        // Serial.print(stallguard_info.cs_actual);
+        // Serial.print("\t");
         Serial.print(stallguard_info.rms);
-        Serial.print("mA");
-        Serial.println();
+        Serial.print("mA\t");
+        // Serial.println();
       }
     }
-    // if(printed_something) Serial.println();
+    if(printed_something) Serial.println();
     last_stallguard_print_to_serial = _millis;
   }
 
@@ -138,5 +124,15 @@ void loop() {
     }
 
   }
+
+  if(_millis > last_lcd_reinit + 5000){
+    lcd.reinit();
+    current_menu->draw();
+    last_lcd_reinit = _millis;
+  }
+
+  #ifdef CUSTOM
+    loopCustom();
+  #endif
 
 }

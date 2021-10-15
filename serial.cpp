@@ -61,7 +61,9 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("start"))) gcode_start();
   else if(strcmp_P(rx_command, F("stop"))) gcode_stop();
   else if(strcmp_P(rx_command, F("halt"))) gcode_halt();
+  else if(strcmp_P(rx_command, F("run"))) gcode_run();
   else if(strcmp_P(rx_command, F("rpm"))) gcode_rpm();
+  else if(strcmp_P(rx_command, F("dir"))) gcode_dir();
   else if(strcmp_P(rx_command, F("accel"))) gcode_accel();
   else if(strcmp_P(rx_command, F("decel"))) gcode_decel();
   else if(strcmp_P(rx_command, F("ramp")) || strcmp_P(rx_command, F("ramp_to"))) gcode_ramp_to();
@@ -71,6 +73,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
   else if(strcmp_P(rx_command, F("wait_for_motor"))) gcode_wait_for_motor();
+  else if(strcmp_P(rx_command, F("wait"))) gcode_wait();
   else{
     ok = false;
     Serial.print(F("unknown command "));
@@ -79,6 +82,26 @@ void processCommand(const char *cmd, size_t len){
 
 
   if(ok) Serial.println("ok");
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const int index = axis2motor(rx_param[i][0]);
+      if(index > -1){
+        if(!motors[index].running && motors[index].steps_to_do < 1){
+          motors[index].start(false);
+        }
+      }
+    }
+  }
+
+}
+
+
+
+void processCommand(const char *cmd){
+  processCommand(cmd, strlen(cmd));
 
 }
 
@@ -89,7 +112,7 @@ void handleSerial(){
     const char ch = Serial.read();
     rx_buf[rx_buf_pos++] = ch;
 
-    if(ch == '\n'){
+    if(ch == '\n' || ch == ';'){
       rx_buf[--rx_buf_pos] = 0;
       if(rx_buf[rx_buf_pos - 1] == '\r') rx_buf[--rx_buf_pos] = 0;
       processCommand(rx_buf, rx_buf_pos);

@@ -41,6 +41,9 @@ void setupMotorTimers(){
   PCMSK2 |= (1 << PCINT19); // E0_DIAG
   PCMSK2 |= (1 << PCINT22); // Z_DIAG
   PCMSK2 |= (1 << PCINT23); // Y_DIAG
+
+  // setup "wait" handling timer
+  TIMSK0 |= (1 << OCIE0A);
   sei();
 
   #undef SETUP_TIMER
@@ -118,13 +121,8 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   steps_total(0),
 
   target_rpm(-1.0),
-  // accel(400),
-  // decel(800),
-  accel(40),
+  accel(120),
   decel(120),
-  // accel(450),
-  // decel(1000),
-  // ramp_interval(30),
 
   last_speed_change(last_speed_change),
 
@@ -257,10 +255,10 @@ void Motor::ramp_to(float value, bool keep_running){
   last_speed_change = millis();
   target_rpm = value;
   // target_rpm = ocr2rpm(rpm2ocr(value, usteps), usteps);
-  if(!running){
-    rpm(rpm()); // update timer
-    start(keep_running);
-  }
+  // if(!running){
+  //   rpm(rpm()); // update timer
+  //   start(keep_running);
+  // }
 }
 
 
@@ -295,6 +293,11 @@ float Motor::rot2usteps(float rot){
 
 uint16_t Motor::rpm2ocr(float rpm){
   return _rpm2ocr(rpm, usteps);
+}
+
+
+uint16_t Motor::rpm2sps(float rps){
+  return uint16_t(FSTEPS_PER_REVOLUTION * usteps * rps / 60);
 }
 
 
@@ -335,14 +338,22 @@ void Motor::empty_queue(){
 }
 
 
-bool Motor::process_next_queue_item(){
+bool Motor::process_next_queue_item(bool force_ignore_wait){
+  if(queue[queue_index].type == MotorQueueItemType::WAIT && !force_ignore_wait) return;
+
   // Serial.print(F("PNQ="));
   uint8_t next = next_queue_index();
   // Serial.println(next);
 
   if(queue[next].processed || queue[next].type == MotorQueueItemType::NOOP){
-    stop();
-    Serial.println(F("[e] empty queue, stopping!"));
+    if(running || steps_to_do > 0){
+      Serial.println(F("[pnq] empty queue but motor running"));
+
+    }else{
+      stop();
+      Serial.println(F("[pnq] empty queue, stopping!"));
+
+    }
     return false;
   }
 
@@ -428,12 +439,30 @@ bool Motor::process_next_queue_item(){
       Serial.println(F(" set print sg to serial"));
       break;
     }
+    case MotorQueueItemType::WAIT: {
+      uint32_t _millis = millis();
+      queue[next].value += _millis;
+
+      Serial.print(F(" wait finishes at "));
+      Serial.print(queue[next].value);
+      Serial.print(" now is ");
+      Serial.print(_millis);
+      Serial.println();
+      break;
+    }
+    case MotorQueueItemType::BEEP: {
+      beep(queue[next].value);
+
+      Serial.println(F(" beep!"));
+      break;
+    }
 
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
   queue[queue_index].processed = true;
   queue_index = next;
   // debugPrintQueue();
+  // if(queue[queue_index].type == MotorQueueItemType::WAIT) debugPrintQueue();
   return true;
 
 }
@@ -474,6 +503,37 @@ TIMER_ISR(3, 1)
 TIMER_ISR(4, 2)
 TIMER_ISR(5, 3)
 #undef TIMER_ISR
+
+
+// "wait" handling timer, beeper off timer
+ISR(TIMER0_COMPA_vect){
+  uint32_t _millis = millis();
+  for(size_t i = 0; i < MOTORS_MAX; i++){
+    // if(motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT){
+    //   Serial.print("next is wait! ");
+    //   Serial.print(motors[i].queue[motors[i].queue_index].value);
+    //   Serial.print(" ");
+    //   Serial.print(_millis);
+    //   Serial.println();
+    // }
+    uint8_t next = motors[i].next_queue_index();
+    if((motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT &&
+      _millis >= motors[i].queue[motors[i].queue_index].value) ||
+      (motors[i].queue[next].type == MotorQueueItemType::WAIT &&
+        _millis >= motors[i].queue[next].value)
+    ){
+      motors[i].pause_steps = true;
+      motors[i].process_next_queue_item(true);
+      motors[i].pause_steps = false;
+      Serial.println("wait finished");
+    }
+  }
+
+  if(beeper_off_at && _millis > beeper_off_at){
+    beeper_off_at = 0;
+    digitalWriteExt(BEEPER, LOW);
+  }
+}
 
 
 // acceleration handling
@@ -524,7 +584,7 @@ ISR(TIMER2_COMPA_vect){
             if(rpm >= motors[i].target_rpm){
               rpm = motors[i].target_rpm;
               motors[i].target_rpm = -1.0;  // stop ramping since we reached set
-              beep(5);
+              // beep(5);
               Serial.println("acc done");
             }
 
@@ -535,7 +595,7 @@ ISR(TIMER2_COMPA_vect){
             if(rpm <= motors[i].target_rpm){
               rpm = motors[i].target_rpm;
               motors[i].target_rpm = -1.0;  // stop ramping since we reached set
-              beep(5);
+              // beep(5);
               Serial.println("dec done");
             }
 

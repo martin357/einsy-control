@@ -28,8 +28,7 @@ MenuListMotorMicrostepping::MenuListMotorMicrostepping():
 
 
 void MenuListMotorMicrostepping::on_enter(){
-  // value = motors[last_entered_motor_menu].usteps;
-  value = motors[0].usteps;
+  value = motors[last_entered_motor_menu].usteps;
   MenuList::on_enter();
 }
 
@@ -38,11 +37,7 @@ void MenuListMotorMicrostepping::loop(){
   static uint32_t last_loop = 0;
   uint32_t _millis = millis();
   if(_millis > last_loop + 50){
-    // if(value != motors[last_entered_motor_menu].usteps) motors[last_entered_motor_menu].microsteps(value);
-    if(value != motors[0].usteps){
-      motors[0].microsteps(value);
-      motors[1].microsteps(value);
-    }
+    if(value != motors[last_entered_motor_menu].usteps) motors[last_entered_motor_menu].microsteps(value);
     last_loop = _millis;
   }
 }
@@ -59,8 +54,7 @@ MenuListMotorBlankTime::MenuListMotorBlankTime():
 
 
 void MenuListMotorBlankTime::on_enter(){
-  // value = motors[last_entered_motor_menu].driver.blank_time();
-  value = motors[0].driver.blank_time();
+  value = motors[last_entered_motor_menu].driver.blank_time();
   MenuList::on_enter();
 }
 
@@ -69,11 +63,7 @@ void MenuListMotorBlankTime::loop(){
   static uint32_t last_loop = 0;
   uint32_t _millis = millis();
   if(_millis > last_loop + 50){
-    // if(value != motors[last_entered_motor_menu].driver.blank_time()) motors[last_entered_motor_menu].driver.blank_time(value);
-    if(value != motors[0].driver.blank_time()){
-      motors[0].driver.blank_time(value);
-      motors[1].driver.blank_time(value);
-    }
+    if(value != motors[last_entered_motor_menu].driver.blank_time()) motors[last_entered_motor_menu].driver.blank_time(value);
     last_loop = _millis;
   }
 }
@@ -83,15 +73,16 @@ void MenuListMotorBlankTime::loop(){
 /*
   menu list motor current
 */
-uint16_t motor_current_items[] = {200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400};
+uint16_t motor_current_items[32] = {0};
 MenuListMotorCurrent::MenuListMotorCurrent():
   MenuList("Current", &value, motor_current_items, sizeof(motor_current_items) / sizeof(motor_current_items[0])),
   value(1){}
 
 
 void MenuListMotorCurrent::on_enter(){
-  // value = motors[last_entered_motor_menu].driver.rms_current();
-  value = motors[0].driver.rms_current();
+  const size_t items_cnt = sizeof(motor_current_items) / sizeof(motor_current_items[0]);
+  for (size_t i = 0; i < items_cnt; i++) items[i] = motors[last_entered_motor_menu].driver.cs2rms(i);
+  value = motors[last_entered_motor_menu].driver.rms_current();
   MenuList::on_enter();
 }
 
@@ -102,8 +93,7 @@ void MenuListMotorCurrent::loop(){
   if(_millis > last_loop + 50){
     // if(value != motors[last_entered_motor_menu].driver.rms_current()) motors[last_entered_motor_menu].driver.rms_current(value);
     if(value != motors[0].driver.rms_current()){
-      motors[0].driver.rms_current(value);
-      motors[1].driver.rms_current(value);
+      for (size_t i = 0; i < MOTORS_MAX; i++) motors[i].driver.rms_current(value);
     }
     last_loop = _millis;
   }
@@ -132,8 +122,7 @@ void MenuRangeMotorOffTime::loop(){
   if(_millis > last_loop + 50){
     // if(value != motors[last_entered_motor_menu].driver.toff()) motors[last_entered_motor_menu].driver.toff(value);
     if(value != motors[0].driver.toff()){
-      motors[0].driver.toff(value);
-      motors[1].driver.toff(value);
+      for (size_t i = 0; i < MOTORS_MAX; i++) motors[i].driver.toff(value);
     }
     last_loop = _millis;
   }
@@ -164,10 +153,10 @@ void MenuRangeMotorRPM::loop(){
     if(value != motors[0].rpm()){
       // motors[last_entered_motor_menu].target_rpm = -1.0;
       // motors[last_entered_motor_menu].rpm(value);
-      motors[0].target_rpm = -1.0;
-      motors[0].rpm(value);
-      motors[1].target_rpm = -1.0;
-      motors[1].rpm(value);
+      for (size_t i = 0; i < MOTORS_MAX; i++) {
+        motors[i].target_rpm = -1.0;
+        motors[i].rpm(value);
+      }
     }
     last_loop = _millis;
   }
@@ -185,8 +174,7 @@ MenuRangeMotorSgThreshold::MenuRangeMotorSgThreshold():
 
 void MenuRangeMotorSgThreshold::on_enter(){
   MenuRange::on_enter();
-  // value = motors[last_entered_motor_menu].driver.sgt();
-  value = motors[0].driver.sgt();
+  value = motors[last_entered_motor_menu].driver.sgt();
 }
 
 
@@ -196,8 +184,7 @@ void MenuRangeMotorSgThreshold::loop(){
   if(_millis > last_loop + 50){
     // if(value != motors[last_entered_motor_menu].driver.sgt()) motors[last_entered_motor_menu].driver.sgt(value);
     if(value != motors[0].driver.sgt()){
-      motors[0].driver.sgt(value);
-      motors[1].driver.sgt(value);
+      for (size_t i = 0; i < MOTORS_MAX; i++) motors[i].driver.sgt(value);
     }
     last_loop = _millis;
   }
@@ -209,14 +196,13 @@ void MenuRangeMotorSgThreshold::loop(){
   menu range motor accel
 */
 MenuRangeMotorAccel::MenuRangeMotorAccel():
-  MenuRange("Accel [RPM2]", value, 1, 1200),
+  MenuRange("Accel [RPMS]", value, 1, 1200),
   value(1){}
 
 
 void MenuRangeMotorAccel::on_enter(){
   MenuRange::on_enter();
-  // value = motors[last_entered_motor_menu].accel;
-  value = motors[0].accel;
+  value = motors[last_entered_motor_menu].accel;
 }
 
 
@@ -224,11 +210,7 @@ void MenuRangeMotorAccel::loop(){
   static uint32_t last_loop = 0;
   uint32_t _millis = millis();
   if(_millis > last_loop + 50){
-    // if(value != motors[last_entered_motor_menu].accel) motors[last_entered_motor_menu].accel = value;
-    if(value != motors[0].accel){
-      motors[0].accel = value;
-      motors[1].accel = value;
-    }
+    if(value != motors[last_entered_motor_menu].accel) motors[last_entered_motor_menu].accel = value;
     last_loop = _millis;
   }
 }
@@ -239,14 +221,13 @@ void MenuRangeMotorAccel::loop(){
   menu range motor decel
 */
 MenuRangeMotorDecel::MenuRangeMotorDecel():
-  MenuRange("Decel [RPM2]", value, 1, 1200),
+  MenuRange("Decel [RPMS]", value, 1, 1200),
   value(1){}
 
 
 void MenuRangeMotorDecel::on_enter(){
   MenuRange::on_enter();
-  // value = motors[last_entered_motor_menu].decel;
-  value = motors[0].decel;
+  value = motors[last_entered_motor_menu].decel;
 }
 
 
@@ -254,11 +235,57 @@ void MenuRangeMotorDecel::loop(){
   static uint32_t last_loop = 0;
   uint32_t _millis = millis();
   if(_millis > last_loop + 50){
-    // if(value != motors[last_entered_motor_menu].decel) motors[last_entered_motor_menu].decel = value;
-    if(value != motors[0].decel){
-      motors[0].decel = value;
-      motors[1].decel = value;
-    }
+    if(value != motors[last_entered_motor_menu].decel) motors[last_entered_motor_menu].decel = value;
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
+  menu range motor semin
+*/
+MenuRangeMotorSEMIN::MenuRangeMotorSEMIN():
+  MenuRange("SmartEnergy Min", value, 0, 15),
+  value(1){}
+
+
+void MenuRangeMotorSEMIN::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].driver.semin();
+}
+
+
+void MenuRangeMotorSEMIN::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.semin()) motors[last_entered_motor_menu].driver.semin(value);
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
+  menu range motor semax
+*/
+MenuRangeMotorSEMAX::MenuRangeMotorSEMAX():
+  MenuRange("SmartEnergy Max", value, 0, 15),
+  value(1){}
+
+
+void MenuRangeMotorSEMAX::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].driver.semax();
+}
+
+
+void MenuRangeMotorSEMAX::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.semax()) motors[last_entered_motor_menu].driver.semax(value);
     last_loop = _millis;
   }
 }

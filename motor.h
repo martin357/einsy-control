@@ -47,6 +47,8 @@ enum MotorQueueItemType: uint8_t {
   SET_DECEL,
   SET_STOP_ON_STALLGUARD,
   SET_PRINT_STALLGUARD_TO_SERIAL,
+  WAIT,
+  BEEP,
 };
 
 
@@ -86,6 +88,7 @@ public:
   MotorStallguardInfo get_stallguard_info();
   float rot2usteps(float);
   uint16_t rpm2ocr(float);
+  uint16_t rpm2sps(float);
   const char axis;
   uint8_t step_pin;
   uint8_t dir_pin;
@@ -118,7 +121,7 @@ public:
   void set_queue_item(uint8_t, MotorQueueItemType, uint32_t = 0);
   bool set_next_empty_queue_item(MotorQueueItemType, uint32_t = 0);
   void empty_queue();
-  bool process_next_queue_item();
+  bool process_next_queue_item(bool = false);
   void debugPrintQueue();
 // private:
   volatile float _rpm;

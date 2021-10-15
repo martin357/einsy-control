@@ -10,6 +10,7 @@
 
 void processCommand(const __FlashStringHelper*);
 void processCommand(const char*, size_t);
+void processCommand(const char*);
 void handleSerial();
 bool strcmp_P(const char*, const __FlashStringHelper*);
 void strToLower(char*);

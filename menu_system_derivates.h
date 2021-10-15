@@ -81,3 +81,21 @@ public:
   void loop();
   uint16_t value;
 };
+
+
+class MenuRangeMotorSEMIN: public MenuRange<int8_t>{
+public:
+  MenuRangeMotorSEMIN();
+  void on_enter();
+  void loop();
+  int8_t value;
+};
+
+
+class MenuRangeMotorSEMAX: public MenuRange<int8_t>{
+public:
+  MenuRangeMotorSEMAX();
+  void on_enter();
+  void loop();
+  int8_t value;
+};

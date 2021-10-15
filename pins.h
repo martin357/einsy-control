@@ -195,10 +195,10 @@ void digitalWriteExt(const uint8_t, const bool);
 //
 // // #define RELAY_PIN   12
 //
-// #define HEATER_BED_PIN       4 //PG5
+#define HEATER_BED_PIN       4 //PG5
 // #define TEMP_BED_PIN         2 //A2
 //
-// #define HEATER_0_PIN         3 // 12 // 3 //PE5
+#define HEATER_0_PIN         3 // 12 // 3 //PE5
 // #define TEMP_0_PIN           0 //A0
 //
 // #define HEATER_1_PIN        -1

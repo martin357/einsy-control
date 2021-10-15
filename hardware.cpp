@@ -112,6 +112,7 @@ void setupMotors(){
 
     motors[i].driver.en_pwm_mode(1);      // Enable extremely quiet stepping
     motors[i].driver.pwm_autoscale(1);
+    motors[i].driver.intpol(true);
 
     motors[i].driver.diag0_stall(true);
     motors[i].driver.diag1_stall(true);
