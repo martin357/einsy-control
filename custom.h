@@ -1,16 +1,25 @@
 #pragma once
 
 // select one custom variant below
-#if false
-  #define CUSTOM_AUTONOMOUS 1
+
+#define CUSTOM_AUTONOMOUS
+// #define CUSTOM_CW
+
+
+#ifdef CUSTOM_AUTONOMOUS
   #include "src/custom/autonomous.h"
 #endif
 
-#if false
-  #define CUSTOM_CW 1
+#ifdef CUSTOM_CW
   #include "src/custom/cw.h"
 #endif
 
 
-void setupCustom();
-void loopCustom();
+
+#ifdef CUSTOM_SETUP
+  void setupCustom();
+#endif
+
+#ifdef CUSTOM_LOOP
+  void loopCustom();
+#endif

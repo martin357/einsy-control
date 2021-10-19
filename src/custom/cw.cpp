@@ -7,13 +7,6 @@
 #ifdef CUSTOM_CW
 
 
-#define PIN_UV_LED 73
-#define PIN_HEATER 76
-#define PIN_CAP_IN 12
-#define PIN_WATER_PUMP HEATER_0_PIN
-#define PIN_VALVE HEATER_BED_PIN
-
-
 /// custom stuff
 bool watch_water_level = false;
 
@@ -71,11 +64,25 @@ void do_water_pump_on(){ digitalWriteExt(PIN_WATER_PUMP, HIGH); }
 void do_water_pump_off(){ digitalWriteExt(PIN_WATER_PUMP, LOW); }
 MenuItemToggleCallable item_water_pump_on_off(&is_water_pump_on, "Water pump: on", "Water pump: off", &do_water_pump_off, &do_water_pump_on);
 
+bool is_uv_led_on(){ return !digitalReadExt(PIN_UV_LED); }
+void do_uv_led_on(){ digitalWriteExt(PIN_UV_LED, LOW); }
+void do_uv_led_off(){ digitalWriteExt(PIN_UV_LED, HIGH); }
+MenuItemToggleCallable item_uv_led_on_off(&is_uv_led_on, "UV Led: on", "UV Led: off", &do_uv_led_off, &do_uv_led_on);
+
+bool is_heater_on(){ return !digitalReadExt(PIN_HEATER); }
+void do_heater_on(){ digitalWriteExt(PIN_HEATER, LOW); }
+void do_heater_off(){ digitalWriteExt(PIN_HEATER, HIGH); }
+MenuItemToggleCallable item_heater_on_off(&is_heater_on, "Heater: on", "Heater: off", &do_heater_off, &do_heater_on);
+
 bool is_watch_water_level_on(){ return watch_water_level; }
 void do_watch_water_level_on(){ watch_water_level = true; }
 void do_watch_water_level_off(){ watch_water_level = false; digitalWriteExt(PIN_WATER_PUMP, LOW); digitalWriteExt(PIN_VALVE, LOW); }
 MenuItemToggleCallable item_watch_water_level_on_off(&is_watch_water_level_on, "Water level: on", "Water level: off", &do_watch_water_level_off, &do_watch_water_level_on);
 
+
+uint8_t washing_duration = 20;
+MenuRange<uint8_t> menu_washing_duration("Washing duration", washing_duration, 10, 120);
+MenuItem item_washing_duration("Washing duration", &menu_washing_duration);
 
 
 bool is_homed = false;
@@ -223,65 +230,79 @@ void do_move_down(bool do_wait = true){
 MenuItemCallable item_move_down("Move platform down", &do_move_down, false);
 
 void do_start_washing(){
+  uint32_t duration_half = (washing_duration * 500) - 2000;
+  char duration_buf[64] = "wait x";
+  itoa(duration_half, &duration_buf[6], 10);
+
   // move down and fill tank
-  do_move_down(false);
-  do_fill_tank();
+  // do_move_down(false);
+  // do_fill_tank();
 
   // wash model for some time...
   lcd.clear();
   lcd.print("Washing...");
+
   processCommand(F("dir x1"));
   processCommand(F("rpm x0.1"));
   processCommand(F("ramp_to x230"));
-  processCommand(F("start x1"));
-  processCommand(F("wait x15000"));
+  // processCommand(F("start x1"));
+  // processCommand(F("wait x5000")); // x15000
+  processCommand(duration_buf);
   processCommand(F("ramp_to x0.1"));
   processCommand(F("wait x2000"));
+  processCommand(F("start x1"));
   processCommand(F("stop x"));
 
-  // processCommand(F("dir x0"));
-  // processCommand(F("rpm x0.1"));
-  // processCommand(F("ramp_to x230"));
+  // processCommand(F("print_queue x"));
+  processCommand(F("wait_for_motor x"));
+  processCommand(F("empty_queue x"));
+  beep(10);
+
+  processCommand(F("dir x0"));
+  processCommand(F("rpm x0.1"));
+  processCommand(F("ramp_to x230"));
   // processCommand(F("start x1"));
-  // processCommand(F("wait x15000"));
-  // processCommand(F("ramp_to x0.1"));
-  // processCommand(F("wait x2000"));
-  // processCommand(F("stop x"));
+  // processCommand(F("wait x5000")); // x15000
+  processCommand(duration_buf);
+  processCommand(F("ramp_to x0.1"));
+  processCommand(F("wait x2000"));
+  processCommand(F("start x1"));
+  processCommand(F("stop x"));
 
   processCommand(F("wait_for_motor x"));
-  // processCommand(F("print_queue x"));
-
-  // processCommand(F("dir x0"));
-  // processCommand(F("move_rot x1"));
-  // processCommand(F("wait_for_motor x"));
+  beep(10);
 
   // empty tank
-  do_move_up(false);
-  do_empty_tank();
+  // do_move_up(false);
+  // do_empty_tank();
 
-  beep(50);
+  // beep(40);
+
 }
 MenuItemCallable item_start_washing("Washing cycle", &do_start_washing, false);
 
 
 // main menu
-// MenuItem* main_menu_items[] = {
-//   // &item_home_z_up,
-//   &item_start_washing,
-//   &item_move_up,
-//   &item_move_down,
-//   &item_fill_tank,
-//   &item_empty_tank,
-//   &item_home_z_down,
-//   &item_fill_and_empty,
-//   // &item_test_m400,
-//   // &motor_x,
-//   // &motor_z,
-//   &item_valve_on_off,
-//   &item_water_pump_on_off,
-//   &item_watch_water_level_on_off,
-// };
-// Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
+MenuItem* main_menu_items[] = {
+  // &item_home_z_up,
+  &item_start_washing,
+  &item_washing_duration,
+  &item_move_up,
+  &item_move_down,
+  &item_fill_tank,
+  &item_empty_tank,
+  &item_home_z_down,
+  &item_fill_and_empty,
+  // &item_test_m400,
+  // &motor_x,
+  // &motor_z,
+  &item_uv_led_on_off,
+  &item_heater_on_off,
+  &item_valve_on_off,
+  &item_water_pump_on_off,
+  &item_watch_water_level_on_off,
+};
+Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 
 
 #endif

@@ -301,6 +301,7 @@ void gcode_wait_for_motor(){
     }
     delay(10);
   }
+  Serial.println(F("wait_for_motor done!!"));
 }
 
 

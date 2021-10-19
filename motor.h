@@ -34,21 +34,22 @@ float _rot2usteps(float, uint16_t);
 
 enum MotorQueueItemType: uint8_t {
   NOOP = 0,
-  TURN_ON,
-  TURN_OFF,
-  STOP,
-  RUN_CONTINUOUS,
-  RUN_UNTIL_STALLGUARD,
-  DO_STEPS,
-  RAMP_TO,
-  SET_DIRECTION,
-  SET_RPM,
-  SET_ACCEL,
-  SET_DECEL,
-  SET_STOP_ON_STALLGUARD,
-  SET_PRINT_STALLGUARD_TO_SERIAL,
-  WAIT,
-  BEEP,
+  TURN_ON = 1,
+  TURN_OFF = 2,
+  STOP = 3,
+  RUN_CONTINUOUS = 4,
+  RUN_UNTIL_STALLGUARD = 5,
+  DO_STEPS = 6,
+  RAMP_TO = 7,
+  SET_DIRECTION = 8,
+  SET_RPM = 9,
+  SET_ACCEL = 10,
+  SET_DECEL = 11,
+  SET_STOP_ON_STALLGUARD = 12,
+  SET_PRINT_STALLGUARD_TO_SERIAL = 13,
+  WAIT = 14, // enqueue a delay
+  // WAIT_IN_PROGRESS = 15, // actual delay
+  BEEP = 16,
 };
 
 

@@ -289,3 +289,68 @@ void MenuRangeMotorSEMAX::loop(){
     last_loop = _millis;
   }
 }
+
+
+
+/*
+  menu motor manual steps
+*/
+MenuMotorManualSteps::MenuMotorManualSteps():
+  Menu(nullptr, 0){
+    redraw_interval = 50;
+  }
+
+
+void MenuMotorManualSteps::on_enter(){
+  lcd.clear();
+}
+
+
+void MenuMotorManualSteps::on_press(uint16_t duration){
+  go_back();
+}
+
+
+void MenuMotorManualSteps::draw(bool clear){
+  lcd.print("\3", 0, 0);
+  lcd.print("Manual stepping");
+  lcd.print(" \1");
+
+  lcd.print("<", 0, 2);
+  lcd.setCursor(8, 2);
+  lcd.print((uint16_t)(motors[last_entered_motor_menu].steps_to_do / 10));
+  // lcd.print("rot", 8, 2);
+  lcd.print(">", 19, 2);
+}
+
+
+void MenuMotorManualSteps::move(int8_t amount){
+  const bool dir = amount > 0;
+  const uint32_t steps = abs(amount) * motors[last_entered_motor_menu].rot2usteps(0.1);
+
+  motors[last_entered_motor_menu].pause_steps = true;
+  if(dir == motors[last_entered_motor_menu].dir()){
+    motors[last_entered_motor_menu].steps_to_do += steps;
+
+  }else{
+    if(motors[last_entered_motor_menu].steps_to_do > steps){
+      motors[last_entered_motor_menu].steps_to_do -= steps;
+
+    }else{
+      motors[last_entered_motor_menu].steps_to_do = steps;
+      motors[last_entered_motor_menu].dir(dir);
+
+    }
+
+  }
+  motors[last_entered_motor_menu].pause_steps = false;
+  motors[last_entered_motor_menu].start();
+
+  Serial.print(F("amount="));
+  Serial.print(amount);
+  Serial.print("\t");
+  Serial.print(F("steps_to_do="));
+  Serial.println(motors[last_entered_motor_menu].steps_to_do);
+
+  // draw();
+}

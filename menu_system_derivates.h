@@ -99,3 +99,14 @@ public:
   void loop();
   int8_t value;
 };
+
+
+class MenuMotorManualSteps: public Menu{
+public:
+  MenuMotorManualSteps();
+  void on_enter();
+  void on_press(uint16_t);
+  void draw(bool = true);
+  void move(int8_t);
+  // const char* title;
+};

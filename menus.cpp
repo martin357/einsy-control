@@ -21,6 +21,11 @@ void do_motor_stop(){ motors[last_entered_motor_menu].stop(); }
 MenuItemToggleCallable motor_start_stop(&is_motor_running, "Stop !!", "Run continuously", &do_motor_stop, &do_motor_start);
 
 
+// motor manual steps
+MenuMotorManualSteps menu_motor_manual_steps;
+MenuItem motor_manual_steps("Manual steps", &menu_motor_manual_steps);
+
+
 // motor speed
 MenuRangeMotorRPM menu_motor_speed;
 MenuItem motor_speed("Speed [RPM]", &menu_motor_speed);
@@ -54,6 +59,27 @@ bool is_motor_vsense_on(){ return motors[last_entered_motor_menu].driver.vsense(
 void do_motor_vsense_on(){ motors[last_entered_motor_menu].driver.vsense(true); }
 void do_motor_vsense_off(){ motors[last_entered_motor_menu].driver.vsense(false); }
 MenuItemToggleCallable motor_vsense_on_off(&is_motor_vsense_on, "Vsense: on", "Vsense: off", &do_motor_vsense_off, &do_motor_vsense_on);
+
+
+// motor enable pwm mode
+bool is_motor_en_pwm_mode_on(){ return motors[last_entered_motor_menu].driver.en_pwm_mode(); }
+void do_motor_en_pwm_mode_on(){ motors[last_entered_motor_menu].driver.en_pwm_mode(true); }
+void do_motor_en_pwm_mode_off(){ motors[last_entered_motor_menu].driver.en_pwm_mode(false); }
+MenuItemToggleCallable motor_en_pwm_mode_on_off(&is_motor_en_pwm_mode_on, "PWM Mode: on", "PWM Mode: off", &do_motor_en_pwm_mode_off, &do_motor_en_pwm_mode_on);
+
+
+// motor pwm autoscale
+bool is_motor_pwm_autoscale_on(){ return motors[last_entered_motor_menu].driver.pwm_autoscale(); }
+void do_motor_pwm_autoscale_on(){ motors[last_entered_motor_menu].driver.pwm_autoscale(true); }
+void do_motor_pwm_autoscale_off(){ motors[last_entered_motor_menu].driver.pwm_autoscale(false); }
+MenuItemToggleCallable motor_pwm_autoscale_on_off(&is_motor_pwm_autoscale_on, "PWM Autoscale: on", "PWM Autoscale: off", &do_motor_pwm_autoscale_off, &do_motor_pwm_autoscale_on);
+
+
+// motor interpolate
+bool is_motor_intpol_on(){ return motors[last_entered_motor_menu].driver.intpol(); }
+void do_motor_intpol_on(){ motors[last_entered_motor_menu].driver.intpol(true); }
+void do_motor_intpol_off(){ motors[last_entered_motor_menu].driver.intpol(false); }
+MenuItemToggleCallable motor_intpol_on_off(&is_motor_intpol_on, "Interpolation: on", "Interpolation: off", &do_motor_intpol_off, &do_motor_intpol_on);
 
 
 // motor current
@@ -136,6 +162,7 @@ MenuItem* motor_items[] = {
   &motor_speed,
   &motor_direction,
   &motor_start_stop,
+  &motor_manual_steps,
   &motor_accel,
   &motor_decel,
   &motor_stallguard_value,
@@ -150,6 +177,9 @@ MenuItem* motor_items[] = {
   &motor_dedge_on_off,
   &motor_semin,
   &motor_semax,
+  &motor_en_pwm_mode_on_off,
+  &motor_pwm_autoscale_on_off,
+  &motor_intpol_on_off,
 };
 MenuMotor menu_motor_x(MOTOR_X, motor_items, sizeof(motor_items) / 2);
 MenuMotor menu_motor_y(MOTOR_Y, motor_items, sizeof(motor_items) / 2);
@@ -196,7 +226,7 @@ MenuItem timer2b("OCR2B", &menu_timer2b);
 
 
 // main menu
-#ifndef CUSTOM
+#ifndef CUSTOM_MENU
   MenuItem* main_menu_items[] = {
     &motor_x,
     &motor_y,
@@ -211,48 +241,3 @@ MenuItem timer2b("OCR2B", &menu_timer2b);
   };
   Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 #endif
-
-// main menu - autonomous
-// MenuItem* main_menu_items[] = {
-//   &run_rotations,
-//   &item_washing_on_off,
-//   // &item_e0_heater_on_off,
-//   // &item_home_washer_linear,
-//   &item_half_rot_dir,
-//   &item_half_rot_no,
-//   // &item_rpm_start,
-//   &item_rpm_target,
-//   // &motor_all,
-//   // &motor_x,
-//   // &motor_y,
-//   // &motor_z,
-//   &motor_e,
-//   // &timer1,
-//   // &timer2a,
-//   // &timer2b,
-//   // &timer3,
-//   // &timer4,
-//   // &timer5,
-//   &item_babystep_up,
-//   &item_babystep_down,
-//   &item_mode_stealth,
-//   &item_mode_normal,
-// };
-
-// main menu - cw
-// MenuItem* main_menu_items[] = {
-//   // &item_home_z_up,
-//   &item_start_washing,
-//   &item_move_up,
-//   &item_move_down,
-//   &item_fill_tank,
-//   &item_empty_tank,
-//   &item_home_z_down,
-//   &item_fill_and_empty,
-//   // &item_test_m400,
-//   // &motor_x,
-//   // &motor_z,
-//   &item_valve_on_off,
-//   &item_water_pump_on_off,
-//   &item_watch_water_level_on_off,
-// };

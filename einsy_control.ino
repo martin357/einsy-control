@@ -32,7 +32,7 @@ void setup() {
   current_menu->draw();
   menu_motor_stallguard_value.redraw_interval = 50;
 
-  #ifdef CUSTOM
+  #ifdef CUSTOM_SETUP
     setupCustom();
   #endif
 
@@ -65,7 +65,7 @@ void loop() {
     last_rpm_report = _millis;
   }
 
-  readEncoder();
+  // readEncoder();
 
   current_menu->loop();
 
@@ -131,7 +131,7 @@ void loop() {
     last_lcd_reinit = _millis;
   }
 
-  #ifdef CUSTOM
+  #ifdef CUSTOM_LOOP
     loopCustom();
   #endif
 

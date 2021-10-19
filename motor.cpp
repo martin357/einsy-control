@@ -269,6 +269,7 @@ void Motor::ramp_off(){
 
 
 bool Motor::is_expecting_stallguard(){
+  debugPrintQueue();
   return (queue[queue_index].type == MotorQueueItemType::RUN_UNTIL_STALLGUARD);
 }
 
@@ -344,6 +345,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
   // Serial.print(F("PNQ="));
   uint8_t next = next_queue_index();
   // Serial.println(next);
+  bool process_next = false;
 
   if(queue[next].processed || queue[next].type == MotorQueueItemType::NOOP){
     if(running || steps_to_do > 0){
@@ -351,7 +353,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
 
     }else{
       stop();
-      Serial.println(F("[pnq] empty queue, stopping!"));
+      // Serial.println(F("[pnq] empty queue, stopping!"));
 
     }
     return false;
@@ -360,90 +362,105 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
   switch (queue[next].type) {
     case MotorQueueItemType::TURN_ON: {
       on();
-      Serial.println(F(" turn on"));
+      Serial.println(F("[pnq] turn on"));
       break;
     }
     case MotorQueueItemType::TURN_OFF: {
       off();
-      Serial.println(F(" turn off"));
+      Serial.println(F("[pnq] turn off"));
+      process_next = true;
       break;
     }
     case MotorQueueItemType::STOP: {
       stop();
-      Serial.println(F(" stop"));
+      Serial.println(F("[pnq] stop"));
+      process_next = true;
       break;
     }
     case MotorQueueItemType::RUN_CONTINUOUS: {
       stop_on_stallguard = false;
       start(true);
-      Serial.println(F(" run cont"));
+      Serial.println(F("[pnq] run cont"));
+      process_next = true;
       break;
     }
     case MotorQueueItemType::RUN_UNTIL_STALLGUARD: {
       // stop_on_stallguard = true;
       start(true);
-      Serial.println(F(" run until sg"));
+      Serial.println(F("[pnq] run until sg"));
       break;
     }
     case MotorQueueItemType::DO_STEPS: {
       steps_to_do += queue[next].value;
 
-      // Serial.println(F(" do steps"));
+      Serial.print(F("[pnq] do steps "));
+      Serial.println(queue[next].value);
       break;
     }
     case MotorQueueItemType::RAMP_TO: {
       // *reinterpret_cast<float*>(&queue[next].value)
       ramp_to(queue[next].value / 100.0);
 
-      // Serial.println(F(" ramp"));
+      Serial.print(F("[pnq] ramp to "));
+      Serial.println(queue[next].value / 100.0);
+      process_next = true;
       break;
     }
     case MotorQueueItemType::SET_DIRECTION: {
       dir((bool)queue[next].value);
 
-      Serial.println(F(" set direction"));
+      Serial.print(F("[pnq] set dir "));
+      Serial.println(queue[next].value);
+      process_next = true;
       break;
     }
     case MotorQueueItemType::SET_RPM: {
       rpm(queue[next].value / 100.0);
 
-      Serial.print(F(" set rpm to "));
+      Serial.print(F("[pnq] set rpm to "));
       Serial.println(_rpm);
+      process_next = true;
       break;
     }
     case MotorQueueItemType::SET_ACCEL: {
       accel = queue[next].value / 100.0;
 
-      Serial.print(F(" set accel to "));
-      Serial.print(accel);
-      Serial.println();
+      Serial.print(F("[pnq] set accel to "));
+      Serial.println(accel);
+      process_next = true;
       break;
     }
     case MotorQueueItemType::SET_DECEL: {
       decel = queue[next].value / 100.0;
 
-      Serial.print(F(" set decel to "));
-      Serial.print(decel);
-      Serial.println();
+      Serial.print(F("[pnq] set decel to "));
+      Serial.println(decel);
+      process_next = true;
       break;
     }
     case MotorQueueItemType::SET_STOP_ON_STALLGUARD: {
       stop_on_stallguard = (bool)queue[next].value;
 
-      Serial.println(F(" set stop-on-stallguard"));
+      Serial.print(F("[pnq] set stop-on-sg to "));
+      Serial.println(stop_on_stallguard ? F("true") : F("false"));
+      process_next = true;
       break;
     }
     case MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL: {
       print_stallguard_to_serial = (bool)queue[next].value;
 
-      Serial.println(F(" set print sg to serial"));
+      Serial.println(F("[pnq] set print sg to serial"));
+      process_next = true;
       break;
     }
     case MotorQueueItemType::WAIT: {
       uint32_t _millis = millis();
       queue[next].value += _millis;
+      queue[next].processed = true;
 
-      Serial.print(F(" wait finishes at "));
+      Serial.print(F("[pnq] wait("));
+      Serial.print(next);
+      Serial.print(F(") finishes at "));
       Serial.print(queue[next].value);
       Serial.print(" now is ");
       Serial.print(_millis);
@@ -453,7 +470,8 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
     case MotorQueueItemType::BEEP: {
       beep(queue[next].value);
 
-      Serial.println(F(" beep!"));
+      Serial.println(F("[pnq] beep!"));
+      process_next = true;
       break;
     }
 
@@ -462,15 +480,21 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
   queue[queue_index].processed = true;
   queue_index = next;
   // debugPrintQueue();
-  // if(queue[queue_index].type == MotorQueueItemType::WAIT) debugPrintQueue();
+  if(queue[queue_index].type == MotorQueueItemType::WAIT) debugPrintQueue();
+  // if(process_next){
+  //   Serial.println(F("[pqn finished] process_next!"));
+  //   process_next_queue_item();
+  // }
   return true;
 
 }
 
 
 void Motor::debugPrintQueue(){
+  const uint8_t next = next_queue_index();
   for (size_t i = 0; i < MOTOR_QUEUE_LEN; i++) {
     if(queue_index == i) Serial.print(F("-> "));
+    else if(next == i) Serial.print(F("n> "));
     Serial.print(i);
     Serial.print(F(":\tT:"));
     Serial.print(queue[i].type);
@@ -507,8 +531,22 @@ TIMER_ISR(5, 3)
 
 // "wait" handling timer, beeper off timer
 ISR(TIMER0_COMPA_vect){
+  readEncoder();
+
+  static uint32_t last_report = -1002;
   uint32_t _millis = millis();
+  if(_millis > last_report + 1000){
+    last_report = _millis;
+    Serial.print(F("DEBUG PERIODIC PRINT ("));
+    Serial.print(_millis);
+    Serial.println(F(")"));
+    motors[0].debugPrintQueue();
+  }
+
+
+
   for(size_t i = 0; i < MOTORS_MAX; i++){
+    if(motors[i].pause_steps) continue;
     // if(motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT){
     //   Serial.print("next is wait! ");
     //   Serial.print(motors[i].queue[motors[i].queue_index].value);
@@ -517,16 +555,80 @@ ISR(TIMER0_COMPA_vect){
     //   Serial.println();
     // }
     uint8_t next = motors[i].next_queue_index();
-    if((motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT &&
-      _millis >= motors[i].queue[motors[i].queue_index].value) ||
-      (motors[i].queue[next].type == MotorQueueItemType::WAIT &&
-        _millis >= motors[i].queue[next].value)
+
+    if(motors[i].queue[next].type != MotorQueueItemType::NOOP &&
+      // motors[i].queue[next].type != MotorQueueItemType::WAIT &&
+      motors[i].queue[next].type != MotorQueueItemType::DO_STEPS &&
+      !motors[i].queue[next].processed
     ){
-      motors[i].pause_steps = true;
-      motors[i].process_next_queue_item(true);
-      motors[i].pause_steps = false;
-      Serial.println("wait finished");
+      if(motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT &&
+        motors[i].queue[motors[i].queue_index].processed
+      ){
+        // Serial.println(F("[wait] next is not processed but current is processed"));
+        // motors[i].debugPrintQueue();
+
+      }else{
+        // Serial.println(F("[wait] next is not processed, current is not processed. PNQ!"));
+        // motors[i].debugPrintQueue();
+        motors[i].pause_steps = true;
+        motors[i].process_next_queue_item();
+        motors[i].pause_steps = false;
+
+      }
     }
+
+    // if((motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT &&
+    //   motors[i].queue[motors[i].queue_index].processed &&
+    //   _millis >= motors[i].queue[motors[i].queue_index].value) ||
+    //   (motors[i].queue[next].type == MotorQueueItemType::WAIT &&
+    //   motors[i].queue[next].processed &&
+    //   _millis >= motors[i].queue[next].value)
+    // ){
+    //   Serial.println(F(" wait finished! pnq!"));
+    //   motors[i].pause_steps = true;
+    //   motors[i].process_next_queue_item(true);
+    //   motors[i].pause_steps = false;
+    // }
+
+    // if(motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT &&
+    //   motors[i].queue[motors[i].queue_index].processed) Serial.println(F("[wait] current is processed wait"));
+
+    // if(motors[i].queue[next].type == MotorQueueItemType::WAIT &&
+    //   motors[i].queue[next].processed) Serial.println(F("[wait] next is processed wait"));
+
+    // if(motors[i].queue[next].type == MotorQueueItemType::WAIT &&
+    //   motors[i].queue[next].processed &&
+    //   _millis >= motors[i].queue[next].value
+    //   // false
+    // ){
+    //   Serial.print(F(" wait("));
+    //   Serial.print(next);
+    //   Serial.println(F(") finished! pnq!"));
+    //   motors[i].pause_steps = true;
+    //   if(!motors[i].process_next_queue_item(true)){
+    //     motors[i].queue[motors[i].queue_index].processed = true;
+    //     Serial.println(F("[wait] queue is empty, marking current as processed!"));
+    //   }
+    //   motors[i].pause_steps = false;
+    // }
+
+    if(motors[i].queue[motors[i].queue_index].type == MotorQueueItemType::WAIT &&
+      motors[i].queue[motors[i].queue_index].processed &&
+      _millis >= motors[i].queue[motors[i].queue_index].value
+    ){
+      Serial.print(F(" wait("));
+      Serial.print(motors[i].queue_index);
+      Serial.println(F(") finished! pnq!"));
+      motors[i].pause_steps = true;
+      if(!motors[i].process_next_queue_item(true)){
+        // motors[i].queue[motors[i].queue_index].processed = true;
+        // Serial.println(F("[wait] queue is empty, marking current as processed!"));
+        Serial.println(F("[wait] queue is empty, pnq returned false!"));
+      }
+      motors[i].pause_steps = false;
+    }
+
+
   }
 
   if(beeper_off_at && _millis > beeper_off_at){
@@ -653,6 +755,8 @@ ISR(PCINT2_vect){
     PINK & (1 << PINK6), // Z_DIAG
     PINK & (1 << PINK3), // E0_DIAG
   };
+
+  Serial.println("SG Int");
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(sg[i]){

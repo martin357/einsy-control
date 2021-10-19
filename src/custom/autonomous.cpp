@@ -7,13 +7,6 @@
 #ifdef CUSTOM_AUTONOMOUS
 
 
-#define PIN_UV_LED 73
-#define PIN_HEATER 76
-#define PIN_CAP_IN 12
-#define PIN_WATER_PUMP HEATER_0_PIN
-#define PIN_VALVE HEATER_BED_PIN
-
-
 /// custom stuff
 uint8_t half_rot_no = 20;
 uint8_t rpm_start = 60;
@@ -54,11 +47,12 @@ void setupCustom(){
 
   motors[3].driver.semax(5);
   motors[3].driver.semin(2);
-  motors[3].driver.en_pwm_mode(false);
-  motors[3].driver.pwm_autoscale(false);
-  motors[3].driver.intpol(false);
+  motors[3].driver.en_pwm_mode(true);
+  motors[3].driver.pwm_autoscale(true);
+  motors[3].driver.intpol(true);
   motors[3].driver.rms_current(400);
-  motors[3].driver.sgt(3);
+  motors[3].driver.sgt(4);
+  motors[3].driver.TCOOLTHRS(460);
 
   // power output
   pinModeOutput(PIN_VALVE); // bed mosfet
@@ -66,9 +60,7 @@ void setupCustom(){
   pinModeOutput(PIN_WATER_PUMP); // extruder mosfet
   digitalWriteExt(PIN_WATER_PUMP, LOW);
 
-}
 
-void loopCustom(){
 }
 
 
@@ -99,7 +91,7 @@ void do_run_rotations(){
   processCommand(cmd_buff);
 
   // rpm
-  processCommand(F("rpm x1 y1 z1"));
+  processCommand(F("rpm x0.1 y0.1 z0.1"));
 
   // move_ramp
   end = cmd_buff;
@@ -203,7 +195,7 @@ MenuItem* main_menu_items[] = {
   // &item_rpm_start,
   &item_rpm_target,
   // &motor_all,
-  // &motor_x,
+  &motor_x,
   // &motor_y,
   // &motor_z,
   &motor_e,
