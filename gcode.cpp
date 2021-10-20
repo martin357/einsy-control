@@ -13,7 +13,7 @@
 
 #define FOREACH_PARAM_AS_AXIS_WITH_VALUE  \
   FOREACH_PARAM_AS_AXIS;  \
-  const int32_t value = (len < 2) ? 0 : atoi(&rx_param[i][1]);  \
+  const int32_t value = (len < 2) ? 0 : atol(&rx_param[i][1]);  \
 
 #define FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE  \
   FOREACH_PARAM_AS_AXIS;  \
@@ -238,12 +238,13 @@ void gcode_home(){
 
 
   // motors[index].set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 1);
+  // motors[index].set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
   // backstep
-  motors[index].set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !(bool)dir);
   motors[index].set_queue_item(next++, MotorQueueItemType::DO_STEPS, motors[index].rot2usteps(backstep_rot));
   // motors[index].set_queue_item(next++, MotorQueueItemType::BEEP, 5);
+  motors[index].set_queue_item(next++, MotorQueueItemType::WAIT, 25);
 
   // fast forward until stallguard
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, (bool)dir);
@@ -254,6 +255,7 @@ void gcode_home(){
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !(bool)dir);
   motors[index].set_queue_item(next++, MotorQueueItemType::DO_STEPS, motors[index].rot2usteps(backstep_rot));
   // motors[index].set_queue_item(next++, MotorQueueItemType::BEEP, 5);
+  motors[index].set_queue_item(next++, MotorQueueItemType::WAIT, 25);
 
   // slow forward until stallguard
   motors[index].set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
@@ -261,6 +263,7 @@ void gcode_home(){
   motors[index].set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
   // motors[index].set_queue_item(next++, MotorQueueItemType::BEEP, 5);
 
+  // motors[index].set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 1);
   // motors[index].set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 0);
   // motors[index].start(false);
 
@@ -279,6 +282,27 @@ void gcode_empty_queue(){
   FOREACH_PARAM_AS_AXIS;
   motors[index].empty_queue();
   FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_print_info(){
+  FOREACH_PARAM_AS_AXIS;
+  motors[index].debugPrintInfo();
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_stop_on_stallguard(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_STOP_ON_STALLGUARD, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_print_stallguard_to_serial(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_PRINT_STALLGUARD_TO_SERIAL, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
 

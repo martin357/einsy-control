@@ -80,9 +80,9 @@ void do_watch_water_level_off(){ watch_water_level = false; digitalWriteExt(PIN_
 MenuItemToggleCallable item_watch_water_level_on_off(&is_watch_water_level_on, "Water level: on", "Water level: off", &do_watch_water_level_off, &do_watch_water_level_on);
 
 
-uint8_t washing_duration = 20;
-MenuRange<uint8_t> menu_washing_duration("Washing duration", washing_duration, 10, 120);
-MenuItem item_washing_duration("Washing duration", &menu_washing_duration);
+uint8_t washing_duration = 10;
+MenuRange<uint8_t> menu_washing_duration("Washing time [min]", washing_duration, 1, 255);
+MenuItem item_washing_duration("Washing time [min]", &menu_washing_duration);
 
 
 bool is_homed = false;
@@ -120,10 +120,14 @@ void ensure_homed(){
 // }
 // MenuItemCallable item_test_m400("test M400", &do_test_m400, false);
 
+void do_move_up(bool);
+void do_move_down(bool);
+
 void do_fill_tank(){
   const uint16_t stabilization_duration = 3000;
   const uint32_t start_time = millis();
   uint32_t stabilization_start;
+  do_move_down(false);
   lcd.clear();
   lcd.print("Filling tank...");
   digitalWriteExt(PIN_VALVE, 0);
@@ -230,9 +234,9 @@ void do_move_down(bool do_wait = true){
 MenuItemCallable item_move_down("Move platform down", &do_move_down, false);
 
 void do_start_washing(){
-  uint32_t duration_half = (washing_duration * 500) - 2000;
+  uint32_t duration_half = ((uint32_t)washing_duration * 500UL * 60UL) - 2000UL;
   char duration_buf[64] = "wait x";
-  itoa(duration_half, &duration_buf[6], 10);
+  ultoa(duration_half, &duration_buf[6], 10);
 
   // move down and fill tank
   // do_move_down(false);
@@ -245,12 +249,12 @@ void do_start_washing(){
   processCommand(F("dir x1"));
   processCommand(F("rpm x0.1"));
   processCommand(F("ramp_to x230"));
-  // processCommand(F("start x1"));
+  processCommand(F("start x1"));
   // processCommand(F("wait x5000")); // x15000
   processCommand(duration_buf);
   processCommand(F("ramp_to x0.1"));
   processCommand(F("wait x2000"));
-  processCommand(F("start x1"));
+  // processCommand(F("start x1"));
   processCommand(F("stop x"));
 
   // processCommand(F("print_queue x"));
@@ -261,12 +265,12 @@ void do_start_washing(){
   processCommand(F("dir x0"));
   processCommand(F("rpm x0.1"));
   processCommand(F("ramp_to x230"));
-  // processCommand(F("start x1"));
+  processCommand(F("start x1"));
   // processCommand(F("wait x5000")); // x15000
   processCommand(duration_buf);
   processCommand(F("ramp_to x0.1"));
   processCommand(F("wait x2000"));
-  processCommand(F("start x1"));
+  // processCommand(F("start x1"));
   processCommand(F("stop x"));
 
   processCommand(F("wait_for_motor x"));
@@ -292,15 +296,15 @@ MenuItem* main_menu_items[] = {
   &item_fill_tank,
   &item_empty_tank,
   &item_home_z_down,
-  &item_fill_and_empty,
+  // &item_fill_and_empty,
   // &item_test_m400,
   // &motor_x,
   // &motor_z,
   &item_uv_led_on_off,
   &item_heater_on_off,
-  &item_valve_on_off,
-  &item_water_pump_on_off,
-  &item_watch_water_level_on_off,
+  // &item_valve_on_off,
+  // &item_water_pump_on_off,
+  // &item_watch_water_level_on_off,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 

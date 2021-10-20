@@ -48,7 +48,7 @@ enum MotorQueueItemType: uint8_t {
   SET_STOP_ON_STALLGUARD = 12,
   SET_PRINT_STALLGUARD_TO_SERIAL = 13,
   WAIT = 14, // enqueue a delay
-  // WAIT_IN_PROGRESS = 15, // actual delay
+  WAIT_IN_PROGRESS = 15, // actual delay
   BEEP = 16,
 };
 
@@ -124,6 +124,7 @@ public:
   void empty_queue();
   bool process_next_queue_item(bool = false);
   void debugPrintQueue();
+  void debugPrintInfo();
 // private:
   volatile float _rpm;
   uint16_t* timer_compare_port;

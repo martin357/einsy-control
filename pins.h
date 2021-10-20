@@ -227,8 +227,8 @@ void digitalWriteExt(const uint8_t, const bool);
 // #define SDPOWER             -1
 // #define SDSS                77
 // #define LED_PIN             13
-// #define FAN_PIN              6
-// #define FAN_1_PIN           -1
+#define PIN_FAN_0       8
+#define PIN_FAN_1       6
 // #define PS_ON_PIN           -1
 // #define KILL_PIN            -1  // 80 with Smart Controller LCD
 // #define SUICIDE_PIN         -1  // PIN that has to be turned on right after start, to keep power flowing.

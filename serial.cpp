@@ -72,6 +72,9 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("home"))) gcode_home();
   else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
+  else if(strcmp_P(rx_command, F("print_info"))) gcode_print_info();
+  else if(strcmp_P(rx_command, F("stop_on_stallguard"))) gcode_stop_on_stallguard();
+  else if(strcmp_P(rx_command, F("print_stallguard_to_serial"))) gcode_print_stallguard_to_serial();
   else if(strcmp_P(rx_command, F("wait_for_motor"))) gcode_wait_for_motor();
   else if(strcmp_P(rx_command, F("wait"))) gcode_wait();
   else{

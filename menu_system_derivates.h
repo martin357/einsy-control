@@ -108,5 +108,4 @@ public:
   void on_press(uint16_t);
   void draw(bool = true);
   void move(int8_t);
-  // const char* title;
 };

@@ -307,6 +307,7 @@ void MenuMotorManualSteps::on_enter(){
 
 
 void MenuMotorManualSteps::on_press(uint16_t duration){
+  motors[last_entered_motor_menu].stop();
   go_back();
 }
 
@@ -346,11 +347,11 @@ void MenuMotorManualSteps::move(int8_t amount){
   motors[last_entered_motor_menu].pause_steps = false;
   motors[last_entered_motor_menu].start();
 
-  Serial.print(F("amount="));
-  Serial.print(amount);
-  Serial.print("\t");
-  Serial.print(F("steps_to_do="));
-  Serial.println(motors[last_entered_motor_menu].steps_to_do);
+  // Serial.print(F("amount="));
+  // Serial.print(amount);
+  // Serial.print("\t");
+  // Serial.print(F("steps_to_do="));
+  // Serial.println(motors[last_entered_motor_menu].steps_to_do);
 
   // draw();
 }
