@@ -13,15 +13,20 @@
 
 #define FOREACH_PARAM_AS_AXIS_WITH_VALUE  \
   FOREACH_PARAM_AS_AXIS;  \
-  const int32_t value = (len < 2) ? 0 : atol(&rx_param[i][1]);  \
+  const int32_t value = (len < 2) ? 0 : strtol(&rx_param[i][1], nullptr, 10);  \
 
 #define FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE  \
   FOREACH_PARAM_AS_AXIS;  \
   const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);  \
 
+#define FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE  \
+  FOREACH_PARAM_AS_AXIS;  \
+  const uint32_t value = (len < 2) ? 0 : strtoul(&rx_param[i][1], nullptr, 10);  \
+
 #define FOREACH_PARAM_AS_AXIS_END  }}}
 #define FOREACH_PARAM_AS_AXIS_WITH_VALUE_END  FOREACH_PARAM_AS_AXIS_END
 #define FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END  FOREACH_PARAM_AS_AXIS_END
+#define FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE_END  FOREACH_PARAM_AS_AXIS_END
 #define ADD_TO_QUEUE_FLOAT(t) motors[index].set_next_empty_queue_item(MotorQueueItemType::t, value * 100.0)
 #define ADD_TO_QUEUE(t, v) motors[index].set_next_empty_queue_item(MotorQueueItemType::t, v)
 
@@ -111,6 +116,13 @@ void gcode_ramp_to(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   ADD_TO_QUEUE_FLOAT(RAMP_TO);
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_do_steps(){
+  FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE;
+  ADD_TO_QUEUE(DO_STEPS, value);
+  FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE_END;
 }
 
 
@@ -299,7 +311,7 @@ void gcode_stop_on_stallguard(){
 }
 
 
-void gcode_print_stallguard_to_serial(){
+void gcode_print_stallguard(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(SET_PRINT_STALLGUARD_TO_SERIAL, value);
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
@@ -343,5 +355,7 @@ void gcode_wait(){
 #undef FOREACH_PARAM_AS_AXIS_WITH_VALUE_END
 #undef FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE
 #undef FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END
+#undef FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE
+#undef FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE_END
 #undef ADD_TO_QUEUE_FLOAT
 #undef ADD_TO_QUEUE

@@ -104,10 +104,14 @@ public:
   bool enabled;
   bool stop_on_stallguard;
   bool print_stallguard_to_serial;
+  bool is_homed;
+  float position;
+  uint32_t inactivity_timeout;
   volatile bool running;
   volatile bool stallguard_triggered;
   volatile uint32_t steps_to_do;
   volatile uint32_t steps_total;
+  volatile uint32_t last_movement;
 
   volatile float target_rpm;
   uint16_t accel;
@@ -122,6 +126,7 @@ public:
   void set_queue_item(uint8_t, MotorQueueItemType, uint32_t = 0);
   bool set_next_empty_queue_item(MotorQueueItemType, uint32_t = 0);
   void empty_queue();
+  bool home();
   bool process_next_queue_item(bool = false);
   void debugPrintQueue();
   void debugPrintInfo();

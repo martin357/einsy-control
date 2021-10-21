@@ -67,6 +67,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("accel"))) gcode_accel();
   else if(strcmp_P(rx_command, F("decel"))) gcode_decel();
   else if(strcmp_P(rx_command, F("ramp")) || strcmp_P(rx_command, F("ramp_to"))) gcode_ramp_to();
+  else if(strcmp_P(rx_command, F("do_steps"))) gcode_do_steps();
   else if(strcmp_P(rx_command, F("move_rot"))) gcode_move_rot();
   else if(strcmp_P(rx_command, F("move_ramp"))) gcode_move_ramp();
   else if(strcmp_P(rx_command, F("home"))) gcode_home();
@@ -74,7 +75,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
   else if(strcmp_P(rx_command, F("print_info"))) gcode_print_info();
   else if(strcmp_P(rx_command, F("stop_on_stallguard"))) gcode_stop_on_stallguard();
-  else if(strcmp_P(rx_command, F("print_stallguard_to_serial"))) gcode_print_stallguard_to_serial();
+  else if(strcmp_P(rx_command, F("print_stallguard"))) gcode_print_stallguard();
   else if(strcmp_P(rx_command, F("wait_for_motor"))) gcode_wait_for_motor();
   else if(strcmp_P(rx_command, F("wait"))) gcode_wait();
   else{
