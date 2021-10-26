@@ -2,8 +2,8 @@
 
 // select one custom variant below
 
-#define CUSTOM_AUTONOMOUS
-// #define CUSTOM_CW
+// #define CUSTOM_AUTONOMOUS
+#define CUSTOM_CW
 
 
 #ifdef CUSTOM_AUTONOMOUS

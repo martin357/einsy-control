@@ -44,29 +44,6 @@ void setup() {
 void loop() {
   uint32_t _millis = millis();
 
-  static uint32_t last_report = 0;
-  if(_millis > last_report + 1000){
-    uint16_t cnt = counter;
-    counter = 0;
-    if(cnt){
-      Serial.print(cnt);
-      Serial.print("\t");
-      Serial.println(1000.0 / cnt);
-    }
-    last_report = _millis;
-  }
-
-  static bool rpm_report = false;
-  static uint32_t last_rpm_report = 0;
-  if(rpm_report && (_millis > last_rpm_report + 50)){
-    if(motors[0].steps_to_do || motors[0].running){
-      Serial.println(motors[0]._rpm);
-    }
-    last_rpm_report = _millis;
-  }
-
-  // readEncoder();
-
   current_menu->loop();
 
   if(enc_diff){
@@ -114,12 +91,14 @@ void loop() {
     if(motors[i].stallguard_triggered){
       motors[i].stallguard_triggered = false;
       const float rpm = motors[i].rpm();
-      Serial.print("Motor ");
+      const uint32_t lost_steps = motors[i].driver.LOST_STEPS();
+      Serial.print(F("Motor "));
       Serial.print("XYZE"[i]);
-      Serial.print(" stalled at ");
+      Serial.print(F(" stalled at "));
       Serial.print(rpm);
-      Serial.print(" RPM!");
-      Serial.println();
+      Serial.print(F(" RPM with "));
+      Serial.print(lost_steps);
+      Serial.println(F(" lost steps!"));
 
     }
 

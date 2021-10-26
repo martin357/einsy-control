@@ -27,16 +27,22 @@ void setupCustom(){
   }
   motors[0].inactivity_timeout = 5000;
 
+  motors[2].driver.rms_current(600);
+  motors[2].driver.sgt(3);
 
   // touch capacitance sensor
-  pinModeInput(PIN_CAP_IN);
+  pinMode(PIN_CAP_IN, INPUT);
 
   // CW board trigger pin - UV led
   pinModeOutput(PIN_UV_LED);
+  digitalWriteExt(PIN_UV_LED, LOW);
+  delay(10);
   digitalWriteExt(PIN_UV_LED, HIGH);
 
   // CW board trigger pin - heater
   pinModeOutput(PIN_HEATER);
+  digitalWriteExt(PIN_HEATER, LOW);
+  delay(10);
   digitalWriteExt(PIN_HEATER, HIGH);
 
   // power output
@@ -61,6 +67,51 @@ void loopCustom(){
 
 }
 
+
+class MenuListModelHeight: public Menu{
+public:
+  MenuListModelHeight();
+  void on_enter();
+  void on_press(uint16_t);
+  void draw(bool = true);
+  void move(int8_t);
+  const uint8_t items_count;
+  uint8_t value;
+};
+
+MenuListModelHeight::MenuListModelHeight():
+  Menu(nullptr, 0),
+  value(0),
+  items_count(4){}
+
+void MenuListModelHeight::on_enter(){
+  lcd.clear();
+}
+
+void MenuListModelHeight::on_press(uint16_t duration){
+  go_back();
+}
+
+void MenuListModelHeight::draw(bool clear){
+  const char *items[] = {"Full", "3/4", "2/4", "1/4"};
+  lcd.print("\3", 0, 0);
+  lcd.print("Model height");
+  lcd.print(" \1");
+
+  lcd.print(value > 0 ? "<" : " ", 0, 2);
+  lcd.setCursor(8, 2);
+  lcd.print(items[value]);
+  lcd.print(" ");
+  lcd.print(value < items_count - 1 ? ">" : " ", 19, 2);
+}
+
+void MenuListModelHeight::move(int8_t amount){
+  if((int8_t)value + amount < 0) value = 0;
+  else if(value + amount >= items_count) value = items_count - 1;
+  else value += amount;
+
+  draw();
+}
 
 
 // custom CW stuff
@@ -91,8 +142,9 @@ MenuItemToggleCallable item_watch_water_level_on_off(&is_watch_water_level_on, "
 
 
 uint8_t washing_duration = 4;
-uint8_t drying_duration = 3;
+uint8_t drying_duration = 5;
 uint8_t curing_duration = 3;
+uint8_t stabilization_duration = 0;
 // uint8_t washing_duration = 1;
 // uint8_t drying_duration = 1;
 // uint8_t curing_duration = 1;
@@ -105,6 +157,12 @@ MenuItem item_drying_duration("Drying time", &menu_drying_duration);
 
 MenuRange<uint8_t> menu_curing_duration("Curing time [min]", curing_duration, 1, 255);
 MenuItem item_curing_duration("Curing time", &menu_curing_duration);
+
+MenuRange<uint8_t> menu_stabilization_duration("Stabil. time [s]", stabilization_duration, 0, 60);
+MenuItem item_stabilization_duration("Stabilization time", &menu_stabilization_duration);
+
+MenuListModelHeight menu_model_height;
+MenuItem item_model_height("Model height", &menu_model_height);
 
 
 void beep_cycle_finished(bool show_on_lcd = true){
@@ -124,7 +182,26 @@ enum PlatformPos: uint8_t {NA, TOP, BOTTOM};
 
 bool is_homed = false;
 PlatformPos platform_pos = PlatformPos::NA;
-void do_home_z_up(){ processCommand(F("home z0")); }
+void do_home_z_up(){
+  lcd.clear();
+  lcd.print("Homing platform...");
+
+  motors[2].driver.en_pwm_mode(0);
+  motors[2].driver.pwm_autoscale(0);
+  motors[2].driver.intpol(0);
+
+  processCommand(F("home z0 b0.5 f130 g130"));
+  processCommand(F("dir z0"));
+  processCommand(F("rpm z200"));
+  processCommand(F("move_rot z0.5"));
+
+  motors[2].driver.en_pwm_mode(1);
+  motors[2].driver.pwm_autoscale(1);
+  motors[2].driver.intpol(1);
+
+  is_homed = true;
+  platform_pos = PlatformPos::TOP;
+}
 MenuItemCallable item_home_z_up("Home Z up", &do_home_z_up, false);
 
 void do_home_z_down(){
@@ -135,9 +212,10 @@ void do_home_z_down(){
   motors[2].driver.pwm_autoscale(0);
   motors[2].driver.intpol(0);
 
-  processCommand(F("home z1 b0.5 f180 g60"));
+  // processCommand(F("home z1 b0.5 f180 g60"));
+  processCommand(F("home z1 b0.5 f130 g130"));
   processCommand(F("dir z0"));
-  processCommand(F("rpm z180"));
+  processCommand(F("rpm z200"));
   // processCommand(F("move_rot z0.2"));
   processCommand(F("move_rot z0.5"));
 
@@ -161,25 +239,12 @@ void ensure_homed(){
   }
 }
 
-// void do_test_m400(){
-//   processCommand(F("rpm z60"));
-//   processCommand(F("dir z1"));
-//   processCommand(F("move_rot z1"));
-//   // processCommand(F("start z0"));
-//   processCommand(F("wait_for_motor z"));
-//   Serial.println(">>> BEEP");
-//   beep();
-//   processCommand(F("dir z0"));
-//   processCommand(F("move_rot z1"));
-//   // processCommand(F("start z0"));
-// }
-// MenuItemCallable item_test_m400("test M400", &do_test_m400, false);
 
 void do_move_up(bool, bool);
 void do_move_down(bool, bool);
 
 void do_fill_tank(bool do_beep = true){
-  const uint16_t stabilization_duration = 5000; // 3000;
+  const uint16_t stabilization_duration_ms = stabilization_duration * 1000;
   const uint32_t start_time = millis();
   uint32_t stabilization_start;
   do_move_down(false, false);
@@ -187,9 +252,22 @@ void do_fill_tank(bool do_beep = true){
   lcd.print("Filling tank...");
   digitalWriteExt(PIN_VALVE, 0);
   digitalWriteExt(PIN_WATER_PUMP, 1);
+
+  digitalWrite(PIN_CAP_IN, HIGH);
+  delay(100);
+  digitalWrite(PIN_CAP_IN, LOW);
+  pinMode(PIN_CAP_IN, INPUT);
+  delay(100);
+
   while(1){
     const bool water_detected = digitalReadExt(PIN_CAP_IN);
     if(water_detected){
+      // beep(30);
+      // lcd.clear();
+      // lcd.print("Overfill...");
+      // delay(300);
+      // beep(30);
+
       digitalWriteExt(PIN_WATER_PUMP, 0);
       digitalWriteExt(PIN_VALVE, 1);
       lcd.clear();
@@ -201,19 +279,21 @@ void do_fill_tank(bool do_beep = true){
     }
 
     if(enc_click > 1){
+      enc_click = 0;
       digitalWriteExt(PIN_WATER_PUMP, 0);
       digitalWriteExt(PIN_VALVE, 0);
       return;
     }
   }
 
-  while(millis() < stabilization_start + stabilization_duration){
+  while(millis() < stabilization_start + stabilization_duration_ms){
     const bool water_detected = digitalReadExt(PIN_CAP_IN);
     digitalWriteExt(PIN_VALVE, water_detected);
     digitalWriteExt(PIN_WATER_PUMP, !water_detected);
     delay(200);
 
     if(enc_click > 1){
+      enc_click = 0;
       digitalWriteExt(PIN_WATER_PUMP, 0);
       digitalWriteExt(PIN_VALVE, 0);
       return;
@@ -221,7 +301,10 @@ void do_fill_tank(bool do_beep = true){
   }
   digitalWriteExt(PIN_WATER_PUMP, 0);
   digitalWriteExt(PIN_VALVE, 1);
-  delay(500);
+  // beep(30);
+  // delay(700);
+  delay(1300);
+  // beep(30);
   digitalWriteExt(PIN_VALVE, 0);
   const uint32_t duration = millis() - start_time;
   lcd.clear();
@@ -239,7 +322,7 @@ MenuItemCallable item_fill_tank("Fill tank", &do_fill_tank, false);
 
 
 void do_empty_tank(bool do_beep = true){
-  const uint16_t emptying_duration = 60 * 1000;
+  const uint32_t emptying_duration = 73UL * 1000UL;
   const uint32_t emptying_end = millis() + emptying_duration;
   digitalWriteExt(PIN_WATER_PUMP, 0);
   digitalWriteExt(PIN_VALVE, 1);
@@ -252,7 +335,10 @@ void do_empty_tank(bool do_beep = true){
     lcd.print((uint16_t)(remaining / 1000));
     lcd.print("s ");
     delay(50);
-    if(enc_click > 1) break;
+    if(enc_click > 1){
+      enc_click = 0;
+      break;
+    }
   }
   digitalWriteExt(PIN_VALVE, 0);
   lcd.clear();
@@ -274,43 +360,88 @@ MenuItemCallable item_fill_and_empty("Fill & empty", &do_fill_and_empty, false);
 void do_move_up(bool do_wait = true, bool do_beep = true){
   if(platform_pos == PlatformPos::TOP) return;
 
-  ensure_homed();
-  if(do_wait){
-    lcd.clear();
-    lcd.print("Moving platform up");
-  }
-  processCommand(F("dir z0"));
-  processCommand(F("move_ramp s0.1 f300 a150 d150 z42"));
-  if(do_wait){
-    processCommand(F("wait_for_motor z"));
-    if(do_beep) beep(50);
-  }
+  do{
+    ensure_homed();
+    if(do_wait){
+      lcd.clear();
+      lcd.print("Moving platform up");
+    }
+    motors[2].stallguard_triggered = false;
+    motors[2].stop_on_stallguard = true;
+    processCommand(F("dir z0"));
+    processCommand(F("move_ramp s120 f333 a250 d250 z42"));
+    processCommand(F("start z"));
+    // processCommand(F("print_info z"));
+    if(do_wait){
+      processCommand(F("wait_for_motor z"));
+      if(do_beep) beep(50);
+    }
+    if(motors[2].stallguard_triggered){
+      Serial.println(F("STALLGUARD TRIGGERED DURING MOVEMENT"));
+      is_homed = false;
+    }
+
+  }while(motors[2].stallguard_triggered);
   platform_pos = PlatformPos::TOP;
 }
 void _do_move_up(){ do_move_up(); }
 MenuItemCallable item_move_up("Move platform up", &_do_move_up, false);
 
+// void do_move_down(bool do_wait = true, bool do_beep = true){
+//   if(!is_homed){
+//     // Serial.println(F("[DO_MOVE_DOWN] is not homed..."));
+//     do_home_z_down();
+//     return;
+//   }
+//
+//   if(platform_pos == PlatformPos::BOTTOM) return;
+//
+//   if(do_wait){
+//     // Serial.println(F("[DO_MOVE_DOWN] do_wait is true, clear lcd"));
+//     lcd.clear();
+//     lcd.print("Moving platform down");
+//   }
+//   // Serial.println(F("[DO_MOVE_DOWN] move down!"));
+//   processCommand(F("dir z1"));
+//   processCommand(F("move_ramp s120 f333 a250 d250 z42"));
+//   processCommand(F("start z"));
+//   if(do_wait){
+//     processCommand(F("wait_for_motor z"));
+//     if(do_beep) beep(50);
+//   }
+//   platform_pos = PlatformPos::BOTTOM;
+// }
 void do_move_down(bool do_wait = true, bool do_beep = true){
-  if(!is_homed){
-    // Serial.println(F("[DO_MOVE_DOWN] is not homed..."));
-    do_home_z_down();
-    return;
-  }
+  do{
+    if(!is_homed){
+      // Serial.println(F("[DO_MOVE_DOWN] is not homed..."));
+      do_home_z_down();
+      return;
+    }
 
-  if(platform_pos == PlatformPos::BOTTOM) return;
+    if(platform_pos == PlatformPos::BOTTOM) return;
 
-  if(do_wait){
-    // Serial.println(F("[DO_MOVE_DOWN] do_wait is true, clear lcd"));
-    lcd.clear();
-    lcd.print("Moving platform down");
-  }
-  // Serial.println(F("[DO_MOVE_DOWN] move down!"));
-  processCommand(F("dir z1"));
-  processCommand(F("move_ramp s0.1 f300 a150 d100 z42"));
-  if(do_wait){
-    processCommand(F("wait_for_motor z"));
-    if(do_beep) beep(50);
-  }
+    if(do_wait){
+      // Serial.println(F("[DO_MOVE_DOWN] do_wait is true, clear lcd"));
+      lcd.clear();
+      lcd.print("Moving platform down");
+    }
+    // Serial.println(F("[DO_MOVE_DOWN] move down!"));
+    motors[2].stallguard_triggered = false;
+    motors[2].stop_on_stallguard = true;
+    processCommand(F("dir z1"));
+    processCommand(F("move_ramp s120 f333 a250 d250 z42"));
+    processCommand(F("start z"));
+    if(do_wait){
+      processCommand(F("wait_for_motor z"));
+      if(do_beep) beep(50);
+    }
+    if(motors[2].stallguard_triggered){
+      Serial.println(F("STALLGUARD TRIGGERED DURING MOVEMENT"));
+      is_homed = false;
+    }
+
+  }while(motors[2].stallguard_triggered);
   platform_pos = PlatformPos::BOTTOM;
 }
 void _do_move_down(){ do_move_down(); }
@@ -318,65 +449,82 @@ MenuItemCallable item_move_down("Move platform down", &_do_move_down, false);
 
 
 void do_start_washing(bool do_beep = true){
-  uint32_t duration_half = ((uint32_t)washing_duration * 500UL * 60UL) - 3000UL;
+  uint32_t duration_half = ((uint32_t)washing_duration * 500UL * 60UL) - 1500UL;
   char duration_buf[64] = "wait x";
   ultoa(duration_half, &duration_buf[6], 10);
 
   // move down and fill tank
   processCommand(F("empty_queue x z"));
-  // Serial.println(F("[WASH] move down"));
-  // do_move_down(false);
-  // processCommand(F("start z"));
-
-  Serial.println(F("[WASH] fill tank"));
-  do_fill_tank(false);
+  do_fill_tank(false); // off for debug
 
   // wash model for some time...
-  Serial.println(F("[WASH] start"));
   lcd.clear();
-  lcd.print("Washing...");
+  lcd.print("Washing... <<<");
 
+  const bool old_stop_on_stallguard = motors[0].stop_on_stallguard;
   motors[0].stop_on_stallguard = false;
   // motors[0].print_stallguard_to_serial = true;
 
-  processCommand(F("stop_on_stallguard x0"));
+  // processCommand(F("stop_on_stallguard x0"));
   processCommand(F("dir x1"));
+  // processCommand(F("rpm x60"));
   processCommand(F("rpm x0.1"));
   processCommand(F("ramp_to x333"));
   processCommand(F("start x1"));
-  // processCommand(F("wait x5000")); // x15000
   processCommand(duration_buf);
-  processCommand(F("ramp_to x0.1"));
-  processCommand(F("wait x3000"));
-  // processCommand(F("start x1"));
   processCommand(F("stop x"));
-
-  // processCommand(F("print_queue x"));
-  processCommand(F("wait_for_motor x"));
+  processCommand(F("wait x3000"));
+  // processCommand(F("wait_for_motor x"));
+  int32_t remaining;
+  const uint32_t washing_end = millis() + ((uint32_t)washing_duration * 60000UL);
+  while(motors[0].is_busy()){
+    remaining = washing_end - millis();
+    lcd.setCursor(0, 2);
+    lcd.print("Remaining ");
+    lcd.print((uint16_t)(remaining / 1000));
+    lcd.print("s ");
+    delay(50);
+    if(enc_click > 1){
+      enc_click = 0;
+      beep(50);
+      processCommand(F("stop x"));
+    }
+  }
   // processCommand(F("empty_queue x"));
-  // beep(10);
+  // beep(30);
 
+  lcd.setCursor(0, 0);
+  lcd.print("Washing... >>>");
   processCommand(F("dir x0"));
+  // processCommand(F("rpm x60"));
   processCommand(F("rpm x0.1"));
   processCommand(F("ramp_to x333"));
   processCommand(F("start x1"));
-  // processCommand(F("wait x5000")); // x15000
   processCommand(duration_buf);
-  processCommand(F("ramp_to x0.1"));
-  processCommand(F("wait x3000"));
-  // processCommand(F("start x1"));
   processCommand(F("stop x"));
-
-  processCommand(F("wait_for_motor x"));
-  // beep(10);
+  // processCommand(F("wait x3000"));
+  // processCommand(F("wait_for_motor x"));
+  while(motors[0].is_busy()){
+    remaining = washing_end - millis();
+    lcd.setCursor(0, 2);
+    lcd.print("Remaining ");
+    lcd.print((uint16_t)(remaining / 1000));
+    lcd.print("s ");
+    delay(50);
+    if(enc_click > 1){
+      enc_click = 0;
+      beep(50);
+      processCommand(F("stop x"));
+    }
+  }
 
   // empty tank
-  do_move_up(false, false);
-  do_empty_tank(false);
+  do_move_up(false, false); // off for debug
+  do_empty_tank(false); // off for debug
 
   if(do_beep) beep_cycle_finished();
 
-  // motors[0].stop_on_stallguard = true;
+  motors[0].stop_on_stallguard = old_stop_on_stallguard;
   motors[0].print_stallguard_to_serial = false;
 
 }
@@ -384,38 +532,99 @@ MenuItemCallable item_start_washing("Start washing", &do_start_washing, false);
 
 
 void do_start_drying(bool do_beep = true){
-  const float cycle_rots = 42.0;
-  const float rpm = cycle_rots * 2; // 84.0;
+  const float full_cycle_rots = 38.0; // 42.0; // 1rot = 4mm
+  float cycle_rots = full_cycle_rots;
+  switch (menu_model_height.value) {
+    case 1: { cycle_rots = full_cycle_rots*0.80; break; } // 3/4
+    case 2: { cycle_rots = full_cycle_rots*0.60; break; } // half
+    case 3: { cycle_rots = full_cycle_rots*0.30; break; } // 1/4
+  }
+
+  // const float rpm = cycle_rots * 2; // 84.0;
+  const float rpm = cycle_rots * 6; // 84.0;
+  const float delta_rots = full_cycle_rots - cycle_rots;
   const uint16_t sps = motors[2].rpm2sps(rpm);
   const uint32_t cycle_steps = motors[2].rot2usteps(cycle_rots);
+  const uint32_t delta_steps = motors[2].rot2usteps(delta_rots);
   const uint32_t cycle_duration_ms = (float)cycle_steps / sps * 1000.0;
   const float cycle_duration_min = cycle_rots / rpm;
   const float cycles_per_min = 1.0 / cycle_duration_min;
   const uint8_t cycles_total = ceil(drying_duration * cycles_per_min);
+  const uint32_t preheat_duration = 45 * 1000UL;
+  uint32_t remaining;
 
-  char do_steps_buf[64] = "do_steps z";
+  char do_steps_buf[20] = "do_steps z";
   ultoa(cycle_steps, &do_steps_buf[10], 10);
 
+  processCommand(F("empty_queue z"));
+  const uint32_t preheat_end = millis() + preheat_duration;
   do_heater_on();
-  do_move_up(true, false);
+
+  // do_move_up(false, false); // replaced by following code:
+  ensure_homed();
+  char move_ramp_buf[40] = "move_ramp s120 f333 a250 d250 z";
+
+  if(platform_pos == PlatformPos::TOP){
+    if(delta_steps > 0){
+      dtostrf(delta_rots, -8, 2, &move_ramp_buf[31]);
+      for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
+      processCommand(F("dir z1"));
+      processCommand(move_ramp_buf);
+    }
+
+  }else{
+    dtostrf(42.0 - delta_rots, -8, 2, &move_ramp_buf[31]);
+    for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
+    processCommand(F("dir z0"));
+    processCommand(move_ramp_buf);
+
+  }
+
+  lcd.clear();
+  lcd.print("Preheating...");
+  // while((remaining = preheat_end - millis()) > 100){
+  while(preheat_end > millis()){
+    remaining = preheat_end - millis();
+    lcd.setCursor(0, 2);
+    lcd.print("Remaining ");
+    lcd.print((uint16_t)(remaining / 1000));
+    lcd.print("s ");
+    delay(50);
+
+    if(enc_click > 1){
+      enc_click = 0;
+      if(!motors[2].is_busy()) break;
+    }
+  }
+
+  motors[2].rpm(rpm);
+  motors[2].dir(false); // false = up
+  motors[2].stop_on_stallguard = false;
 
   // motors[2].driver.en_pwm_mode(1);
   // motors[2].driver.pwm_autoscale(1);
   // motors[2].driver.intpol(1);
 
-  motors[2].rpm(rpm);
-  motors[2].dir(false); // false = up
 
   lcd.clear();
   lcd.print("Drying...");
   processCommand(F("empty_queue z"));
-  Serial.println(F("[DRYING] Start"));
+  // Serial.println(F("[DRYING] Start"));
+  const uint32_t drying_end = millis() + (60000UL * drying_duration);
 
   for (size_t i = 0; i < cycles_total; i++) {
     lcd.clear();
-    lcd.print("Drying cycle");
+    lcd.print("Drying ");
+    switch (menu_model_height.value) {
+      case 0: lcd.print("full"); break;
+      case 1: lcd.print("3/4 of"); break;
+      case 2: lcd.print("2/4 of"); break;
+      case 3: lcd.print("1/4 of"); break;
+    }
+    lcd.print(" model");
     lcd.setCursor(0, 1);
-    lcd.print(i);
+    lcd.print("Cycle:");
+    lcd.print(i+1);
     lcd.print("/");
     lcd.print(cycles_total);
 
@@ -431,7 +640,25 @@ void do_start_drying(bool do_beep = true){
     // processCommand(F("empty_queue z"));
     processCommand(do_steps_buf);
     // processCommand(F("print_queue z"));
-    processCommand(F("wait_for_motor z"));
+    processCommand(F("start z"));
+    // processCommand(F("wait_for_motor z"));
+    while(motors[2].is_busy()){
+      remaining = drying_end - millis();
+      lcd.setCursor(0, 2);
+      lcd.print("Remaining ");
+      lcd.print((uint16_t)(remaining / 1000));
+      lcd.print("s ");
+      delay(50);
+
+      if(enc_click > 1){
+        enc_click = 0;
+        lcd.clear();
+        lcd.print("Finishing cycle...");
+        i = cycles_total + 1; // break from loop
+        while(motors[2].is_busy()) delay(50);
+        break;
+      }
+    }
     // beep(10);
 
   }
@@ -443,11 +670,35 @@ void do_start_drying(bool do_beep = true){
   // Serial.print(F("[DRYING] Ended at: "));
   // Serial.println(motors[2].dir() ? "bottom" : "top");
 
+  lcd.clear();
+  lcd.print("Finishing...");
+  processCommand(F("empty_queue z"));
+  Serial.println(F("[[]] Finishing"));
+
   do_heater_off();
 
   if(motors[2].dir()){
-    do_move_up(true, false); // move up since we ended at bottom
+    // do_move_up(true, false); // move up since we ended at bottom
+    Serial.println(F("[[]] Move bot -> top"));
+    processCommand(F("dir z0"));
+    processCommand(F("move_ramp s0.1 f300 a200 d200 z38"));
+    processCommand(F("start z"));
+    processCommand(F("wait_for_motor z"));
+  }else{
+    if(delta_steps){
+      dtostrf(delta_rots, -8, 2, &move_ramp_buf[31]);
+      for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
+      Serial.println(F("[[]] Move mid -> top"));
+      Serial.print(F("[[]] using >>>"));
+      Serial.print(move_ramp_buf);
+      Serial.println(F("<<<"));
+      processCommand(F("dir z0"));
+      processCommand(move_ramp_buf);
+      processCommand(F("start z"));
+      processCommand(F("wait_for_motor z"));
+    }
   }
+  platform_pos = PlatformPos::TOP;
 
   // is_homed = false; // force homing in next run
   if(do_beep) beep_cycle_finished();
@@ -462,6 +713,7 @@ void do_start_curing(bool do_beep = true){
   lcd.clear();
   lcd.print("Curing...");
 
+  processCommand(F("empty_queue z"));
   do_move_up(true, false);
   do_uv_led_on();
 
@@ -473,7 +725,10 @@ void do_start_curing(bool do_beep = true){
     lcd.print("s ");
     delay(50);
 
-    if(enc_click > 1) break;
+    if(enc_click > 1){
+      enc_click = 0;
+      break;
+    }
   }
 
   do_uv_led_off();
@@ -494,30 +749,79 @@ void do_wash_dry_cure(){
 MenuItemCallable item_wash_dry_cure("Wash, dry & cure", &do_wash_dry_cure, false);
 
 
-// main menu
-MenuItem* main_menu_items[] = {
+void do_wash_dry(){
+  do_start_washing(false);
+  do_start_drying(false);
+
+  beep_cycle_finished();
+}
+MenuItemCallable item_wash_dry("Wash & dry", &do_wash_dry, false);
+
+
+void do_up_and_down(){
+  while(1){
+    do_move_up(true, false);
+    do_move_down(true, false);
+  }
+}
+MenuItemCallable item_up_and_down("Up & down", &do_up_and_down, false);
+
+
+// debug menu
+MenuItem* debug_menu_items[] = {
+  &back,
+  &item_up_and_down,
   // &item_home_z_up,
-  &item_wash_dry_cure,
-  &item_start_washing,
-  &item_start_drying,
-  &item_start_curing,
+  &item_home_z_down,
+  &item_uv_led_on_off,
+  &item_heater_on_off,
+  &item_valve_on_off,
+  &item_water_pump_on_off,
+  &item_watch_water_level_on_off,
+  &motor_x,
+  &motor_z,
+};
+Menu debug_menu(debug_menu_items, sizeof(debug_menu_items) / 2);
+MenuItem item_debug_menu("!!! Debug", &debug_menu);
+
+
+// cycle duration menu
+MenuItem* cycle_duration_menu_items[] = {
+  &back,
   &item_washing_duration,
   &item_drying_duration,
   &item_curing_duration,
+};
+Menu cycle_duration_menu(cycle_duration_menu_items, sizeof(cycle_duration_menu_items) / 2);
+MenuItem item_cycle_duration_menu("Cycle duration", &cycle_duration_menu);
+
+
+// start cycle menu
+MenuItem* start_cycle_menu_items[] = {
+  &back,
+  &item_start_washing,
+  &item_start_drying,
+  &item_start_curing,
+};
+Menu start_cycle_menu(start_cycle_menu_items, sizeof(start_cycle_menu_items) / 2);
+MenuItem item_start_cycle_menu("Start cycle", &start_cycle_menu);
+
+
+
+// main menu
+MenuItem* main_menu_items[] = {
+  &item_wash_dry_cure,
+  &item_wash_dry,
+  &item_model_height,
+  &item_cycle_duration_menu,
+  &item_start_cycle_menu,
   &item_move_up,
   &item_move_down,
   &item_fill_tank,
   &item_empty_tank,
-  // &item_home_z_down,
-  // &item_test_m400,
-  // &item_uv_led_on_off,
-  // &item_heater_on_off,
-  // &item_valve_on_off,
-  // &item_water_pump_on_off,
-  // &item_watch_water_level_on_off,
   &item_fill_and_empty,
-  // &motor_x,
-  // &motor_z,
+  &item_stabilization_duration,
+  &item_debug_menu,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 

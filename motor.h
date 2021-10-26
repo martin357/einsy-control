@@ -50,6 +50,8 @@ enum MotorQueueItemType: uint8_t {
   WAIT = 14, // enqueue a delay
   WAIT_IN_PROGRESS = 15, // actual delay
   BEEP = 16,
+  SET_IS_HOMED = 17,
+  SET_POSITION = 18,
 };
 
 
@@ -85,6 +87,7 @@ public:
   float rpm();
   void ramp_to(float, bool = false);
   void ramp_off();
+  bool is_busy();
   bool is_expecting_stallguard();
   MotorStallguardInfo get_stallguard_info();
   float rot2usteps(float);
@@ -126,10 +129,11 @@ public:
   void set_queue_item(uint8_t, MotorQueueItemType, uint32_t = 0);
   bool set_next_empty_queue_item(MotorQueueItemType, uint32_t = 0);
   void empty_queue();
-  bool home();
   bool process_next_queue_item(bool = false);
   void debugPrintQueue();
   void debugPrintInfo();
+  void plan_home(bool, float = 120.0, float = 40.0, float = 0.1, uint16_t = 50);
+  void plan_ramp_move(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
 // private:
   volatile float _rpm;
   uint16_t* timer_compare_port;

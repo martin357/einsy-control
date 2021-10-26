@@ -270,6 +270,13 @@ void Motor::ramp_off(){
 }
 
 
+bool Motor::is_busy(){
+  return pause_steps || running || steps_to_do > 0 ||
+    (queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS &&
+      !queue[queue_index].processed);
+}
+
+
 bool Motor::is_expecting_stallguard(){
   // debugPrintQueue();
   return (queue[queue_index].type == MotorQueueItemType::RUN_UNTIL_STALLGUARD);
@@ -320,7 +327,14 @@ int16_t Motor::next_empty_queue_index(){
 
 
 void Motor::set_queue_item(uint8_t index, MotorQueueItemType type, uint32_t value){
-  while(index >= MOTOR_QUEUE_LEN) index -= MOTOR_QUEUE_LEN;
+  // while(index >= MOTOR_QUEUE_LEN) index -= MOTOR_QUEUE_LEN;
+  while(index >= MOTOR_QUEUE_LEN){
+    Serial.print(F("[sqi] overflow from "));
+    Serial.print(index);
+    Serial.print(F(" to "));
+    index -= MOTOR_QUEUE_LEN;
+    Serial.println(index);
+  }
   queue[index].type = type;
   queue[index].value = value;
   queue[index].processed = false;
@@ -341,26 +355,22 @@ void Motor::empty_queue(){
 }
 
 
-bool Motor::home(){
-  Serial.println(F("Motor::home() not implemented yet"));
-}
-
 
 bool Motor::process_next_queue_item(bool force_ignore_wait){
-  if(queue[queue_index].type == MotorQueueItemType::WAIT && !force_ignore_wait) return;
+  if(queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed && !force_ignore_wait) return;
 
-  // Serial.print(F("PNQ="));
+  SERIAL_PRINT(F("PNQ="));
   uint8_t next = next_queue_index();
-  // Serial.println(next);
+  SERIAL_PRINTLN(next);
   bool process_next = false;
 
   if(queue[next].processed || queue[next].type == MotorQueueItemType::NOOP){
     if(running || steps_to_do > 0){
-      Serial.println(F("[pnq] empty queue but motor running"));
+      SERIAL_PRINTLN(F("[pnq] empty queue but motor running"));
 
     }else{
       stop();
-      // Serial.println(F("[pnq] empty queue, stopping!"));
+      // SERIAL_PRINTLN(F("[pnq] empty queue, stopping!"));
 
     }
     return false;
@@ -369,94 +379,94 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
   switch (queue[next].type) {
     case MotorQueueItemType::TURN_ON: {
       on();
-      Serial.println(F("[pnq] turn on"));
+      SERIAL_PRINTLN(F("[pnq] turn on"));
       break;
     }
     case MotorQueueItemType::TURN_OFF: {
       off();
-      Serial.println(F("[pnq] turn off"));
+      SERIAL_PRINTLN(F("[pnq] turn off"));
       process_next = true;
       break;
     }
     case MotorQueueItemType::STOP: {
       stop();
-      Serial.println(F("[pnq] stop"));
+      SERIAL_PRINTLN(F("[pnq] stop"));
       process_next = true;
       break;
     }
     case MotorQueueItemType::RUN_CONTINUOUS: {
       // stop_on_stallguard = false;
       start(true);
-      Serial.println(F("[pnq] run cont"));
+      SERIAL_PRINTLN(F("[pnq] run cont"));
       process_next = true;
       break;
     }
     case MotorQueueItemType::RUN_UNTIL_STALLGUARD: {
       // stop_on_stallguard = true;
       start(true);
-      Serial.println(F("[pnq] run until sg"));
+      SERIAL_PRINTLN(F("[pnq] run until sg"));
       break;
     }
     case MotorQueueItemType::DO_STEPS: {
       steps_to_do += queue[next].value;
 
-      Serial.print(F("[pnq] do steps "));
-      Serial.println(queue[next].value);
+      SERIAL_PRINT(F("[pnq] do steps "));
+      SERIAL_PRINTLN(queue[next].value);
       break;
     }
     case MotorQueueItemType::RAMP_TO: {
       // *reinterpret_cast<float*>(&queue[next].value)
       ramp_to(queue[next].value / 100.0);
 
-      Serial.print(F("[pnq] ramp to "));
-      Serial.println(queue[next].value / 100.0);
+      SERIAL_PRINT(F("[pnq] ramp to "));
+      SERIAL_PRINTLN(queue[next].value / 100.0);
       process_next = true;
       break;
     }
     case MotorQueueItemType::SET_DIRECTION: {
       dir((bool)queue[next].value);
 
-      Serial.print(F("[pnq] set dir "));
-      Serial.println(queue[next].value);
+      SERIAL_PRINT(F("[pnq] set dir "));
+      SERIAL_PRINTLN(queue[next].value);
       process_next = true;
       break;
     }
     case MotorQueueItemType::SET_RPM: {
       rpm(queue[next].value / 100.0);
 
-      Serial.print(F("[pnq] set rpm to "));
-      Serial.println(_rpm);
+      SERIAL_PRINT(F("[pnq] set rpm to "));
+      SERIAL_PRINTLN(_rpm);
       process_next = true;
       break;
     }
     case MotorQueueItemType::SET_ACCEL: {
       accel = queue[next].value / 100.0;
 
-      Serial.print(F("[pnq] set accel to "));
-      Serial.println(accel);
+      SERIAL_PRINT(F("[pnq] set accel to "));
+      SERIAL_PRINTLN(accel);
       process_next = true;
       break;
     }
     case MotorQueueItemType::SET_DECEL: {
       decel = queue[next].value / 100.0;
 
-      Serial.print(F("[pnq] set decel to "));
-      Serial.println(decel);
+      SERIAL_PRINT(F("[pnq] set decel to "));
+      SERIAL_PRINTLN(decel);
       process_next = true;
       break;
     }
     case MotorQueueItemType::SET_STOP_ON_STALLGUARD: {
       stop_on_stallguard = (bool)queue[next].value;
 
-      Serial.print(F("[pnq] set stop-on-sg to "));
-      Serial.println(stop_on_stallguard ? F("true") : F("false"));
+      SERIAL_PRINT(F("[pnq] set stop-on-sg to "));
+      SERIAL_PRINTLN(stop_on_stallguard ? F("true") : F("false"));
       process_next = true;
       break;
     }
     case MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL: {
       print_stallguard_to_serial = (bool)queue[next].value;
 
-      Serial.println(F("[pnq] set print sg to serial"));
+      SERIAL_PRINTLN(F("[pnq] set print sg to serial"));
       process_next = true;
       break;
     }
@@ -466,37 +476,63 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       queue[next].value += _millis;
       queue[next].type = MotorQueueItemType::WAIT_IN_PROGRESS;
 
-      Serial.println(F("[***] wait -> wait_in_progress"));
-      Serial.print(F("[pnq] wait "));
-      Serial.print(old_val);
-      Serial.print(F(" (q:"));
-      Serial.print(next);
-      Serial.print(F(") finishes at "));
-      Serial.print(queue[next].value);
-      Serial.print(" now is ");
-      Serial.print(_millis);
-      Serial.println();
+      SERIAL_PRINTLN(F("[***] wait -> wait_in_progress"));
+      SERIAL_PRINT(F("[pnq] wait "));
+      SERIAL_PRINT(old_val);
+      SERIAL_PRINT(F(" (q:"));
+      SERIAL_PRINT(next);
+      SERIAL_PRINT(F(") finishes at "));
+      SERIAL_PRINT(queue[next].value);
+      SERIAL_PRINT(" now is ");
+      SERIAL_PRINT(_millis);
+      SERIAL_PRINTLN();
       break;
     }
     case MotorQueueItemType::BEEP: {
       beep(queue[next].value);
 
-      Serial.println(F("[pnq] beep!"));
+      SERIAL_PRINTLN(F("[pnq] beep!"));
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::SET_IS_HOMED: {
+      is_homed = (bool)queue[next].value;
+
+      SERIAL_PRINT(F("[pnq] set is_homed to "));
+      SERIAL_PRINTLN(is_homed ? F("true") : F("false"));
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::SET_POSITION: {
+      position = *reinterpret_cast<float*>(&queue[next].value);
+
+      SERIAL_PRINT(F("[pnq] set position to "));
+      SERIAL_PRINTLN(position);
       process_next = true;
       break;
     }
 
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
+  if(next < queue_index){
+    Serial.print(F("[pnq] rollover from "));
+    Serial.print(queue_index);
+    Serial.print(F(" to "));
+    Serial.println(next);
+  }
   queue[queue_index].processed = true;
   queue_index = next;
   // debugPrintQueue();
-  if(queue[queue_index].type == MotorQueueItemType::WAIT || queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS){
-    Serial.println(F("[[pnq]] is wait or wait_in_progress:"));
+  if(queue[queue_index].type == MotorQueueItemType::WAIT){
+    SERIAL_PRINTLN(F("[[pnq]] is wait:"));
+    // debugPrintQueue();
+  }
+  if(queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS){
+    SERIAL_PRINTLN(F("[[pnq]] is wait_in_progress:"));
     // debugPrintQueue();
   }
   // if(process_next){
-  //   Serial.println(F("[pqn finished] process_next!"));
+  //   SERIAL_PRINTLN(F("[pqn finished] process_next!"));
   //   process_next_queue_item();
   // }
   return true;
@@ -541,6 +577,100 @@ void Motor::debugPrintInfo(){
 }
 
 
+void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float backstep_rot, uint16_t wait_duration){
+  uint8_t next = next_empty_queue_index();
+
+  // set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 1);
+  // set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
+  // backstep
+  set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
+  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
+  set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
+  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
+  set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
+
+  // fast forward until stallguard
+  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
+  set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
+  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
+
+  // backstep again
+  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
+  set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
+  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
+  set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
+
+  // slow forward until stallguard
+  set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
+  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
+  set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
+  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
+
+  // set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 1);
+  // set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 0);
+  set_queue_item(next++, MotorQueueItemType::SET_IS_HOMED, 1);
+  set_queue_item(next++, MotorQueueItemType::SET_POSITION, 0);
+
+  // start(false);
+
+}
+
+
+void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float accel, float decel){
+  const float delta_rpm = rpm_to - rpm_from;
+  const uint16_t sps_from = rpm2sps(rpm_from);
+  const uint16_t sps_to = rpm2sps(rpm_to);
+  const uint16_t delta_sps = sps_to - sps_from;
+  const uint16_t accel_sps = rpm2sps(accel);
+  const uint16_t decel_sps = rpm2sps(decel);
+  const float accel_t = delta_rpm / accel;
+  const float decel_t = delta_rpm / decel;
+
+  // Serial.print("rot\t"); Serial.println(rot);
+  //
+  // Serial.print("sps_from\t"); Serial.println(sps_from);
+  // Serial.print("sps_to\t"); Serial.println(sps_to);
+  // Serial.print("accel_sps\t"); Serial.println(accel_sps);
+  // Serial.print("decel_sps\t"); Serial.println(decel_sps);
+  //
+  // Serial.print("accel_t\t"); Serial.println(accel_t);
+  // Serial.print("decel_t\t"); Serial.println(decel_t);
+
+  const uint32_t steps = rot2usteps(rotations);
+  uint32_t decel_steps = (unsigned long)round(((float)sps_to * sps_to) / (2.0 * decel_sps));
+
+  // decel_steps += 50;
+
+  // Serial.print("decel_steps\t"); Serial.println(decel_steps);
+  // Serial.print("sps_to * sps_to\t"); Serial.println(sps_to * sps_to);
+  // Serial.print("(float)sps_to * sps_to\t"); Serial.println((float)sps_to * sps_to);
+  // Serial.print("2.0 * decel_sps\t"); Serial.println(2.0 * decel_sps);
+
+  //
+  // check if travel distance is too short to accelerate up to the desired velocity
+  //
+  // if (distanceToTravel_InSteps <= (decelerationDistance_InSteps * 2L))
+  //   decelerationDistance_InSteps = (distanceToTravel_InSteps / 2L);
+  if(steps <= (decel_steps * 2UL)){
+    Serial.println(F("[move_ramp] decel too long!"));
+    decel_steps = steps / 2UL;
+  }
+
+  uint8_t next = next_empty_queue_index();
+  // set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
+  if(accel > 0.0) set_queue_item(next++, MotorQueueItemType::SET_ACCEL, accel * 100);
+  if(decel > 0.0) set_queue_item(next++, MotorQueueItemType::SET_DECEL, decel * 100);
+
+  set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm_from * 100);
+  set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_to * 100);
+
+  set_queue_item(next++, MotorQueueItemType::DO_STEPS, steps - decel_steps);
+  set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_from * 100);
+  set_queue_item(next++, MotorQueueItemType::DO_STEPS, decel_steps);
+
+}
+
+
 // stepping timer
 #define TIMER_ISR(t, m) ISR(TIMER##t##_COMPA_vect){  \
   if(motors[m].pause_steps) return;  \
@@ -551,6 +681,7 @@ void Motor::debugPrintInfo(){
     motors[m].step();  \
   }else{  \
     motors[m].pause_steps = true;  \
+    SERIAL_PRINTLN("[isr] pnq!");  \
     motors[m].process_next_queue_item();  \
     motors[m].pause_steps = false;  \
   }  \
@@ -589,7 +720,7 @@ ISR(TIMER0_COMPA_vect){
       motors[i].queue[motors[i].queue_index].type != MotorQueueItemType::WAIT_IN_PROGRESS &&
       motors[i].queue[motors[i].queue_index].type != MotorQueueItemType::RUN_UNTIL_STALLGUARD
     ){
-      // Serial.println(F("[wait] move queue! PNQ!"));
+      // SERIAL_PRINTLN(F("[wait] move queue! PNQ!"));
       // motors[i].debugPrintQueue();
       motors[i].pause_steps = true;
       motors[i].process_next_queue_item();
@@ -602,14 +733,14 @@ ISR(TIMER0_COMPA_vect){
       _millis >= motors[i].queue[motors[i].queue_index].value
     ){
       motors[i].queue[motors[i].queue_index].processed = true;
-      // Serial.print(F(" wait("));
-      // Serial.print(motors[i].queue_index);
-      // Serial.println(F(") finished! pnq!"));
+      // SERIAL_PRINT(F(" wait("));
+      // SERIAL_PRINT(motors[i].queue_index);
+      // SERIAL_PRINTLN(F(") finished! pnq!"));
       motors[i].pause_steps = true;
       if(!motors[i].process_next_queue_item(true)){
         // motors[i].queue[motors[i].queue_index].processed = true;
-        // Serial.println(F("[wait] queue is empty, marking current as processed!"));
-        // Serial.println(F("[wait] queue is empty, pnq returned false!"));
+        // SERIAL_PRINTLN(F("[wait] queue is empty, marking current as processed!"));
+        // SERIAL_PRINTLN(F("[wait] queue is empty, pnq returned false!"));
       }
       motors[i].pause_steps = false;
     }
@@ -686,26 +817,43 @@ ISR(PCINT2_vect){
     PINK & (1 << PINK6), // Z_DIAG
     PINK & (1 << PINK3), // E0_DIAG
   };
+  if(!sg[0] && !sg[1] && !sg[2] && !sg[3]) return;
 
-  // Serial.println("SG Int");
+  SERIAL_PRINT("SG Int ");
+  SERIAL_PRINT(sg[0]);
+  SERIAL_PRINT(sg[1]);
+  SERIAL_PRINT(sg[2]);
+  SERIAL_PRINTLN(sg[3]);
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(sg[i]){
+      // beep(30);
       if(motors[i].is_expecting_stallguard()){
+        SERIAL_PRINTLN("[sg] is expected");
+
         motors[i].running = false;
         motors[i].pause_steps = true;
         motors[i].steps_to_do = 0;
-        Serial.println("[sg]");
+        SERIAL_PRINT("[sg] ");
         motors[i].process_next_queue_item();
-        Serial.print("s2d=");
-        Serial.println(motors[i].steps_to_do);
+        SERIAL_PRINT("s2d=");
+        SERIAL_PRINTLN(motors[i].steps_to_do);
         motors[i].pause_steps = false;
 
       }else{
+        SERIAL_PRINTLN("[sg] unexpected");
+
         motors[i].stallguard_triggered = true;
-        if(motors[i].stop_on_stallguard) motors[i].stop();
+        // if(motors[i].stop_on_stallguard) motors[i].stop();
+        if(motors[i].stop_on_stallguard){
+          motors[i].stop();
+          SERIAL_PRINTLN("[sg] stop motor");
+        }
 
       }
+
+      SERIAL_PRINT("[sg] is_triggered=");
+      SERIAL_PRINTLN((uint8_t)motors[i].stallguard_triggered);
     }
   }
 

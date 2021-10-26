@@ -56,6 +56,8 @@ void processCommand(const char *cmd, size_t len){
   }
 
   strToLower(rx_command);
+  Serial.print(">>> ");
+  Serial.println(cmd);
   if(strcmp_P(rx_command, F("on"))) gcode_on();
   else if(strcmp_P(rx_command, F("off"))) gcode_off();
   else if(strcmp_P(rx_command, F("start"))) gcode_start();

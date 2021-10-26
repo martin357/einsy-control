@@ -207,6 +207,18 @@ void beep(uint16_t duration){
 
 
 
+uint32_t float_as_uint32(float value){
+  return *reinterpret_cast<uint32_t*>(&value);
+}
+
+
+
+float uint32_as_float(uint32_t value){
+  return *reinterpret_cast<float*>(&value);
+}
+
+
+
 void store_float_to_uint32(uint32_t *target, const float value){
   float* view = reinterpret_cast<float*>(*&target);
   *view = value;
