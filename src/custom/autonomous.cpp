@@ -164,12 +164,12 @@ MenuItemToggleCallable item_washing_on_off(&is_washing_on, "Washing: on", "Washi
 bool is_valve_0_on(){ return digitalReadExt(PIN_VALVE_0); }
 void do_valve_0_on(){ digitalWriteExt(PIN_VALVE_0, HIGH); }
 void do_valve_0_off(){ digitalWriteExt(PIN_VALVE_0, LOW); }
-MenuItemToggleCallable item_valve_0_on_off(&is_valve_0_on, "Valve0: on", "Valve0: off", &do_valve_0_off, &do_valve_0_on);
+MenuItemToggleCallable item_valve_0_on_off(&is_valve_0_on, "Ventil VYPUST: on", "Ventil VYPUST: off", &do_valve_0_off, &do_valve_0_on);
 
 bool is_valve_1_on(){ return digitalReadExt(PIN_VALVE_1); }
 void do_valve_1_on(){ digitalWriteExt(PIN_VALVE_1, HIGH); }
 void do_valve_1_off(){ digitalWriteExt(PIN_VALVE_1, LOW); }
-MenuItemToggleCallable item_valve_1_on_off(&is_valve_1_on, "Valve1: on", "Valve1: off", &do_valve_1_off, &do_valve_1_on);
+MenuItemToggleCallable item_valve_1_on_off(&is_valve_1_on, "Ventil NAPUST: on", "Ventil NAPUST: off", &do_valve_1_off, &do_valve_1_on);
 
 
 void do_mode_stealth(){

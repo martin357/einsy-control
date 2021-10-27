@@ -282,12 +282,13 @@ void Menu::go_back(){
   menu range
 */
 template <typename T>
-MenuRange<T>::MenuRange(const char* title, T& value, T min_value, T max_value):
+MenuRange<T>::MenuRange(const char* title, T& value, T min_value, T max_value, bool update_storage_on_leave):
   Menu(nullptr, 0),
   title(title),
   value(value),
   min_value(min_value),
-  max_value(max_value){}
+  max_value(max_value),
+  update_storage_on_leave(update_storage_on_leave){}
 
 
 template <typename T>
@@ -298,6 +299,7 @@ void MenuRange<T>::on_enter(){
 
 template <typename T>
 void MenuRange<T>::on_press(uint16_t duration){
+  if(update_storage_on_leave) storage.save();
   go_back();
 }
 
@@ -335,12 +337,13 @@ template class MenuRange<uint16_t>;
   menu list
 */
 template <typename T>
-MenuList<T>::MenuList(const char* title, T* value, T items_list[], size_t items_count):
+MenuList<T>::MenuList(const char* title, T* value, T items_list[], size_t items_count, bool update_storage_on_leave):
   Menu(nullptr, 0),
   title(title),
   value(value),
   items_count(items_count),
-  index(0){
+  index(0),
+  update_storage_on_leave(update_storage_on_leave){
     items = (T*)calloc(items_count, sizeof(T*));
     if(items) memcpy(items, items_list, items_count * sizeof(T));
   }
@@ -360,6 +363,7 @@ void MenuList<T>::on_enter(){
 
 template <typename T>
 void MenuList<T>::on_press(uint16_t duration){
+  if(update_storage_on_leave) storage.save();
   go_back();
 }
 

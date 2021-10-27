@@ -15,4 +15,12 @@
   #define PIN_CAP_IN 12
   #define PIN_WATER_PUMP HEATER_0_PIN
   #define PIN_VALVE HEATER_BED_PIN
+
+  #define CUSTOM_PERMANENT_STORAGE  \
+    uint8_t washing_duration = 4;  \
+    uint8_t drying_duration = 5;  \
+    uint8_t curing_duration = 3;  \
+    uint8_t stabilization_duration = 0;  \
+    uint8_t model_height = 0;  \
+
 #endif

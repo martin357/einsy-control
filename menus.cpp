@@ -42,7 +42,7 @@ MenuItem motor_decel("Decel [RPM2]", &menu_motor_decel);
 bool get_motor_direction(){ return motors[last_entered_motor_menu].dir(); }
 void set_motor_direction_left(){ motors[last_entered_motor_menu].dir(true); }
 void set_motor_direction_right(){ motors[last_entered_motor_menu].dir(false); }
-MenuItemToggleCallable motor_direction(&get_motor_direction, "Direction: left", "Direction: right",
+MenuItemToggleCallable motor_direction(&get_motor_direction, "Direction: " MOTOR_DIR_1, "Direction: " MOTOR_DIR_0,
   &set_motor_direction_right, &set_motor_direction_left);
 
 

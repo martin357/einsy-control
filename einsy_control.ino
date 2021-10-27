@@ -1,6 +1,7 @@
 #include "pins.h"
 #include "hardware.h"
 #include "serial.h"
+#include "permanent_storage.h"
 #include "menu_system_derivates.h"
 #include "menus.h"
 #include "custom.h"
@@ -25,6 +26,7 @@ void setup() {
   setupPins();
   SPI.begin();
 
+  storage.load();
   setupLcd();
   setupMotors();
 

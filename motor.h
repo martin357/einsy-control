@@ -20,6 +20,14 @@
 #define MOTOR_Z 2
 #define MOTOR_E 3
 
+#ifndef MOTOR_DIR_0
+  #define MOTOR_DIR_0 "left"
+#endif
+
+#ifndef MOTOR_DIR_1
+  #define MOTOR_DIR_1 "right"
+#endif
+
 void setupMotorTimers();
 int8_t axis2motor(const char);
 float _rpm2rps(float);

@@ -11,49 +11,6 @@
 bool watch_water_level = false;
 
 
-void setupCustom(){
-  for (size_t i = 0; i < MOTORS_MAX; i++) {
-    motors[i].driver.rms_current(500);
-    motors[i].driver.sgt(2);
-
-    // motors[i].driver.en_pwm_mode(0);
-    // motors[i].driver.pwm_autoscale(0);
-    // motors[i].driver.intpol(0);
-    motors[i].driver.en_pwm_mode(1);
-    motors[i].driver.pwm_autoscale(1);
-    motors[i].driver.intpol(1);
-
-    motors[i].rpm(120);
-  }
-  motors[0].inactivity_timeout = 5000;
-
-  motors[2].driver.rms_current(600);
-  motors[2].driver.sgt(3);
-
-  // touch capacitance sensor
-  pinMode(PIN_CAP_IN, INPUT);
-
-  // CW board trigger pin - UV led
-  pinModeOutput(PIN_UV_LED);
-  digitalWriteExt(PIN_UV_LED, LOW);
-  delay(10);
-  digitalWriteExt(PIN_UV_LED, HIGH);
-
-  // CW board trigger pin - heater
-  pinModeOutput(PIN_HEATER);
-  digitalWriteExt(PIN_HEATER, LOW);
-  delay(10);
-  digitalWriteExt(PIN_HEATER, HIGH);
-
-  // power output
-  pinModeOutput(PIN_VALVE); // bed mosfet
-  digitalWriteExt(PIN_VALVE, LOW);
-  pinModeOutput(PIN_WATER_PUMP); // extruder mosfet
-  digitalWriteExt(PIN_WATER_PUMP, LOW);
-
-}
-
-
 void loopCustom(){
   uint32_t _millis = millis();
 
@@ -85,10 +42,13 @@ MenuListModelHeight::MenuListModelHeight():
   items_count(4){}
 
 void MenuListModelHeight::on_enter(){
+  value = storage.model_height;
   lcd.clear();
 }
 
 void MenuListModelHeight::on_press(uint16_t duration){
+  storage.model_height = value;
+  storage.save();
   go_back();
 }
 
@@ -141,28 +101,66 @@ void do_watch_water_level_off(){ watch_water_level = false; digitalWriteExt(PIN_
 MenuItemToggleCallable item_watch_water_level_on_off(&is_watch_water_level_on, "Water level: on", "Water level: off", &do_watch_water_level_off, &do_watch_water_level_on);
 
 
-uint8_t washing_duration = 4;
-uint8_t drying_duration = 5;
-uint8_t curing_duration = 3;
-uint8_t stabilization_duration = 0;
-// uint8_t washing_duration = 1;
-// uint8_t drying_duration = 1;
-// uint8_t curing_duration = 1;
 
-MenuRange<uint8_t> menu_washing_duration("Washing time [min]", washing_duration, 1, 255);
+MenuRange<uint8_t> menu_washing_duration("Washing time [min]", storage.washing_duration, 1, 255, true);
 MenuItem item_washing_duration("Washing time", &menu_washing_duration);
 
-MenuRange<uint8_t> menu_drying_duration("Drying time [min]", drying_duration, 1, 255);
+MenuRange<uint8_t> menu_drying_duration("Drying time [min]", storage.drying_duration, 1, 255, true);
 MenuItem item_drying_duration("Drying time", &menu_drying_duration);
 
-MenuRange<uint8_t> menu_curing_duration("Curing time [min]", curing_duration, 1, 255);
+MenuRange<uint8_t> menu_curing_duration("Curing time [min]", storage.curing_duration, 1, 255, true);
 MenuItem item_curing_duration("Curing time", &menu_curing_duration);
 
-MenuRange<uint8_t> menu_stabilization_duration("Stabil. time [s]", stabilization_duration, 0, 60);
+MenuRange<uint8_t> menu_stabilization_duration("Stabil. time [s]", storage.stabilization_duration, 0, 60, true);
 MenuItem item_stabilization_duration("Stabilization time", &menu_stabilization_duration);
 
 MenuListModelHeight menu_model_height;
 MenuItem item_model_height("Model height", &menu_model_height);
+
+
+void setupCustom(){
+  for (size_t i = 0; i < MOTORS_MAX; i++) {
+    motors[i].driver.rms_current(500);
+    motors[i].driver.sgt(2);
+
+    // motors[i].driver.en_pwm_mode(0);
+    // motors[i].driver.pwm_autoscale(0);
+    // motors[i].driver.intpol(0);
+    motors[i].driver.en_pwm_mode(1);
+    motors[i].driver.pwm_autoscale(1);
+    motors[i].driver.intpol(1);
+
+    motors[i].rpm(120);
+  }
+  motors[0].inactivity_timeout = 5000;
+
+  motors[2].driver.rms_current(600);
+  motors[2].driver.sgt(3);
+
+  // touch capacitance sensor
+  pinMode(PIN_CAP_IN, INPUT);
+
+  // CW board trigger pin - UV led
+  pinModeOutput(PIN_UV_LED);
+  digitalWriteExt(PIN_UV_LED, LOW);
+  delay(10);
+  digitalWriteExt(PIN_UV_LED, HIGH);
+
+  // CW board trigger pin - heater
+  pinModeOutput(PIN_HEATER);
+  digitalWriteExt(PIN_HEATER, LOW);
+  delay(10);
+  digitalWriteExt(PIN_HEATER, HIGH);
+
+  // power output
+  pinModeOutput(PIN_VALVE); // bed mosfet
+  digitalWriteExt(PIN_VALVE, LOW);
+  pinModeOutput(PIN_WATER_PUMP); // extruder mosfet
+  digitalWriteExt(PIN_WATER_PUMP, LOW);
+
+  menu_model_height.value = storage.model_height;
+
+}
 
 
 void beep_cycle_finished(bool show_on_lcd = true){
@@ -244,7 +242,7 @@ void do_move_up(bool, bool);
 void do_move_down(bool, bool);
 
 void do_fill_tank(bool do_beep = true){
-  const uint16_t stabilization_duration_ms = stabilization_duration * 1000;
+  const uint16_t stabilization_duration_ms = storage.stabilization_duration * 1000;
   const uint32_t start_time = millis();
   uint32_t stabilization_start;
   do_move_down(false, false);
@@ -449,7 +447,7 @@ MenuItemCallable item_move_down("Move platform down", &_do_move_down, false);
 
 
 void do_start_washing(bool do_beep = true){
-  uint32_t duration_half = ((uint32_t)washing_duration * 500UL * 60UL) - 1500UL;
+  uint32_t duration_half = ((uint32_t)storage.washing_duration * 500UL * 60UL) - 1500UL;
   char duration_buf[64] = "wait x";
   ultoa(duration_half, &duration_buf[6], 10);
 
@@ -476,7 +474,7 @@ void do_start_washing(bool do_beep = true){
   processCommand(F("wait x3000"));
   // processCommand(F("wait_for_motor x"));
   int32_t remaining;
-  const uint32_t washing_end = millis() + ((uint32_t)washing_duration * 60000UL);
+  const uint32_t washing_end = millis() + ((uint32_t)storage.washing_duration * 60000UL);
   while(motors[0].is_busy()){
     remaining = washing_end - millis();
     lcd.setCursor(0, 2);
@@ -549,7 +547,7 @@ void do_start_drying(bool do_beep = true){
   const uint32_t cycle_duration_ms = (float)cycle_steps / sps * 1000.0;
   const float cycle_duration_min = cycle_rots / rpm;
   const float cycles_per_min = 1.0 / cycle_duration_min;
-  const uint8_t cycles_total = ceil(drying_duration * cycles_per_min);
+  const uint8_t cycles_total = ceil(storage.drying_duration * cycles_per_min);
   const uint32_t preheat_duration = 45 * 1000UL;
   uint32_t remaining;
 
@@ -610,7 +608,7 @@ void do_start_drying(bool do_beep = true){
   lcd.print("Drying...");
   processCommand(F("empty_queue z"));
   // Serial.println(F("[DRYING] Start"));
-  const uint32_t drying_end = millis() + (60000UL * drying_duration);
+  const uint32_t drying_end = millis() + (60000UL * storage.drying_duration);
 
   for (size_t i = 0; i < cycles_total; i++) {
     lcd.clear();
@@ -708,7 +706,7 @@ MenuItemCallable item_start_drying("Start drying", &do_start_drying, false);
 
 
 void do_start_curing(bool do_beep = true){
-  const uint32_t duration = curing_duration * 60000;
+  const uint32_t duration = storage.curing_duration * 60000;
   int32_t remaining;
   lcd.clear();
   lcd.print("Curing...");

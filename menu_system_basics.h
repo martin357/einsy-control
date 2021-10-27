@@ -1,6 +1,6 @@
 #pragma once
+#include "permanent_storage.h"
 #define COUNT_ARRAY_ITEMS(X) (sizeof(X) / sizeof(X[0]))
-
 
 
 class Menu;
@@ -108,7 +108,7 @@ public:
 template <typename T>
 class MenuRange: public Menu{
 public:
-  MenuRange(const char*, T&, T, T);
+  MenuRange(const char*, T&, T, T, bool = false);
   void on_enter();
   void on_press(uint16_t);
   void draw(bool = true);
@@ -117,13 +117,14 @@ public:
   T& value;
   T min_value;
   T max_value;
+  bool update_storage_on_leave;
 };
 
 
 template <typename T>
 class MenuList: public Menu{
 public:
-  MenuList(const char*, T* ,T[], size_t);
+  MenuList(const char*, T* ,T[], size_t, bool = false);
   void on_enter();
   void on_press(uint16_t);
   void draw(bool = true);
@@ -133,6 +134,7 @@ public:
   size_t items_count;
   uint8_t index;
   T* items;
+  bool update_storage_on_leave;
 };
 
 
