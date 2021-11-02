@@ -122,6 +122,7 @@ void setupMotors(){
     motors[i].driver.TCOOLTHRS(460);
 
     motors[i].microsteps(motors[i].usteps);
+    motors[i].dir(false);
     motors[i].rpm(60.0);
   }
 

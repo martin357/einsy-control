@@ -80,6 +80,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("print_stallguard"))) gcode_print_stallguard();
   else if(strcmp_P(rx_command, F("wait_for_motor"))) gcode_wait_for_motor();
   else if(strcmp_P(rx_command, F("wait"))) gcode_wait();
+  else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   else{
     ok = false;
     Serial.print(F("unknown command "));

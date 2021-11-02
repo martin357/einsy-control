@@ -3,7 +3,8 @@
 // select one custom variant below
 
 // #define CUSTOM_AUTONOMOUS
-#define CUSTOM_CW
+// #define CUSTOM_CW
+#define CUSTOM_CW_LETNANY
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -12,6 +13,10 @@
 
 #ifdef CUSTOM_CW
   #include "src/custom/cw.h"
+#endif
+
+#ifdef CUSTOM_CW_LETNANY
+  #include "src/custom/cw_letnany.h"
 #endif
 
 

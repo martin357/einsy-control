@@ -37,7 +37,8 @@ uint16_t _rpm2ocr(float, uint16_t);
 uint16_t _rps2ocr(float, uint16_t);
 float _ocr2rpm(uint16_t, uint16_t);
 float _ocr2rps(uint16_t, uint16_t);
-float _rot2usteps(float, uint16_t);
+uint32_t _rot2usteps(float, uint16_t);
+float _usteps2rot(uint32_t, uint16_t);
 
 
 enum MotorQueueItemType: uint8_t {
@@ -60,6 +61,7 @@ enum MotorQueueItemType: uint8_t {
   BEEP = 16,
   SET_IS_HOMED = 17,
   SET_POSITION = 18,
+  RESET_STALLGUARD_TRIGGERED = 19,
 };
 
 
@@ -98,9 +100,11 @@ public:
   bool is_busy();
   bool is_expecting_stallguard();
   MotorStallguardInfo get_stallguard_info();
-  float rot2usteps(float);
+  uint32_t rot2usteps(float);
+  float usteps2rot(uint32_t);
   uint16_t rpm2ocr(float);
   uint16_t rpm2sps(float);
+  float position();
   const char axis;
   uint8_t step_pin;
   uint8_t dir_pin;
@@ -116,13 +120,22 @@ public:
   bool stop_on_stallguard;
   bool print_stallguard_to_serial;
   bool is_homed;
-  float position;
   uint32_t inactivity_timeout;
+  uint32_t stop_at_millis;
+  volatile int32_t position_usteps;
   volatile bool running;
   volatile bool stallguard_triggered;
   volatile uint32_t steps_to_do;
   volatile uint32_t steps_total;
   volatile uint32_t last_movement;
+  struct {
+    float rpm;
+    bool direction;
+    bool is_homed;
+    float position;
+    float accel;
+    float decel;
+  } planned;
 
   volatile float target_rpm;
   uint16_t accel;
@@ -140,10 +153,12 @@ public:
   bool process_next_queue_item(bool = false);
   void debugPrintQueue();
   void debugPrintInfo();
+  void plan_steps(uint32_t);
   void plan_home(bool, float = 120.0, float = 40.0, float = 0.1, uint16_t = 50);
   void plan_ramp_move(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
 // private:
   volatile float _rpm;
+  bool _dir;
   uint16_t* timer_compare_port;
   uint16_t* timer_counter_port;
   uint8_t* timer_enable_port;

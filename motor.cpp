@@ -92,8 +92,13 @@ float _ocr2rps(uint16_t ocr, uint16_t usteps){
 }
 
 
-float _rot2usteps(float rot, uint16_t usteps){
+uint32_t _rot2usteps(float rot, uint16_t usteps){
   return rot * usteps * FSTEPS_PER_REVOLUTION;
+}
+
+
+float _usteps2rot(uint32_t value, uint16_t usteps){
+  return (float)value / usteps / FSTEPS_PER_REVOLUTION;
 }
 
 
@@ -116,18 +121,22 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   stop_on_stallguard(true),
   print_stallguard_to_serial(false),
   is_homed(false),
-  position(0.0),
   inactivity_timeout(120000),
+  stop_at_millis(0),
+  position_usteps(0),
   running(false),
   stallguard_triggered(false),
   steps_to_do(0),
   steps_total(0),
   last_movement(0),
+  planned({0.0, false, false, 0.0, 120.0, 120.0}),
   target_rpm(-1.0),
   accel(120),
   decel(120),
   last_speed_change(last_speed_change),
+  queue_index(0),
   _rpm(0.0),
+  _dir(false),
   timer_compare_port(timer_compare_port),
   timer_counter_port(timer_counter_port),
   timer_enable_port(timer_enable_port),
@@ -167,6 +176,7 @@ void Motor::start(bool start_running){
   enabled = true;
   *timer_counter_port = 0;
   *timer_enable_port |= (1 << timer_enable_bit);
+  // Serial.println(F("[motor] start"));
 }
 
 
@@ -176,6 +186,7 @@ void Motor::stop(){
   running = false;
   steps_to_do = 0;
   ramp_off();
+  // Serial.println(F("[motor] stop"));
 }
 
 
@@ -184,16 +195,19 @@ void Motor::step(){
   delayMicroseconds(2);
   *step_port ^= 1 << step_bit;
   steps_total++;
+  position_usteps += _dir ? 1 : -1;
 }
 
 
 bool Motor::dir(){
-  return digitalReadExt(dir_pin);
+  return _dir;
+  // return digitalReadExt(dir_pin);
 }
 
 
 void Motor::dir(bool direction){
   digitalWriteExt(dir_pin, direction);
+  _dir = direction;
 }
 
 
@@ -296,8 +310,13 @@ MotorStallguardInfo Motor::get_stallguard_info(){
 }
 
 
-float Motor::rot2usteps(float rot){
+uint32_t Motor::rot2usteps(float rot){
   return _rot2usteps(rot, usteps);
+}
+
+
+float Motor::usteps2rot(uint32_t value){
+  return _usteps2rot(value, usteps);
 }
 
 
@@ -308,6 +327,11 @@ uint16_t Motor::rpm2ocr(float rpm){
 
 uint16_t Motor::rpm2sps(float rps){
   return uint16_t(FSTEPS_PER_REVOLUTION * usteps * rps / 60);
+}
+
+
+float Motor::position(){
+  return usteps2rot(position_usteps);
 }
 
 
@@ -403,6 +427,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
     }
     case MotorQueueItemType::RUN_UNTIL_STALLGUARD: {
       // stop_on_stallguard = true;
+      if(queue[next].value > 0) stop_at_millis = millis() + queue[next].value;
       start(true);
       SERIAL_PRINTLN(F("[pnq] run until sg"));
       break;
@@ -504,10 +529,19 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       break;
     }
     case MotorQueueItemType::SET_POSITION: {
-      position = *reinterpret_cast<float*>(&queue[next].value);
+      // position = *reinterpret_cast<float*>(&queue[next].value);
+      position_usteps = rot2usteps(*reinterpret_cast<float*>(&queue[next].value));
+      // planned.position = position;
 
       SERIAL_PRINT(F("[pnq] set position to "));
-      SERIAL_PRINTLN(position);
+      SERIAL_PRINTLN(position());
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::RESET_STALLGUARD_TRIGGERED: {
+      stallguard_triggered = false;
+
+      SERIAL_PRINTLN(F("[pnq] reset sg triggered"));
       process_next = true;
       break;
     }
@@ -567,13 +601,28 @@ void Motor::debugPrintInfo(){
   Serial.print(F("dir() = ")); Serial.println(dir());
   Serial.print(F("stop_on_stallguard = ")); Serial.println(stop_on_stallguard);
   Serial.print(F("running = ")); Serial.println(running);
+  Serial.print(F("position_usteps = ")); Serial.println(position_usteps);
+  Serial.print(F("position() = ")); Serial.println(position());
+  Serial.print(F("is_homed = ")); Serial.println(is_homed);
   Serial.print(F("steps_to_do = ")); Serial.println(steps_to_do);
   Serial.print(F("steps_total = ")); Serial.println(steps_total);
   Serial.print(F("target_rpm = ")); Serial.println(target_rpm);
   Serial.print(F("accel = ")); Serial.println(accel);
   Serial.print(F("decel = ")); Serial.println(decel);
   Serial.print(F("_rpm = ")); Serial.println(_rpm);
+  Serial.print(F("_dir = ")); Serial.println(_dir);
   Serial.print(F("queue_index = ")); Serial.println(queue_index);
+  Serial.print(F("stallguard_triggered = ")); Serial.println(stallguard_triggered);
+  Serial.print(F("inactivity_timeout = ")); Serial.println(inactivity_timeout);
+  Serial.print(F("stop_at_millis = ")); Serial.println(stop_at_millis);
+  Serial.print(F("last_speed_change = ")); Serial.println(last_speed_change);
+  Serial.print(F("last_movement = ")); Serial.println(last_movement);
+  Serial.print(F("planned.rpm = ")); Serial.println(planned.rpm);
+  Serial.print(F("planned.direction = ")); Serial.println(planned.direction);
+  Serial.print(F("planned.is_homed = ")); Serial.println(planned.is_homed);
+  Serial.print(F("planned.position = ")); Serial.println(planned.position);
+  Serial.print(F("planned.accel = ")); Serial.println(planned.accel);
+  Serial.print(F("planned.decel = ")); Serial.println(planned.decel);
 }
 
 
@@ -592,6 +641,7 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
   // fast forward until stallguard
   set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
   set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
+  set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
   // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
 
   // backstep again
@@ -604,6 +654,7 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
   set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
   set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
   set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
+  set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
   // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
 
   // set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 1);
@@ -681,7 +732,7 @@ void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float 
     motors[m].step();  \
   }else{  \
     motors[m].pause_steps = true;  \
-    SERIAL_PRINTLN("[isr] pnq!");  \
+    /*SERIAL_PRINTLN("[isr] pnq!");*/  \
     motors[m].process_next_queue_item();  \
     motors[m].pause_steps = false;  \
   }  \
@@ -703,6 +754,7 @@ ISR(TIMER0_COMPA_vect){
       _millis > motors[i].last_movement + motors[i].inactivity_timeout
     ){
       motors[i].last_movement = 0;
+      motors[i].stop_at_millis = 0;
       motors[i].stop();
       motors[i].off();
       Serial.print(F("inactivity timeout, motor "));
@@ -733,9 +785,9 @@ ISR(TIMER0_COMPA_vect){
       _millis >= motors[i].queue[motors[i].queue_index].value
     ){
       motors[i].queue[motors[i].queue_index].processed = true;
-      // SERIAL_PRINT(F(" wait("));
-      // SERIAL_PRINT(motors[i].queue_index);
-      // SERIAL_PRINTLN(F(") finished! pnq!"));
+      SERIAL_PRINT(F(" wait("));
+      SERIAL_PRINT(motors[i].queue_index);
+      SERIAL_PRINTLN(F(") finished! pnq!"));
       motors[i].pause_steps = true;
       if(!motors[i].process_next_queue_item(true)){
         // motors[i].queue[motors[i].queue_index].processed = true;
@@ -743,6 +795,13 @@ ISR(TIMER0_COMPA_vect){
         // SERIAL_PRINTLN(F("[wait] queue is empty, pnq returned false!"));
       }
       motors[i].pause_steps = false;
+    }
+
+    if(motors[i].stop_at_millis > 0 && motors[i].stop_at_millis < _millis) {
+      motors[i].stop_at_millis = 0;
+      motors[i].stop();
+      Serial.print(F("[sam] stopped "));
+      Serial.println(motors[i].axis);
     }
 
   }
@@ -828,6 +887,7 @@ ISR(PCINT2_vect){
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(sg[i]){
       // beep(30);
+      motors[i].stallguard_triggered = true;
       if(motors[i].is_expecting_stallguard()){
         SERIAL_PRINTLN("[sg] is expected");
 
@@ -843,7 +903,7 @@ ISR(PCINT2_vect){
       }else{
         SERIAL_PRINTLN("[sg] unexpected");
 
-        motors[i].stallguard_triggered = true;
+        // motors[i].stallguard_triggered = true;
         // if(motors[i].stop_on_stallguard) motors[i].stop();
         if(motors[i].stop_on_stallguard){
           motors[i].stop();

@@ -45,6 +45,7 @@ void gcode_on(){
 void gcode_off(){
   FOREACH_PARAM_AS_AXIS;
   ADD_TO_QUEUE(TURN_OFF, 0);
+  motors[index].planned.is_homed = false;
   FOREACH_PARAM_AS_AXIS_END;
 }
 
@@ -87,6 +88,7 @@ void gcode_run(){
 void gcode_rpm(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   ADD_TO_QUEUE_FLOAT(SET_RPM);
+  motors[index].planned.rpm = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -94,6 +96,7 @@ void gcode_rpm(){
 void gcode_dir(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(SET_DIRECTION, value);
+  motors[index].planned.direction = value;
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
@@ -101,6 +104,7 @@ void gcode_dir(){
 void gcode_accel(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   ADD_TO_QUEUE_FLOAT(SET_ACCEL);
+  motors[index].planned.accel = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -108,6 +112,7 @@ void gcode_accel(){
 void gcode_decel(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   ADD_TO_QUEUE_FLOAT(SET_DECEL);
+  motors[index].planned.decel = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -115,20 +120,28 @@ void gcode_decel(){
 void gcode_ramp_to(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   ADD_TO_QUEUE_FLOAT(RAMP_TO);
+  motors[index].planned.rpm = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
 
 void gcode_do_steps(){
   FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE;
-  ADD_TO_QUEUE(DO_STEPS, value);
+  if(value > 0){
+    ADD_TO_QUEUE(DO_STEPS, value);
+    motors[index].planned.position += motors[index].planned.direction ?
+      motors[index].usteps2rot(value) : -motors[index].usteps2rot(value);
+  }
   FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE_END;
 }
 
 
 void gcode_move_rot(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  if(value > 0.0) ADD_TO_QUEUE(DO_STEPS, motors[index].rot2usteps(value));
+  if(value > 0.0){
+    ADD_TO_QUEUE(DO_STEPS, motors[index].rot2usteps(value));
+    motors[index].planned.position += motors[index].planned.direction ? value : -value;
+  }
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -168,6 +181,7 @@ void gcode_home(){
   float initial_rpm = 120.0;
   float final_rpm = 40.0;
   float backstep_rot = 0.1;
+  uint16_t wait_duration = 50;
   for (size_t i = 0; i < rx_params; i++) {
     const uint8_t len = strlen(rx_param[i]);
     if(len > 0){
@@ -177,13 +191,14 @@ void gcode_home(){
         case 'f': initial_rpm = value; break;
         case 'g': final_rpm = value; break;
         case 'b': backstep_rot = value; break;
+        case 'w': wait_duration = strtoul(&rx_param[i][1], nullptr, 10); break;
       }
 
     }
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
-  motors[index].plan_home((bool)value, initial_rpm, final_rpm, backstep_rot);
+  motors[index].plan_home((bool)value, initial_rpm, final_rpm, backstep_rot, wait_duration);
   // motors[index].start(false);
 
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
@@ -251,6 +266,129 @@ void gcode_wait_for_motor(){
 void gcode_wait(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(WAIT, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_test_sg(){
+  const uint8_t wait_duration = 50;
+  float rpm = 120;
+  float backstep_rot = 0.1;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'f': rpm = value; break;
+        case 'b': backstep_rot = value; break;
+      }
+    }
+  }
+
+  const uint32_t backstep_duration = backstep_rot / rpm * 60000.0;
+
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  const uint32_t backstep_usteps = motors[index].rot2usteps(backstep_rot);
+  const bool direction = (bool)value;
+  // Serial.print(F("backstep_duration="));
+  // Serial.println(backstep_duration);
+
+  // uint8_t next = motors[index].next_empty_queue_index();
+
+  // backstep
+  // set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm * 100);
+  // set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
+  // set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
+  // set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
+  // Serial.println(F("[x] plan backstep"));
+  ADD_TO_QUEUE(SET_RPM, rpm * 100);
+  ADD_TO_QUEUE(SET_DIRECTION, !direction);
+  ADD_TO_QUEUE(DO_STEPS, backstep_usteps);
+  ADD_TO_QUEUE(WAIT, wait_duration);
+  // ADD_TO_QUEUE(WAIT, 1000);
+
+  // Serial.println(F("[x] start backstep"));
+  // beep(10);
+  motors[index].start();
+  delay(10); // let process_next_queue_item() take place
+  while(motors[index].is_busy()) delay(1);
+  // Serial.println(F("[x] backstep done"));
+  // beep(10);
+  // delay(100);
+  // beep(10);
+
+  // delay(1500);
+
+  // Serial.println(F("[x] plan sg move"));
+  // move forward until stallguard or timeout
+  ADD_TO_QUEUE(SET_DIRECTION, direction);
+  ADD_TO_QUEUE(RUN_UNTIL_STALLGUARD, 2000);
+  // ADD_TO_QUEUE(BEEP, 5);
+
+  // // backstep again
+  // ADD_TO_QUEUE(SET_DIRECTION, !direction);
+  // ADD_TO_QUEUE(DO_STEPS, rot2usteps(backstep_rot));
+  // // ADD_TO_QUEUE(BEEP, 5);
+  // ADD_TO_QUEUE(WAIT, wait_duration);
+  //
+  // // slow forward until stallguard
+  // ADD_TO_QUEUE(SET_RPM, final_rpm * 100);
+  // ADD_TO_QUEUE(SET_DIRECTION, direction);
+  // ADD_TO_QUEUE(RUN_UNTIL_STALLGUARD);
+  // // ADD_TO_QUEUE(BEEP, 5);
+  //
+  // // ADD_TO_QUEUE(SET_STOP_ON_STALLGUARD, 1);
+  // // ADD_TO_QUEUE(SET_PRINT_STALLGUARD_TO_SERIAL, 0);
+  // ADD_TO_QUEUE(SET_IS_HOMED, 1);
+  // ADD_TO_QUEUE(SET_POSITION, 0);
+
+  // ADD_TO_QUEUE(RUN_UNTIL_STALLGUARD, 2000);
+  // Serial.println(F("[x] start sg move"));
+  // beep(10);
+  motors[index].stallguard_triggered = false;
+  motors[index].start();
+  delay(10); // let process_next_queue_item() take place
+
+  const uint32_t start_time = millis();
+  while(motors[index].is_busy()) delay(1);
+  // Serial.println(F("[x] sg move finished"));
+  // beep(10);
+
+  const bool triggered = motors[index].stallguard_triggered;
+  motors[index].stallguard_triggered = false;
+  motors[index].stop_at_millis = 0;
+
+  const uint32_t trigger_time = millis() - start_time;
+
+  if(triggered){
+    if(trigger_time < backstep_duration / 2){
+      Serial.print(F("[sg test] Triggered too early! (in "));
+      Serial.print(trigger_time);
+      Serial.println(F("ms)"));
+
+    }else if(trigger_time > backstep_duration * 2){
+      Serial.print(F("[sg test] Trigger took too long! (in "));
+      Serial.print(trigger_time);
+      Serial.println(F("ms)"));
+
+    }else{
+      Serial.print(F("[sg test] Triggered in "));
+      Serial.print(trigger_time);
+      Serial.println(F("ms"));
+
+    }
+
+  }else{
+    Serial.println(F("[sg test] not triggered (timeouted...) x.x"));
+
+  }
+  // Serial.println();
+  // Serial.print(F("stallguard_triggered="));
+  // Serial.println((uint8_t)triggered);
+
+  // Serial.println(F(">>> run until stallguard <<<"));
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 

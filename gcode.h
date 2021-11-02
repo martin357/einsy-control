@@ -24,3 +24,4 @@ void gcode_stop_on_stallguard();
 void gcode_print_stallguard();
 void gcode_wait_for_motor();
 void gcode_wait();
+void gcode_test_sg();
