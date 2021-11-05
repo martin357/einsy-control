@@ -78,44 +78,60 @@ void MenuListModelHeight::move(int8_t amount){
 bool is_valve_on(){ return digitalReadExt(PIN_VALVE); }
 void do_valve_on(){ digitalWriteExt(PIN_VALVE, HIGH); }
 void do_valve_off(){ digitalWriteExt(PIN_VALVE, LOW); }
-MenuItemToggleCallable item_valve_on_off(&is_valve_on, "Valve: on", "Valve: off", &do_valve_off, &do_valve_on);
+const char pgmstr_valve_on[] PROGMEM = "Valve: on";
+const char pgmstr_valve_off[] PROGMEM = "Valve: off";
+MenuItemToggleCallable item_valve_on_off(&is_valve_on, pgmstr_valve_on, pgmstr_valve_off, &do_valve_off, &do_valve_on);
 
 bool is_water_pump_on(){ return digitalReadExt(PIN_WATER_PUMP); }
 void do_water_pump_on(){ digitalWriteExt(PIN_WATER_PUMP, HIGH); }
 void do_water_pump_off(){ digitalWriteExt(PIN_WATER_PUMP, LOW); }
-MenuItemToggleCallable item_water_pump_on_off(&is_water_pump_on, "Water pump: on", "Water pump: off", &do_water_pump_off, &do_water_pump_on);
+const char pgmstr_water_pump_on[] PROGMEM = "Water pump: on";
+const char pgmstr_water_pump_off[] PROGMEM = "Water pump: off";
+MenuItemToggleCallable item_water_pump_on_off(&is_water_pump_on, pgmstr_water_pump_on, pgmstr_water_pump_off, &do_water_pump_off, &do_water_pump_on);
 
 bool is_uv_led_on(){ return !digitalReadExt(PIN_UV_LED); }
 void do_uv_led_on(){ digitalWriteExt(PIN_UV_LED, LOW); }
 void do_uv_led_off(){ digitalWriteExt(PIN_UV_LED, HIGH); }
-MenuItemToggleCallable item_uv_led_on_off(&is_uv_led_on, "UV Led: on", "UV Led: off", &do_uv_led_off, &do_uv_led_on);
+const char pgmstr_uv_led_on[] PROGMEM = "UV Led: on";
+const char pgmstr_uv_led_off[] PROGMEM = "UV Led: off";
+MenuItemToggleCallable item_uv_led_on_off(&is_uv_led_on, pgmstr_uv_led_on, pgmstr_uv_led_off, &do_uv_led_off, &do_uv_led_on);
 
 bool is_heater_on(){ return !digitalReadExt(PIN_HEATER); }
 void do_heater_on(){ digitalWriteExt(PIN_HEATER, LOW); }
 void do_heater_off(){ digitalWriteExt(PIN_HEATER, HIGH); }
-MenuItemToggleCallable item_heater_on_off(&is_heater_on, "Heater: on", "Heater: off", &do_heater_off, &do_heater_on);
+const char pgmstr_heater_on[] PROGMEM = "Heater: on";
+const char pgmstr_heater_off[] PROGMEM = "Heater: off";
+MenuItemToggleCallable item_heater_on_off(&is_heater_on, pgmstr_heater_on, pgmstr_heater_off, &do_heater_off, &do_heater_on);
 
 bool is_watch_water_level_on(){ return watch_water_level; }
 void do_watch_water_level_on(){ watch_water_level = true; }
 void do_watch_water_level_off(){ watch_water_level = false; digitalWriteExt(PIN_WATER_PUMP, LOW); digitalWriteExt(PIN_VALVE, LOW); }
-MenuItemToggleCallable item_watch_water_level_on_off(&is_watch_water_level_on, "Water level: on", "Water level: off", &do_watch_water_level_off, &do_watch_water_level_on);
+const char pgmstr_watch_water_level_on[] PROGMEM = "Water level: on";
+const char pgmstr_watch_water_level_off[] PROGMEM = "Water level: off";
+MenuItemToggleCallable item_watch_water_level_on_off(&is_watch_water_level_on, pgmstr_watch_water_level_on,
+  pgmstr_watch_water_level_off, &do_watch_water_level_off, &do_watch_water_level_on);
 
 
 
 MenuRange<uint8_t> menu_washing_duration("Washing time [min]", storage.washing_duration, 1, 255, true);
-MenuItem item_washing_duration("Washing time", &menu_washing_duration);
+const char pgmstr_washing_time[] PROGMEM = "Washing time";
+MenuItem item_washing_duration(pgmstr_washing_time, &menu_washing_duration);
 
 MenuRange<uint8_t> menu_drying_duration("Drying time [min]", storage.drying_duration, 1, 255, true);
-MenuItem item_drying_duration("Drying time", &menu_drying_duration);
+const char pgmstr_drying_time[] PROGMEM = "Drying time";
+MenuItem item_drying_duration(pgmstr_drying_time, &menu_drying_duration);
 
 MenuRange<uint8_t> menu_curing_duration("Curing time [min]", storage.curing_duration, 1, 255, true);
-MenuItem item_curing_duration("Curing time", &menu_curing_duration);
+const char pgmstr_curing_time[] PROGMEM = "Curing time";
+MenuItem item_curing_duration(pgmstr_curing_time, &menu_curing_duration);
 
 MenuRange<uint8_t> menu_stabilization_duration("Stabil. time [s]", storage.stabilization_duration, 0, 60, true);
-MenuItem item_stabilization_duration("Stabilization time", &menu_stabilization_duration);
+const char pgmstr_stabilization_duration[] PROGMEM = "Stabilization time";
+MenuItem item_stabilization_duration(pgmstr_stabilization_duration, &menu_stabilization_duration);
 
 MenuListModelHeight menu_model_height;
-MenuItem item_model_height("Model height", &menu_model_height);
+const char pgmstr_model_height[] PROGMEM = "Model height";
+MenuItem item_model_height(pgmstr_model_height, &menu_model_height);
 
 
 void setupCustom(){
@@ -200,7 +216,8 @@ void do_home_z_up(){
   is_homed = true;
   platform_pos = PlatformPos::TOP;
 }
-MenuItemCallable item_home_z_up("Home Z up", &do_home_z_up, false);
+const char pgmstr_home_z_up[] PROGMEM = "Home Z up";
+MenuItemCallable item_home_z_up(pgmstr_home_z_up, &do_home_z_up, false);
 
 void do_home_z_down(){
   lcd.clear();
@@ -224,7 +241,8 @@ void do_home_z_down(){
   is_homed = true;
   platform_pos = PlatformPos::BOTTOM;
 }
-MenuItemCallable item_home_z_down("Home Z down", &do_home_z_down, false);
+const char pgmstr_home_z_down[] PROGMEM = "Home Z down";
+MenuItemCallable item_home_z_down(pgmstr_home_z_down, &do_home_z_down, false);
 
 void ensure_homed(){
   // motors[2].driver.en_pwm_mode(1);
@@ -316,7 +334,8 @@ void do_fill_tank(bool do_beep = true){
     delay(2000);
   }
 }
-MenuItemCallable item_fill_tank("Fill tank", &do_fill_tank, false);
+const char pgmstr_fill_tank[] PROGMEM = "Fill tank";
+MenuItemCallable item_fill_tank(pgmstr_fill_tank, &do_fill_tank, false);
 
 
 void do_empty_tank(bool do_beep = true){
@@ -346,13 +365,15 @@ void do_empty_tank(bool do_beep = true){
     delay(2000);
   }
 }
-MenuItemCallable item_empty_tank("Empty tank", &do_empty_tank, false);
+const char pgmstr_empty_tank[] PROGMEM = "Empty tank";
+MenuItemCallable item_empty_tank(pgmstr_empty_tank, &do_empty_tank, false);
 
 void do_fill_and_empty(){
   do_fill_tank(false);
   do_empty_tank();
 }
-MenuItemCallable item_fill_and_empty("Fill & empty", &do_fill_and_empty, false);
+const char pgmstr_fill_and_empty[] PROGMEM = "Fill & empty";
+MenuItemCallable item_fill_and_empty(pgmstr_fill_and_empty, &do_fill_and_empty, false);
 
 
 void do_move_up(bool do_wait = true, bool do_beep = true){
@@ -383,7 +404,8 @@ void do_move_up(bool do_wait = true, bool do_beep = true){
   platform_pos = PlatformPos::TOP;
 }
 void _do_move_up(){ do_move_up(); }
-MenuItemCallable item_move_up("Move platform up", &_do_move_up, false);
+const char pgmstr_move_up[] PROGMEM = "Move platform up";
+MenuItemCallable item_move_up(pgmstr_move_up, &_do_move_up, false);
 
 // void do_move_down(bool do_wait = true, bool do_beep = true){
 //   if(!is_homed){
@@ -443,7 +465,8 @@ void do_move_down(bool do_wait = true, bool do_beep = true){
   platform_pos = PlatformPos::BOTTOM;
 }
 void _do_move_down(){ do_move_down(); }
-MenuItemCallable item_move_down("Move platform down", &_do_move_down, false);
+const char pgmstr_move_down[] PROGMEM = "Move platform down";
+MenuItemCallable item_move_down(pgmstr_move_down, &_do_move_down, false);
 
 
 void do_start_washing(bool do_beep = true){
@@ -526,7 +549,8 @@ void do_start_washing(bool do_beep = true){
   motors[0].print_stallguard_to_serial = false;
 
 }
-MenuItemCallable item_start_washing("Start washing", &do_start_washing, false);
+const char pgmstr_start_washing[] PROGMEM = "Start washing";
+MenuItemCallable item_start_washing(pgmstr_start_washing, &do_start_washing, false);
 
 
 void do_start_drying(bool do_beep = true){
@@ -702,7 +726,8 @@ void do_start_drying(bool do_beep = true){
   if(do_beep) beep_cycle_finished();
 
 }
-MenuItemCallable item_start_drying("Start drying", &do_start_drying, false);
+const char pgmstr_start_drying[] PROGMEM = "Start drying";
+MenuItemCallable item_start_drying(pgmstr_start_drying, &do_start_drying, false);
 
 
 void do_start_curing(bool do_beep = true){
@@ -734,7 +759,8 @@ void do_start_curing(bool do_beep = true){
   if(do_beep) beep_cycle_finished();
 
 }
-MenuItemCallable item_start_curing("Start curing", &do_start_curing, false);
+const char pgmstr_start_curing[] PROGMEM = "Start curing";
+MenuItemCallable item_start_curing(pgmstr_start_curing, &do_start_curing, false);
 
 
 void do_wash_dry_cure(){
@@ -744,7 +770,8 @@ void do_wash_dry_cure(){
 
   beep_cycle_finished();
 }
-MenuItemCallable item_wash_dry_cure("Wash, dry & cure", &do_wash_dry_cure, false);
+const char pgmstr_wash_dry_cure[] PROGMEM = "Wash, dry & cure";
+MenuItemCallable item_wash_dry_cure(pgmstr_wash_dry_cure, &do_wash_dry_cure, false);
 
 
 void do_wash_dry(){
@@ -753,7 +780,8 @@ void do_wash_dry(){
 
   beep_cycle_finished();
 }
-MenuItemCallable item_wash_dry("Wash & dry", &do_wash_dry, false);
+const char pgmstr_wash_dry[] PROGMEM = "Wash & dry";
+MenuItemCallable item_wash_dry(pgmstr_wash_dry, &do_wash_dry, false);
 
 
 void do_up_and_down(){
@@ -762,11 +790,12 @@ void do_up_and_down(){
     do_move_down(true, false);
   }
 }
-MenuItemCallable item_up_and_down("Up & down", &do_up_and_down, false);
+const char pgmstr_up_and_down[] PROGMEM = "Up & down";
+MenuItemCallable item_up_and_down(pgmstr_up_and_down, &do_up_and_down, false);
 
 
 // debug menu
-MenuItem* debug_menu_items[] = {
+MenuItem* const debug_menu_items[] PROGMEM = {
   &back,
   &item_up_and_down,
   // &item_home_z_up,
@@ -780,34 +809,37 @@ MenuItem* debug_menu_items[] = {
   &motor_z,
 };
 Menu debug_menu(debug_menu_items, sizeof(debug_menu_items) / 2);
-MenuItem item_debug_menu("!!! Debug", &debug_menu);
+const char pgmstr_debug[] PROGMEM = "!!! Debug";
+MenuItem item_debug_menu(pgmstr_debug, &debug_menu);
 
 
 // cycle duration menu
-MenuItem* cycle_duration_menu_items[] = {
+MenuItem* const cycle_duration_menu_items[] PROGMEM = {
   &back,
   &item_washing_duration,
   &item_drying_duration,
   &item_curing_duration,
 };
 Menu cycle_duration_menu(cycle_duration_menu_items, sizeof(cycle_duration_menu_items) / 2);
-MenuItem item_cycle_duration_menu("Cycle duration", &cycle_duration_menu);
+const char pgmstr_cycle_duration[] PROGMEM = "Cycle duration";
+MenuItem item_cycle_duration_menu(pgmstr_cycle_duration, &cycle_duration_menu);
 
 
 // start cycle menu
-MenuItem* start_cycle_menu_items[] = {
+MenuItem* const start_cycle_menu_items[] PROGMEM = {
   &back,
   &item_start_washing,
   &item_start_drying,
   &item_start_curing,
 };
 Menu start_cycle_menu(start_cycle_menu_items, sizeof(start_cycle_menu_items) / 2);
-MenuItem item_start_cycle_menu("Start cycle", &start_cycle_menu);
+const char pgmstr_start_cycle[] PROGMEM = "Start cycle";
+MenuItem item_start_cycle_menu(pgmstr_start_cycle, &start_cycle_menu);
 
 
 
 // main menu
-MenuItem* main_menu_items[] = {
+MenuItem* const main_menu_items[] PROGMEM = {
   &item_wash_dry_cure,
   &item_wash_dry,
   &item_model_height,

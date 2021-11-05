@@ -11,13 +11,17 @@
 bool is_washing_pump_on(){ return digitalReadExt(PIN_WASHING_PUMP); }
 void do_washing_pump_on(){ digitalWriteExt(PIN_WASHING_PUMP, HIGH); }
 void do_washing_pump_off(){ digitalWriteExt(PIN_WASHING_PUMP, LOW); }
-MenuItemToggleCallable item_washing_pump_on_off(&is_washing_pump_on, "Washing: on", "Washing: off", &do_washing_pump_off, &do_washing_pump_on);
+const char pgmstr_washing_pump_on[] PROGMEM = "Washing: on";
+const char pgmstr_washing_pump_off[] PROGMEM = "Washing: off";
+MenuItemToggleCallable item_washing_pump_on_off(&is_washing_pump_on, pgmstr_washing_pump_on, pgmstr_washing_pump_off, &do_washing_pump_off, &do_washing_pump_on);
 
 
 bool is_heater_on(){ return digitalReadExt(PIN_HEATER); }
 void do_heater_on(){ digitalWriteExt(PIN_HEATER, HIGH); }
 void do_heater_off(){ digitalWriteExt(PIN_HEATER, LOW); }
-MenuItemToggleCallable item_heater_on_off(&is_heater_on, "Heater: on", "Heater: off", &do_heater_off, &do_heater_on);
+const char pgmstr_heater_on[] PROGMEM = "Heater: on";
+const char pgmstr_heater_off[] PROGMEM = "Heater: off";
+MenuItemToggleCallable item_heater_on_off(&is_heater_on, pgmstr_heater_on, pgmstr_heater_off, &do_heater_off, &do_heater_on);
 
 
 
@@ -173,17 +177,18 @@ MenuItemDynamicCallable<uint16_t> item_temp2("Temp", &get_temp2);
 
 
 // debug menu
-MenuItem* debug_menu_items[] = {
+MenuItem* const debug_menu_items[] PROGMEM = {
   &back,
   &motor_x,
   &motor_z,
 };
 Menu debug_menu(debug_menu_items, sizeof(debug_menu_items) / 2);
-MenuItem item_debug_menu("!!! Debug", &debug_menu);
+const char pgmstr_debug[] PROGMEM = "!!! Debug";
+MenuItem item_debug_menu(pgmstr_debug, &debug_menu);
 
 
 // main menu
-MenuItem* main_menu_items[] = {
+MenuItem* const main_menu_items[] PROGMEM = {
   &item_washing_pump_on_off,
   &item_heater_on_off,
   &item_temp2,

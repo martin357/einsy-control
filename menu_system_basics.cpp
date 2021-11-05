@@ -13,7 +13,16 @@ MenuItem::MenuItem(const char* title, const Menu* leads_to):
 
 
 const char* MenuItem::getTitle(){
-  return title;
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  char* ptr = title;
+  size_t len = 0;
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  return buf;
 }
 
 
@@ -26,7 +35,8 @@ Menu* MenuItem::on_press(uint16_t duration){
 /*
   menu item back
 */
-MenuItemBack::MenuItemBack() : MenuItem("Back \1"){}
+const char pgmstr_back[] PROGMEM = "Back \1";
+MenuItemBack::MenuItemBack() : MenuItem(pgmstr_back){}
 
 
 Menu* MenuItemBack::on_press(uint16_t duration){
@@ -78,7 +88,16 @@ Menu* MenuItemToggleCallable::on_press(uint16_t duration){
 
 
 const char* MenuItemToggleCallable::getTitle(){
-  return value_getter() ? title_true : title_false;
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  char* ptr = value_getter() ? title_true : title_false;
+  size_t len = 0;
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  return buf;
 }
 
 
@@ -118,15 +137,7 @@ Menu* MenuItemCallableArg<T>::on_press(uint16_t duration){
 }
 
 
-template class MenuItemCallableArg<char>;
-template class MenuItemCallableArg<int8_t>;
-template class MenuItemCallableArg<uint8_t>;
-template class MenuItemCallableArg<int16_t>;
-template class MenuItemCallableArg<uint16_t>;
-template class MenuItemCallableArg<int32_t>;
-template class MenuItemCallableArg<uint32_t>;
-template class MenuItemCallableArg<double>;
-template class MenuItemCallableArg<float>;
+// template class MenuItemCallableArg<uint32_t>;
 
 
 
@@ -157,8 +168,7 @@ const char* MenuItemDynamic<T>::getTitle(){
 }
 
 
-template class MenuItemDynamic<uint8_t>;
-template class MenuItemDynamic<uint16_t>;
+// template class MenuItemDynamic<uint32_t>;
 
 
 
@@ -190,7 +200,6 @@ const char* MenuItemDynamicCallable<T>::getTitle(){
 }
 
 
-template class MenuItemDynamicCallable<uint8_t>;
 template class MenuItemDynamicCallable<uint16_t>;
 
 
@@ -216,12 +225,8 @@ void Menu::on_leave(){
 
 
 void Menu::on_press(uint16_t duration){
-  Menu* new_menu = nullptr;
-  if(items[current_item]->leads_to != nullptr){
-    new_menu = items[current_item]->leads_to;
-  }else{
-    new_menu = items[current_item]->on_press(duration);
-  }
+  MenuItem* item = (MenuItem*)pgm_read_word(&items[current_item]);
+  Menu* new_menu = item->leads_to != nullptr ? item->leads_to : item->on_press(duration);;
 
   if(new_menu != nullptr){
     current_menu->on_leave();
@@ -243,9 +248,10 @@ void Menu::draw(bool clear){
     if(y >= items_count) break;
 
     bool active = current_item == y;
+    MenuItem* item = (MenuItem*)pgm_read_word(&items[y]);
     lcd.setCursor(0, i);
     lcd.print(active ? "\3" : " ");
-    lcd.print(items[y]->getTitle());
+    lcd.print(item->getTitle());
   }
   last_menu_redraw = millis();
 }

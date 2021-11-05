@@ -319,7 +319,7 @@ MenuItem item_babystepping_xy("Babystepping", &menu_babystepping_xy);
 
 
 // main menu
-MenuItem* main_menu_items[] = {
+MenuItem* const main_menu_items[] PROGMEM = {
   &run_rotations,
   // &debug_rotation_x,
   // &debug_seq,

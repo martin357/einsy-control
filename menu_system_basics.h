@@ -1,6 +1,6 @@
 #pragma once
 #include "permanent_storage.h"
-#define COUNT_ARRAY_ITEMS(X) (sizeof(X) / sizeof(X[0]))
+// #define COUNT_ARRAY_ITEMS(X) (sizeof(X) / sizeof(X[0]))
 
 
 class Menu;

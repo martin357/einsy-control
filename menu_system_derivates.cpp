@@ -14,6 +14,7 @@ MenuMotor::MenuMotor(uint8_t index, MenuItem* const* items, uint8_t items_count)
 
 void MenuMotor::on_enter(){
   last_entered_motor_menu = index;
+  Menu::on_enter();
 }
 
 
@@ -21,6 +22,7 @@ void MenuMotor::on_enter(){
 /*
   menu list motor microstepping
 */
+const char pgmstr_microstepping[] PROGMEM = "Microstepping";
 uint16_t motor_microstepping_items[] = {0, 2, 4, 8, 16, 32, 64, 128, 256};
 MenuListMotorMicrostepping::MenuListMotorMicrostepping():
   MenuList("Microstepping", &value, motor_microstepping_items, sizeof(motor_microstepping_items) / sizeof(motor_microstepping_items[0])),
@@ -47,6 +49,7 @@ void MenuListMotorMicrostepping::loop(){
 /*
   menu list motor blank time
 */
+const char pgmstr_blank_time[] PROGMEM = "Blank time";
 uint8_t motor_blank_time_items[] = {16, 24, 36, 54};
 MenuListMotorBlankTime::MenuListMotorBlankTime():
   MenuList("Blank time", &value, motor_blank_time_items, sizeof(motor_blank_time_items) / sizeof(motor_blank_time_items[0])),
@@ -73,6 +76,7 @@ void MenuListMotorBlankTime::loop(){
 /*
   menu list motor current
 */
+const char pgmstr_current[] PROGMEM = "Current";
 uint16_t motor_current_items[32] = {0};
 MenuListMotorCurrent::MenuListMotorCurrent():
   MenuList("Current", &value, motor_current_items, sizeof(motor_current_items) / sizeof(motor_current_items[0])),
@@ -104,6 +108,7 @@ void MenuListMotorCurrent::loop(){
 /*
   menu range motor off time
 */
+const char pgmstr_off_time[] PROGMEM = "Off time";
 MenuRangeMotorOffTime::MenuRangeMotorOffTime():
   MenuRange("Off time", value, 1, 15),
   value(1){}
@@ -133,6 +138,7 @@ void MenuRangeMotorOffTime::loop(){
 /*
   menu range motor rpm
 */
+const char pgmstr_speed[] PROGMEM = "";
 MenuRangeMotorRPM::MenuRangeMotorRPM():
   MenuRange("Speed [RPM]", value, 1, 460),
   value(1){}
