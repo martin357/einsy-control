@@ -545,6 +545,21 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       process_next = true;
       break;
     }
+    case MotorQueueItemType::REPEAT_QUEUE: {
+      if(queue[next].value > 0){
+        queue[next].value--;
+        for (size_t j = 0; j < queue_index; j++) {
+          queue[j].processed = false;
+        }
+        queue_index = 0;
+        SERIAL_PRINT(F("[pnq] repeat queue: "));
+        SERIAL_PRINTLN(queue[next].value);
+        return true;
+      }
+
+      process_next = true;
+      break;
+    }
 
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
@@ -554,8 +569,10 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
     Serial.print(F(" to "));
     Serial.println(next);
   }
+
   queue[queue_index].processed = true;
   queue_index = next;
+
   // debugPrintQueue();
   if(queue[queue_index].type == MotorQueueItemType::WAIT){
     SERIAL_PRINTLN(F("[[pnq]] is wait:"));

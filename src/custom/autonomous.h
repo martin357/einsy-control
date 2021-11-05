@@ -9,10 +9,6 @@
   #define CUSTOM_MENU
   #define CUSTOM_SETUP
 
-  // #define PIN_UV_LED 73
-  // #define PIN_HEATER 76
-  // #define PIN_CAP_IN 12
-  // #define PIN_WATER_PUMP HEATER_0_PIN
   #define PIN_WASHING HEATER_BED_PIN
   #define PIN_VALVE_0 76
   #define PIN_VALVE_1 A8

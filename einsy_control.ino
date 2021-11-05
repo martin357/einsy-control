@@ -16,7 +16,7 @@ uint16_t counter = 0;
 
 
 void setup() {
-  Serial.begin(250000);
+  Serial.begin(74880);
   Serial.setTimeout(100);
   Serial.println(F("init..."));
   #ifdef CUSTOM

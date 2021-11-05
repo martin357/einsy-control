@@ -95,8 +95,15 @@ void gcode_rpm(){
 
 void gcode_dir(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
-  ADD_TO_QUEUE(SET_DIRECTION, value);
-  motors[index].planned.direction = value;
+  if(len >= 2 && rx_param[i][1] == '!'){
+    motors[index].planned.direction = !motors[index].planned.direction;
+    ADD_TO_QUEUE(SET_DIRECTION, motors[index].planned.direction);
+
+  }else{
+    ADD_TO_QUEUE(SET_DIRECTION, value);
+    motors[index].planned.direction = value;
+
+  }
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
@@ -266,6 +273,21 @@ void gcode_wait_for_motor(){
 void gcode_wait(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(WAIT, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_beep(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(BEEP, value > 0 ? value : 30);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_repeat_queue(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(REPEAT_QUEUE, value);
+  motors[index].start(false);
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 

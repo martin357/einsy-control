@@ -62,6 +62,7 @@ enum MotorQueueItemType: uint8_t {
   SET_IS_HOMED = 17,
   SET_POSITION = 18,
   RESET_STALLGUARD_TRIGGERED = 19,
+  REPEAT_QUEUE = 20,
 };
 
 

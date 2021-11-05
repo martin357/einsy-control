@@ -9,17 +9,38 @@
 
 /// custom stuff
 bool watch_water_level = false;
-
+bool prev_critical_water_detected = false;
+uint32_t critical_water_level_reached_at = 0;
 
 void loopCustom(){
   uint32_t _millis = millis();
 
   static uint32_t last_watch_water_level = 0;
   if(watch_water_level && _millis > last_watch_water_level + 100){
-    bool water_detected = digitalReadExt(PIN_CAP_IN);
+    bool water_detected = digitalReadExt(PIN_CAP_IN_PRIMARY);
     digitalWriteExt(PIN_WATER_PUMP, !water_detected);
     digitalWriteExt(PIN_VALVE, water_detected);
     last_watch_water_level = _millis;
+  }
+
+  const bool critical_water_detected = digitalReadExt(PIN_CAP_IN_CRITICAL);
+  if(storage.watch_for_critical_level && critical_water_detected != prev_critical_water_detected){
+    prev_critical_water_detected = critical_water_detected;
+    if(critical_water_detected){
+      digitalWriteExt(PIN_VALVE, HIGH);
+      digitalWriteExt(BEEPER, HIGH);
+      Serial.println(F("Critical water level detected!"));
+      critical_water_level_reached_at = _millis;
+
+    }else{
+      digitalWriteExt(PIN_VALVE, LOW);
+      digitalWriteExt(BEEPER, LOW);
+      Serial.print(F("Safe water level reached in "));
+      Serial.print(_millis - critical_water_level_reached_at);
+      Serial.println(F("ms"));
+
+    }
+
   }
 
 }
@@ -134,6 +155,35 @@ const char pgmstr_model_height[] PROGMEM = "Model height";
 MenuItem item_model_height(pgmstr_model_height, &menu_model_height);
 
 
+void turn_water_level_sensors(bool value){
+  value = true; // hack, keep sensors always on
+  digitalWriteExt(PIN_CAP_OUT_PRIMARY, value);
+  digitalWriteExt(PIN_CAP_OUT_CRITICAL, value);
+  if(value){
+    pinModeInput(PIN_CAP_IN_PRIMARY);
+    pinModeInput(PIN_CAP_IN_CRITICAL);
+  }else{
+    pinModeOutput(PIN_CAP_IN_PRIMARY);
+    pinModeOutput(PIN_CAP_IN_CRITICAL);
+    digitalWriteExt(PIN_CAP_IN_PRIMARY, LOW);
+    digitalWriteExt(PIN_CAP_IN_CRITICAL, LOW);
+  }
+}
+
+
+bool is_water_level_sensors_on(){ return digitalReadExt(PIN_CAP_OUT_PRIMARY); }
+void do_water_level_sensors_on(){ turn_water_level_sensors(true); }
+void do_water_level_sensors_off(){ turn_water_level_sensors(false); }
+const char pgmstr_water_level_sensors_on[] PROGMEM = "W.Lvl sensors: on";
+const char pgmstr_water_level_sensors_off[] PROGMEM = "W.Lvl sensors: off";
+MenuItemToggleCallable item_water_level_sensors_on_off(&is_water_level_sensors_on, pgmstr_water_level_sensors_on,
+  pgmstr_water_level_sensors_off, &do_water_level_sensors_off, &do_water_level_sensors_on);
+
+
+
+MenuItemToggle item_watch_for_critical_level(&storage.watch_for_critical_level, "Watch critical: on", "Watch critical: off");
+
+
 void setupCustom(){
   for (size_t i = 0; i < MOTORS_MAX; i++) {
     motors[i].driver.rms_current(500);
@@ -154,7 +204,12 @@ void setupCustom(){
   motors[2].driver.sgt(3);
 
   // touch capacitance sensor
-  pinMode(PIN_CAP_IN, INPUT);
+  pinModeOutput(PIN_CAP_OUT_PRIMARY);
+  pinModeOutput(PIN_CAP_OUT_CRITICAL);
+  turn_water_level_sensors(false);
+
+  pinMode(PIN_CAP_IN_PRIMARY, INPUT_PULLUP);
+  pinMode(PIN_CAP_IN_CRITICAL, INPUT_PULLUP);
 
   // CW board trigger pin - UV led
   pinModeOutput(PIN_UV_LED);
@@ -269,14 +324,10 @@ void do_fill_tank(bool do_beep = true){
   digitalWriteExt(PIN_VALVE, 0);
   digitalWriteExt(PIN_WATER_PUMP, 1);
 
-  digitalWrite(PIN_CAP_IN, HIGH);
-  delay(100);
-  digitalWrite(PIN_CAP_IN, LOW);
-  pinMode(PIN_CAP_IN, INPUT);
-  delay(100);
+  turn_water_level_sensors(true);
 
   while(1){
-    const bool water_detected = digitalReadExt(PIN_CAP_IN);
+    const bool water_detected = digitalReadExt(PIN_CAP_IN_PRIMARY);
     if(water_detected){
       // beep(30);
       // lcd.clear();
@@ -303,7 +354,7 @@ void do_fill_tank(bool do_beep = true){
   }
 
   while(millis() < stabilization_start + stabilization_duration_ms){
-    const bool water_detected = digitalReadExt(PIN_CAP_IN);
+    const bool water_detected = digitalReadExt(PIN_CAP_IN_PRIMARY);
     digitalWriteExt(PIN_VALVE, water_detected);
     digitalWriteExt(PIN_WATER_PUMP, !water_detected);
     delay(200);
@@ -333,6 +384,8 @@ void do_fill_tank(bool do_beep = true){
     beep(50);
     delay(2000);
   }
+
+  turn_water_level_sensors(false);
 }
 const char pgmstr_fill_tank[] PROGMEM = "Fill tank";
 MenuItemCallable item_fill_tank(pgmstr_fill_tank, &do_fill_tank, false);
@@ -805,6 +858,8 @@ MenuItem* const debug_menu_items[] PROGMEM = {
   &item_valve_on_off,
   &item_water_pump_on_off,
   &item_watch_water_level_on_off,
+  &item_water_level_sensors_on_off,
+  &item_watch_for_critical_level,
   &motor_x,
   &motor_z,
 };
