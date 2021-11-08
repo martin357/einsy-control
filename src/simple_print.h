@@ -9,7 +9,7 @@ public:
 	void print(uint8_t number, uint8_t denom = 100, unsigned char filler = ' ');
 	void print(int16_t number, int16_t denom = 10000, unsigned char filler = ' ');
 	void print(int8_t number, int8_t denom = 100, unsigned char filler = ' ');
-	// void print(float);
+	void print(float number, float denom = 1000, unsigned char filler = ' ');
 	void print(const char*);
 	void print_P(const char*);
 	void buffer_init(char* buffer_start, uint8_t buffer_size);

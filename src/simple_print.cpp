@@ -50,6 +50,14 @@ void SimplePrint::print(int16_t number, int16_t denom, unsigned char filler) {
 	}
 }
 
+void SimplePrint::print(float number, float denom, unsigned char filler) {
+	const int16_t base = number;
+	const uint16_t rest = (number < 0 ? -(number - base) : number - base) * 100;
+	print(base, (int16_t)denom, filler);
+	print(".");
+	print(rest, 10U, filler);
+}
+
 // void SimplePrint::print(float number) {
 // 	number += 0.05;
 // 	uint8_t integer = (uint8_t)number;

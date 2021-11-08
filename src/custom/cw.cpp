@@ -358,23 +358,41 @@ void do_fill_tank(bool do_beep = true){
 
   turn_water_level_sensors(true);
 
+  bool prev_water_detected = false;
+  bool water_detected;
+  uint32_t water_detected_at = 0;
   while(1){
-    const bool water_detected = digitalReadExt(PIN_CAP_IN_PRIMARY);
-    if(water_detected){
-      // beep(30);
-      // lcd.clear();
-      // lcd.print("Overfill...");
-      // _delay(300);
-      // beep(30);
+    const uint32_t _millis = millis();
+    water_detected = digitalReadExt(PIN_CAP_IN_PRIMARY);
+    if(water_detected != prev_water_detected){
+      prev_water_detected = water_detected;
+      if(water_detected){
+        Serial.println(F("water level detected!"));
+        water_detected_at = _millis;
+        // digitalWriteExt(BEEPER, 1);
 
+      }else{
+        Serial.print(F("signal lost in "));
+        Serial.print(_millis - water_detected_at);
+        Serial.println(F("ms"));
+        // digitalWriteExt(BEEPER, 0);
+
+      }
+    }
+
+    if(water_detected && water_detected_at > 0 && _millis - water_detected_at > 150){
       digitalWriteExt(PIN_WATER_PUMP, 0);
       digitalWriteExt(PIN_VALVE, 1);
       lcd.clear();
       lcd.print("Stabilizing...");
       stabilization_start = millis();
+
+      Serial.println(F("Stable signal reached, stabilise level now"));
+      // digitalWriteExt(BEEPER, 0);
       break;
-    }else{
-      _delay(100);
+
+    // }else{
+    //   _delay(50);
     }
 
     if(enc_click > 1){
