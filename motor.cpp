@@ -93,7 +93,7 @@ float _ocr2rps(uint16_t ocr, uint16_t usteps){
 
 
 uint32_t _rot2usteps(float rot, uint16_t usteps){
-  return rot * usteps * FSTEPS_PER_REVOLUTION;
+  return (rot < 0.0 ? -rot : rot) * usteps * FSTEPS_PER_REVOLUTION;
 }
 
 
@@ -121,6 +121,8 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   stop_on_stallguard(true),
   print_stallguard_to_serial(false),
   is_homed(false),
+  reset_is_homed_on_power_off(true),
+  reset_is_homed_on_stall(true),
   inactivity_timeout(120000),
   stop_at_millis(0),
   position_usteps(0),
@@ -130,6 +132,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   steps_total(0),
   last_movement(0),
   planned({0.0, false, false, 0.0, 120.0, 120.0}),
+  autohome({false, false, 120.0, 40.0, 0.1, 50}),
   target_rpm(-1.0),
   accel(120),
   decel(120),
@@ -161,7 +164,10 @@ void Motor::on(){
 void Motor::off(){
   digitalWriteExt(enable_pin, HIGH);
   stop();
-  is_homed = false;
+  if(reset_is_homed_on_power_off){
+    is_homed = false;
+    planned.is_homed = false;
+  }
 }
 
 
@@ -325,13 +331,15 @@ uint16_t Motor::rpm2ocr(float rpm){
 }
 
 
-uint16_t Motor::rpm2sps(float rps){
-  return uint16_t(FSTEPS_PER_REVOLUTION * usteps * rps / 60);
+uint32_t Motor::rpm2sps(float rps){
+  return FSTEPS_PER_REVOLUTION * usteps * rps / 60;
 }
 
 
 float Motor::position(){
-  return usteps2rot(position_usteps);
+  const bool negative = position_usteps < 0;
+  const uint32_t steps = negative ? -position_usteps : position_usteps;
+  return negative ? -usteps2rot(steps) : usteps2rot(steps);
 }
 
 
@@ -612,130 +620,237 @@ void Motor::debugPrintQueue(){
 
 void Motor::debugPrintInfo(){
   Serial.print(F("Motor: ")); Serial.println(axis);
-  Serial.print(F("pause_steps = ")); Serial.println(pause_steps);
-  Serial.print(F("usteps = ")); Serial.println(usteps);
-  Serial.print(F("enabled = ")); Serial.println(enabled);
-  Serial.print(F("dir() = ")); Serial.println(dir());
-  Serial.print(F("stop_on_stallguard = ")); Serial.println(stop_on_stallguard);
-  Serial.print(F("running = ")); Serial.println(running);
-  Serial.print(F("position_usteps = ")); Serial.println(position_usteps);
-  Serial.print(F("position() = ")); Serial.println(position());
-  Serial.print(F("is_homed = ")); Serial.println(is_homed);
-  Serial.print(F("steps_to_do = ")); Serial.println(steps_to_do);
-  Serial.print(F("steps_total = ")); Serial.println(steps_total);
-  Serial.print(F("target_rpm = ")); Serial.println(target_rpm);
-  Serial.print(F("accel = ")); Serial.println(accel);
-  Serial.print(F("decel = ")); Serial.println(decel);
-  Serial.print(F("_rpm = ")); Serial.println(_rpm);
-  Serial.print(F("_dir = ")); Serial.println(_dir);
-  Serial.print(F("queue_index = ")); Serial.println(queue_index);
-  Serial.print(F("stallguard_triggered = ")); Serial.println(stallguard_triggered);
-  Serial.print(F("inactivity_timeout = ")); Serial.println(inactivity_timeout);
-  Serial.print(F("stop_at_millis = ")); Serial.println(stop_at_millis);
-  Serial.print(F("last_speed_change = ")); Serial.println(last_speed_change);
-  Serial.print(F("last_movement = ")); Serial.println(last_movement);
-  Serial.print(F("planned.rpm = ")); Serial.println(planned.rpm);
-  Serial.print(F("planned.direction = ")); Serial.println(planned.direction);
-  Serial.print(F("planned.is_homed = ")); Serial.println(planned.is_homed);
-  Serial.print(F("planned.position = ")); Serial.println(planned.position);
-  Serial.print(F("planned.accel = ")); Serial.println(planned.accel);
-  Serial.print(F("planned.decel = ")); Serial.println(planned.decel);
+  PRINT_VAR(pause_steps);
+  PRINT_VAR(usteps);
+  PRINT_VAR(enabled);
+  PRINT_VAR(dir());
+  PRINT_VAR(stop_on_stallguard);
+  PRINT_VAR(running);
+  PRINT_VAR(position_usteps);
+  PRINT_VAR(position());
+  PRINT_VAR(is_homed);
+  PRINT_VAR(reset_is_homed_on_power_off);
+  PRINT_VAR(reset_is_homed_on_stall);
+  PRINT_VAR(steps_to_do);
+  PRINT_VAR(steps_total);
+  PRINT_VAR(target_rpm);
+  PRINT_VAR(accel);
+  PRINT_VAR(decel);
+  PRINT_VAR(_rpm);
+  PRINT_VAR(_dir);
+  PRINT_VAR(queue_index);
+  PRINT_VAR(stallguard_triggered);
+  PRINT_VAR(inactivity_timeout);
+  PRINT_VAR(stop_at_millis);
+  PRINT_VAR(last_speed_change);
+  PRINT_VAR(last_movement);
+  PRINT_VAR(planned.rpm);
+  PRINT_VAR(planned.direction);
+  PRINT_VAR(planned.is_homed);
+  PRINT_VAR(planned.position);
+  PRINT_VAR(planned.accel);
+  PRINT_VAR(planned.decel);
+  Serial.print(F("__min_rpm: ")); Serial.println(_ocr2rpm(65535, usteps));
+  Serial.print(F("__max_rpm: ")); Serial.println(_ocr2rpm(70, usteps));
+}
+
+
+void Motor::plan_steps(uint32_t){
+}
+
+
+void Motor::plan_rotations(float rotations, float rpm){
+  const bool rot_direction = rotations > 0.0;
+  uint8_t next = next_empty_queue_index();
+  if(rot_direction != planned.direction){
+    set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, rot_direction);
+    planned.direction = rot_direction;
+  }
+  if(rpm > 0.0 && rpm != planned.rpm){
+    set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm * 100);
+    planned.rpm = rpm;
+  }
+  set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(rotations));
+  planned.position += rotations;
+}
+
+
+void Motor::plan_rotations_to(float rotations, float rpm){
+  const float rot_delta = rotations - planned.position;
+  if(rot_delta != 0.0){
+    if(planned.is_homed){
+      plan_rotations(rot_delta, rpm);
+
+    }else{
+      if(autohome.enabled){
+        plan_autohome();
+        plan_rotations(rot_delta, rpm);
+        Serial.print(F("axis "));
+        Serial.print(axis);
+        Serial.println(F(" is autohoming first."));
+
+      }else{
+        Serial.print(F("axis "));
+        Serial.print(axis);
+        Serial.println(F(" must home first!"));
+
+      }
+    }
+  }
 }
 
 
 void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float backstep_rot, uint16_t wait_duration){
   uint8_t next = next_empty_queue_index();
 
-  // set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 1);
-  // set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
-  // backstep
-  set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
-  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
-  set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
-  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
-  set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
+  if(backstep_rot > 0.0){
+    // backstep
+    if(initial_rpm != planned.rpm){
+      set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
+      planned.rpm = initial_rpm;
+    }
+    if(!direction != planned.direction){
+      set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
+      planned.direction = !direction;
+    }
+    set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
+    set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
+  }
 
   // fast forward until stallguard
-  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
+  if(direction != planned.direction){
+    set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
+    planned.direction = direction;
+  }
   set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
   set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
-  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
 
-  // backstep again
-  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
-  set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
-  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
-  set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
+  if(final_rpm > 0.0){
+    if(backstep_rot > 0.0){
+      // backstep again
+      if(!direction != planned.direction){
+        set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
+        planned.direction = !direction;
+      }
+      set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
+      set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
+    }
 
-  // slow forward until stallguard
-  set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
-  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
-  set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
-  set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
-  // set_queue_item(next++, MotorQueueItemType::BEEP, 5);
+    // slow forward until stallguard
+    if(final_rpm != planned.rpm){
+      set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
+      planned.rpm = final_rpm;
+    }
+    if(direction != planned.direction){
+      set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
+      planned.direction = direction;
+    }
+    set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
+    set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
+  }
 
-  // set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 1);
-  // set_queue_item(next++, MotorQueueItemType::SET_PRINT_STALLGUARD_TO_SERIAL, 0);
   set_queue_item(next++, MotorQueueItemType::SET_IS_HOMED, 1);
   set_queue_item(next++, MotorQueueItemType::SET_POSITION, 0);
 
-  // start(false);
+  planned.is_homed = true;
+  planned.position = 0.0;
 
 }
 
 
+void Motor::plan_autohome(){
+  plan_home(autohome.direction, autohome.initial_rpm, autohome.final_rpm, autohome.backstep_rot, autohome.wait_duration);
+}
+
+
 void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float accel, float decel){
+  if(accel == 0.0) accel = planned.accel;
+  if(decel == 0.0) decel = accel;
+  const bool rot_direction = rotations > 0.0;
   const float delta_rpm = rpm_to - rpm_from;
-  const uint16_t sps_from = rpm2sps(rpm_from);
-  const uint16_t sps_to = rpm2sps(rpm_to);
-  const uint16_t delta_sps = sps_to - sps_from;
-  const uint16_t accel_sps = rpm2sps(accel);
-  const uint16_t decel_sps = rpm2sps(decel);
+  const uint32_t sps_from = rpm2sps(rpm_from);
+  const uint32_t sps_to = rpm2sps(rpm_to);
+  const uint32_t delta_sps = sps_to - sps_from;
+  const uint32_t accel_sps = rpm2sps(accel);
+  const uint32_t decel_sps = rpm2sps(decel);
   const float accel_t = delta_rpm / accel;
   const float decel_t = delta_rpm / decel;
-
-  // Serial.print("rot\t"); Serial.println(rot);
-  //
-  // Serial.print("sps_from\t"); Serial.println(sps_from);
-  // Serial.print("sps_to\t"); Serial.println(sps_to);
-  // Serial.print("accel_sps\t"); Serial.println(accel_sps);
-  // Serial.print("decel_sps\t"); Serial.println(decel_sps);
-  //
-  // Serial.print("accel_t\t"); Serial.println(accel_t);
-  // Serial.print("decel_t\t"); Serial.println(decel_t);
-
   const uint32_t steps = rot2usteps(rotations);
-  uint32_t decel_steps = (unsigned long)round(((float)sps_to * sps_to) / (2.0 * decel_sps));
+  uint32_t decel_steps = (unsigned long)round(((float)delta_sps * delta_sps) / (2.0 * decel_sps));
 
-  // decel_steps += 50;
+  // Serial.println(F("[[motor]] plan_ramp_move:"));
+  // PRINT_VAR(rotations);
+  // PRINT_VAR(rpm_from);
+  // PRINT_VAR(rpm_to);
+  // PRINT_VAR(accel);
+  // PRINT_VAR(decel);
+  // Serial.println(F("------"));
+  // PRINT_VAR(rot_direction);
+  // PRINT_VAR(delta_rpm);
+  // PRINT_VAR(sps_from);
+  // PRINT_VAR(sps_to);
+  // PRINT_VAR(delta_sps);
+  // PRINT_VAR(accel_sps);
+  // PRINT_VAR(decel_sps);
+  // PRINT_VAR(accel_t);
+  // PRINT_VAR(decel_t);
+  // PRINT_VAR(steps);
+  // PRINT_VAR(decel_steps);
 
-  // Serial.print("decel_steps\t"); Serial.println(decel_steps);
-  // Serial.print("sps_to * sps_to\t"); Serial.println(sps_to * sps_to);
-  // Serial.print("(float)sps_to * sps_to\t"); Serial.println((float)sps_to * sps_to);
-  // Serial.print("2.0 * decel_sps\t"); Serial.println(2.0 * decel_sps);
-
-  //
-  // check if travel distance is too short to accelerate up to the desired velocity
-  //
-  // if (distanceToTravel_InSteps <= (decelerationDistance_InSteps * 2L))
-  //   decelerationDistance_InSteps = (distanceToTravel_InSteps / 2L);
-  if(steps <= (decel_steps * 2UL)){
-    Serial.println(F("[move_ramp] decel too long!"));
-    decel_steps = steps / 2UL;
-  }
+  if(steps <= (decel_steps * 2UL)) decel_steps = steps / 2;
+  // PRINT_VAR(decel_steps);
 
   uint8_t next = next_empty_queue_index();
-  // set_queue_item(next++, MotorQueueItemType::SET_STOP_ON_STALLGUARD, 0);
-  if(accel > 0.0) set_queue_item(next++, MotorQueueItemType::SET_ACCEL, accel * 100);
-  if(decel > 0.0) set_queue_item(next++, MotorQueueItemType::SET_DECEL, decel * 100);
-
-  set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm_from * 100);
+  if(rot_direction != planned.direction){
+    set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, rot_direction);
+    planned.direction = rot_direction;
+  }
+  if(accel != planned.accel){
+    set_queue_item(next++, MotorQueueItemType::SET_ACCEL, accel * 100);
+    planned.accel = accel;
+  }
+  if(decel != planned.decel){
+    set_queue_item(next++, MotorQueueItemType::SET_DECEL, decel * 100);
+    planned.decel = decel;
+  }
+  if(rpm_from != planned.rpm){
+    set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm_from * 100);
+    // planned.rpm = rpm_from;
+  }
   set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_to * 100);
 
   set_queue_item(next++, MotorQueueItemType::DO_STEPS, steps - decel_steps);
   set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_from * 100);
   set_queue_item(next++, MotorQueueItemType::DO_STEPS, decel_steps);
 
+  planned.position += rotations;
+  planned.rpm = rpm_from;
+
+}
+
+
+void Motor::plan_ramp_move_to(float rotations, float rpm_from, float rpm_to, float accel, float decel){
+  const float rot_delta = rotations - planned.position;
+  if(rot_delta != 0.0){
+    if(planned.is_homed){
+      plan_ramp_move(rot_delta, rpm_from, rpm_to, accel, decel);
+
+    }else{
+      if(autohome.enabled){
+        plan_autohome();
+        plan_ramp_move(rot_delta, rpm_from, rpm_to, accel, decel);
+        Serial.print(F("axis "));
+        Serial.print(axis);
+        Serial.println(F(" is autohoming first."));
+
+      }else{
+        Serial.print(F("axis "));
+        Serial.print(axis);
+        Serial.println(F(" must home first!"));
+
+      }
+    }
+  }
 }
 
 
@@ -925,6 +1040,10 @@ ISR(PCINT2_vect){
         if(motors[i].stop_on_stallguard){
           motors[i].stop();
           SERIAL_PRINTLN("[sg] stop motor");
+        }
+        if(motors[i].reset_is_homed_on_stall){
+          motors[i].is_homed = false;
+          motors[i].planned.is_homed = false;
         }
 
       }

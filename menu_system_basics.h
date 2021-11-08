@@ -25,18 +25,19 @@ public:
 
 class MenuItemToggle: public MenuItem{
 public:
-  MenuItemToggle(const bool*, const char*, const char*);
+  MenuItemToggle(const bool*, const char*, const char*, bool = false);
   Menu* on_press(uint16_t);
   const char* getTitle();
   bool* value;
   const char* title_true;
   const char* title_false;
+  bool update_storage_on_change;
 };
 
 
 class MenuItemToggleCallable: public MenuItem{
 public:
-  MenuItemToggleCallable(bool (*)(), const char*, const char*, void (*)(), void (*)());
+  MenuItemToggleCallable(bool (*)(), const char*, const char*, void (*)(), void (*)(), bool = false);
   Menu* on_press(uint16_t);
   const char* getTitle();
   bool (*value_getter)();
@@ -44,6 +45,7 @@ public:
   const char* title_false;
   void (*call_on_true)();
   void (*call_on_false)();
+  bool update_storage_on_change;
 };
 
 

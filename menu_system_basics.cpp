@@ -49,15 +49,17 @@ Menu* MenuItemBack::on_press(uint16_t duration){
 /*
   menu item toggle
 */
-MenuItemToggle::MenuItemToggle(const bool* value, const char* title_true, const char* title_false):
+MenuItemToggle::MenuItemToggle(const bool* value, const char* title_true, const char* title_false, bool update_storage_on_change):
   MenuItem(nullptr),
   value(value),
   title_true(title_true),
-  title_false(title_false){}
+  title_false(title_false),
+  update_storage_on_change(update_storage_on_change){}
 
 
 Menu* MenuItemToggle::on_press(uint16_t duration){
   (*value) = !(*value);
+  if(update_storage_on_change) storage.save();
   return nullptr;
 }
 
@@ -71,18 +73,20 @@ const char* MenuItemToggle::getTitle(){
 /*
   menu item toggle callable
 */
-MenuItemToggleCallable::MenuItemToggleCallable(bool (*value_getter)(), const char* title_true, const char* title_false, void (*call_on_true)(), void (*call_on_false)()):
+MenuItemToggleCallable::MenuItemToggleCallable(bool (*value_getter)(), const char* title_true, const char* title_false, void (*call_on_true)(), void (*call_on_false)(), bool update_storage_on_change):
   MenuItem(nullptr),
   value_getter(value_getter),
   title_true(title_true),
   title_false(title_false),
   call_on_true(call_on_true),
-  call_on_false(call_on_false){}
+  call_on_false(call_on_false),
+  update_storage_on_change(update_storage_on_change){}
 
 
 Menu* MenuItemToggleCallable::on_press(uint16_t duration){
   if(value_getter()) call_on_true();
   else call_on_false();
+  if(update_storage_on_change) storage.save();
   return nullptr;
 }
 

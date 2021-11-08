@@ -104,7 +104,7 @@ public:
   uint32_t rot2usteps(float);
   float usteps2rot(uint32_t);
   uint16_t rpm2ocr(float);
-  uint16_t rpm2sps(float);
+  uint32_t rpm2sps(float);
   float position();
   const char axis;
   uint8_t step_pin;
@@ -121,6 +121,8 @@ public:
   bool stop_on_stallguard;
   bool print_stallguard_to_serial;
   bool is_homed;
+  bool reset_is_homed_on_power_off;
+  bool reset_is_homed_on_stall;
   uint32_t inactivity_timeout;
   uint32_t stop_at_millis;
   volatile int32_t position_usteps;
@@ -137,6 +139,14 @@ public:
     float accel;
     float decel;
   } planned;
+  struct {
+    bool enabled;
+    bool direction;
+    float initial_rpm;
+    float final_rpm;
+    float backstep_rot;
+    uint16_t wait_duration;
+  } autohome;
 
   volatile float target_rpm;
   uint16_t accel;
@@ -155,8 +165,12 @@ public:
   void debugPrintQueue();
   void debugPrintInfo();
   void plan_steps(uint32_t);
+  void plan_rotations(float, float = 0.0);
+  void plan_rotations_to(float, float = 0.0);
   void plan_home(bool, float = 120.0, float = 40.0, float = 0.1, uint16_t = 50);
+  void plan_autohome();
   void plan_ramp_move(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
+  void plan_ramp_move_to(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
 // private:
   volatile float _rpm;
   bool _dir;

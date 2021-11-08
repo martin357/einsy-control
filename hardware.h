@@ -2,6 +2,8 @@
 #include "src/LiquidCrystal_Prusa.h"
 #include "motor.h"
 
+#define _PRINT_VAR(v) #v
+#define PRINT_VAR(v) Serial.print(F(_PRINT_VAR(v) "=")); Serial.println(v);
 
 // #define DEBUG_PRINT
 #ifdef DEBUG_PRINT

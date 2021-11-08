@@ -11,6 +11,8 @@
 bool watch_water_level = false;
 bool prev_critical_water_detected = false;
 uint32_t critical_water_level_reached_at = 0;
+bool preventing_water_overflow = false;
+const uint16_t preventive_action_delay = 600;
 
 void loopCustom(){
   uint32_t _millis = millis();
@@ -24,25 +26,54 @@ void loopCustom(){
   }
 
   const bool critical_water_detected = digitalReadExt(PIN_CAP_IN_CRITICAL);
-  if(storage.watch_for_critical_level && critical_water_detected != prev_critical_water_detected){
-    prev_critical_water_detected = critical_water_detected;
-    if(critical_water_detected){
-      digitalWriteExt(PIN_VALVE, HIGH);
-      digitalWriteExt(BEEPER, HIGH);
-      Serial.println(F("Critical water level detected!"));
-      critical_water_level_reached_at = _millis;
+  if(storage.watch_for_critical_level){
+    if(critical_water_detected != prev_critical_water_detected){
+      prev_critical_water_detected = critical_water_detected;
+      if(critical_water_detected){
+        // digitalWriteExt(PIN_VALVE, HIGH);
+        // digitalWriteExt(BEEPER, HIGH);
+        Serial.println(F("Critical water level detected!"));
+        critical_water_level_reached_at = _millis;
 
-    }else{
-      digitalWriteExt(PIN_VALVE, LOW);
-      digitalWriteExt(BEEPER, LOW);
-      Serial.print(F("Safe water level reached in "));
-      Serial.print(_millis - critical_water_level_reached_at);
-      Serial.println(F("ms"));
+      }else{
+        // digitalWriteExt(PIN_VALVE, LOW);
+        // digitalWriteExt(BEEPER, LOW);
+        Serial.print(F("Safe water level reached in "));
+        Serial.print(_millis - critical_water_level_reached_at);
+        Serial.println(F("ms"));
+
+        if(preventing_water_overflow){
+          digitalWriteExt(PIN_VALVE, LOW);
+          // digitalWriteExt(BEEPER, LOW);
+          preventing_water_overflow = false;
+          Serial.println(F("Preventive action stopped."));
+
+        }
+
+      }
+    }
+
+    if(critical_water_detected && critical_water_level_reached_at > 0 && _millis - critical_water_level_reached_at > preventive_action_delay){
+      digitalWriteExt(PIN_VALVE, HIGH);
+      // digitalWriteExt(BEEPER, HIGH);
+      digitalWriteExt(PIN_WATER_PUMP, LOW);
+      critical_water_level_reached_at = 0;
+      preventing_water_overflow = true;
+      Serial.println(F("Critical water level detected, preventive action taken!"));
 
     }
 
   }
 
+}
+
+
+void _delay(uint32_t ms){
+  const uint32_t finish = millis() + ms;
+  while(millis() < finish){
+    loopCustom();
+    delay(1);
+  }
 }
 
 
@@ -181,7 +212,7 @@ MenuItemToggleCallable item_water_level_sensors_on_off(&is_water_level_sensors_o
 
 
 
-MenuItemToggle item_watch_for_critical_level(&storage.watch_for_critical_level, "Watch critical: on", "Watch critical: off");
+MenuItemToggle item_watch_for_critical_level(&storage.watch_for_critical_level, "Watch critical: on", "Watch critical: off", true);
 
 
 void setupCustom(){
@@ -197,6 +228,7 @@ void setupCustom(){
     motors[i].driver.intpol(1);
 
     motors[i].rpm(120);
+    motors[i].driver.TCOOLTHRS(800);
   }
   motors[0].inactivity_timeout = 5000;
 
@@ -241,9 +273,9 @@ void beep_cycle_finished(bool show_on_lcd = true){
   }
 
   beep(40);
-  delay(400);
+  _delay(400);
   beep(40);
-  delay(400);
+  _delay(400);
   beep(40);
 }
 
@@ -283,7 +315,7 @@ void do_home_z_down(){
   motors[2].driver.intpol(0);
 
   // processCommand(F("home z1 b0.5 f180 g60"));
-  processCommand(F("home z1 b0.5 f130 g130"));
+  processCommand(F("home z1 b0.5 f130")); // g130
   processCommand(F("dir z0"));
   processCommand(F("rpm z200"));
   // processCommand(F("move_rot z0.2"));
@@ -332,7 +364,7 @@ void do_fill_tank(bool do_beep = true){
       // beep(30);
       // lcd.clear();
       // lcd.print("Overfill...");
-      // delay(300);
+      // _delay(300);
       // beep(30);
 
       digitalWriteExt(PIN_WATER_PUMP, 0);
@@ -342,7 +374,7 @@ void do_fill_tank(bool do_beep = true){
       stabilization_start = millis();
       break;
     }else{
-      delay(100);
+      _delay(100);
     }
 
     if(enc_click > 1){
@@ -357,7 +389,7 @@ void do_fill_tank(bool do_beep = true){
     const bool water_detected = digitalReadExt(PIN_CAP_IN_PRIMARY);
     digitalWriteExt(PIN_VALVE, water_detected);
     digitalWriteExt(PIN_WATER_PUMP, !water_detected);
-    delay(200);
+    _delay(200);
 
     if(enc_click > 1){
       enc_click = 0;
@@ -369,8 +401,8 @@ void do_fill_tank(bool do_beep = true){
   digitalWriteExt(PIN_WATER_PUMP, 0);
   digitalWriteExt(PIN_VALVE, 1);
   // beep(30);
-  // delay(700);
-  delay(1300);
+  _delay(700); // 1300 // 700
+  // _delay(500);
   // beep(30);
   digitalWriteExt(PIN_VALVE, 0);
   const uint32_t duration = millis() - start_time;
@@ -382,7 +414,7 @@ void do_fill_tank(bool do_beep = true){
     lcd.print((uint16_t)(duration / 1000));
     lcd.print("s");
     beep(50);
-    delay(2000);
+    _delay(2000);
   }
 
   turn_water_level_sensors(false);
@@ -415,7 +447,7 @@ void do_empty_tank(bool do_beep = true){
   lcd.print("Tank is empty");
   if(do_beep){
     beep(50);
-    delay(2000);
+    _delay(2000);
   }
 }
 const char pgmstr_empty_tank[] PROGMEM = "Empty tank";
@@ -441,10 +473,11 @@ void do_move_up(bool do_wait = true, bool do_beep = true){
     motors[2].stallguard_triggered = false;
     motors[2].stop_on_stallguard = true;
     processCommand(F("dir z0"));
-    processCommand(F("move_ramp s120 f333 a250 d250 z42"));
+    processCommand(F("move_ramp s60 f333 a250 d250 z-42"));
     processCommand(F("start z"));
     // processCommand(F("print_info z"));
     if(do_wait){
+      delay(10);
       processCommand(F("wait_for_motor z"));
       if(do_beep) beep(50);
     }
@@ -476,7 +509,7 @@ MenuItemCallable item_move_up(pgmstr_move_up, &_do_move_up, false);
 //   }
 //   // Serial.println(F("[DO_MOVE_DOWN] move down!"));
 //   processCommand(F("dir z1"));
-//   processCommand(F("move_ramp s120 f333 a250 d250 z42"));
+//   processCommand(F("move_ramp s60 f333 a250 d250 z42"));
 //   processCommand(F("start z"));
 //   if(do_wait){
 //     processCommand(F("wait_for_motor z"));
@@ -503,9 +536,10 @@ void do_move_down(bool do_wait = true, bool do_beep = true){
     motors[2].stallguard_triggered = false;
     motors[2].stop_on_stallguard = true;
     processCommand(F("dir z1"));
-    processCommand(F("move_ramp s120 f333 a250 d250 z42"));
+    processCommand(F("move_ramp s60 f333 a250 d250 z42"));
     processCommand(F("start z"));
     if(do_wait){
+      delay(10);
       processCommand(F("wait_for_motor z"));
       if(do_beep) beep(50);
     }
@@ -557,7 +591,7 @@ void do_start_washing(bool do_beep = true){
     lcd.print("Remaining ");
     lcd.print((uint16_t)(remaining / 1000));
     lcd.print("s ");
-    delay(50);
+    _delay(50);
     if(enc_click > 1){
       enc_click = 0;
       beep(50);
@@ -584,7 +618,7 @@ void do_start_washing(bool do_beep = true){
     lcd.print("Remaining ");
     lcd.print((uint16_t)(remaining / 1000));
     lcd.print("s ");
-    delay(50);
+    _delay(50);
     if(enc_click > 1){
       enc_click = 0;
       beep(50);
@@ -637,21 +671,25 @@ void do_start_drying(bool do_beep = true){
 
   // do_move_up(false, false); // replaced by following code:
   ensure_homed();
-  char move_ramp_buf[40] = "move_ramp s120 f333 a250 d250 z";
+  // char move_ramp_buf[40] = "move_ramp s120 f333 a250 d250 z";
 
   if(platform_pos == PlatformPos::TOP){
     if(delta_steps > 0){
-      dtostrf(delta_rots, -8, 2, &move_ramp_buf[31]);
-      for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
-      processCommand(F("dir z1"));
-      processCommand(move_ramp_buf);
+      // dtostrf(delta_rots, -8, 2, &move_ramp_buf[31]);
+      // for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
+      // processCommand(F("dir z1"));
+      // processCommand(move_ramp_buf);
+      motors[2].plan_ramp_move(delta_rots, 120, 333, 250, 250);
+      motors[2].start();
     }
 
   }else{
-    dtostrf(42.0 - delta_rots, -8, 2, &move_ramp_buf[31]);
-    for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
-    processCommand(F("dir z0"));
-    processCommand(move_ramp_buf);
+    // dtostrf(42.0 - delta_rots, -8, 2, &move_ramp_buf[31]);
+    // for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
+    // processCommand(F("dir z0"));
+    // processCommand(move_ramp_buf);
+    motors[2].plan_ramp_move(-(42.0 - delta_rots), 120, 333, 250, 250);
+    motors[2].start();
 
   }
 
@@ -664,7 +702,7 @@ void do_start_drying(bool do_beep = true){
     lcd.print("Remaining ");
     lcd.print((uint16_t)(remaining / 1000));
     lcd.print("s ");
-    delay(50);
+    _delay(50);
 
     if(enc_click > 1){
       enc_click = 0;
@@ -723,14 +761,14 @@ void do_start_drying(bool do_beep = true){
       lcd.print("Remaining ");
       lcd.print((uint16_t)(remaining / 1000));
       lcd.print("s ");
-      delay(50);
+      _delay(50);
 
       if(enc_click > 1){
         enc_click = 0;
         lcd.clear();
         lcd.print("Finishing cycle...");
         i = cycles_total + 1; // break from loop
-        while(motors[2].is_busy()) delay(50);
+        while(motors[2].is_busy()) _delay(50);
         break;
       }
     }
@@ -755,21 +793,25 @@ void do_start_drying(bool do_beep = true){
   if(motors[2].dir()){
     // do_move_up(true, false); // move up since we ended at bottom
     Serial.println(F("[[]] Move bot -> top"));
+    // processCommand(F("move_ramp s0.1 f300 a200 d200 z38"));
+    // processCommand(F("start z"));
     processCommand(F("dir z0"));
-    processCommand(F("move_ramp s0.1 f300 a200 d200 z38"));
-    processCommand(F("start z"));
+    motors[2].plan_ramp_move(-38.0, 0.1, 333, 250, 250);
+    motors[2].start();
     processCommand(F("wait_for_motor z"));
   }else{
     if(delta_steps){
-      dtostrf(delta_rots, -8, 2, &move_ramp_buf[31]);
-      for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
-      Serial.println(F("[[]] Move mid -> top"));
-      Serial.print(F("[[]] using >>>"));
-      Serial.print(move_ramp_buf);
-      Serial.println(F("<<<"));
-      processCommand(F("dir z0"));
-      processCommand(move_ramp_buf);
-      processCommand(F("start z"));
+      // dtostrf(delta_rots, -8, 2, &move_ramp_buf[31]);
+      // for (size_t i = 31; i < sizeof(move_ramp_buf); i++) if(move_ramp_buf[i] == ' '){ move_ramp_buf[i] = 0; break; }
+      // Serial.println(F("[[]] Move mid -> top"));
+      // Serial.print(F("[[]] using >>>"));
+      // Serial.print(move_ramp_buf);
+      // Serial.println(F("<<<"));
+      // processCommand(F("dir z0"));
+      // processCommand(move_ramp_buf);
+      // processCommand(F("start z"));
+      motors[2].plan_ramp_move(-delta_rots, 0.1, 333, 250, 250);
+      motors[2].start();
       processCommand(F("wait_for_motor z"));
     }
   }
@@ -799,7 +841,7 @@ void do_start_curing(bool do_beep = true){
     lcd.print("Remaining ");
     lcd.print((uint16_t)(remaining / 1000));
     lcd.print("s ");
-    delay(50);
+    _delay(50);
 
     if(enc_click > 1){
       enc_click = 0;

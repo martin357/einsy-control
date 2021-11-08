@@ -144,11 +144,43 @@ void gcode_do_steps(){
 
 
 void gcode_move_rot(){
-  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  if(value > 0.0){
-    ADD_TO_QUEUE(DO_STEPS, motors[index].rot2usteps(value));
-    motors[index].planned.position += motors[index].planned.direction ? value : -value;
+  float rpm = 0.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'f': rpm = value; break;
+      }
+
+    }
   }
+
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  if(value != 0.0) motors[index].plan_rotations(value, rpm);
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_move_rot_to(){
+  float rpm = 0.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'f': rpm = value; break;
+      }
+
+    }
+  }
+
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  if(value != 0.0) motors[index].plan_rotations_to(value, rpm);
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -176,17 +208,42 @@ void gcode_move_ramp(){
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  if(value > 0.0){
-    motors[index].plan_ramp_move(value, rpm_from, rpm_to, accel, decel);
-    // motors[index].start(false);
+  if(value != 0.0) motors[index].plan_ramp_move(value, rpm_from, rpm_to, accel, decel);
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_move_ramp_to(){
+  float rpm_from = 40.0;
+  float rpm_to = 160; // rpm_target; // 220.0; // <-- TODO paste value to command
+  float delta_rpm = rpm_to - rpm_from;
+  float accel = 300.0;
+  float decel = 100.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 's': rpm_from = value; break;
+        case 'f': rpm_to = value; break;
+        case 'a': accel = value; break;
+        case 'd': decel = value; break;
+      }
+
+    }
   }
+
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  if(value != 0.0) motors[index].plan_ramp_move_to(value, rpm_from, rpm_to, accel, decel);
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
 
 void gcode_home(){
   float initial_rpm = 120.0;
-  float final_rpm = 40.0;
+  float final_rpm = 0.0; // 40.0;
   float backstep_rot = 0.1;
   uint16_t wait_duration = 50;
   for (size_t i = 0; i < rx_params; i++) {
@@ -206,8 +263,6 @@ void gcode_home(){
 
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   motors[index].plan_home((bool)value, initial_rpm, final_rpm, backstep_rot, wait_duration);
-  // motors[index].start(false);
-
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
