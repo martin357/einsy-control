@@ -18,6 +18,7 @@ void gcode_move_rot();
 void gcode_move_rot_to();
 void gcode_move_ramp();
 void gcode_move_ramp_to();
+void gcode_move();
 void gcode_home();
 void gcode_print_queue();
 void gcode_empty_queue();

@@ -63,6 +63,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("start"))) gcode_start();
   else if(strcmp_P(rx_command, F("stop"))) gcode_stop();
   else if(strcmp_P(rx_command, F("halt"))) gcode_halt();
+  else if(strcmp_P(rx_command, F("move"))) gcode_move();
   else if(strcmp_P(rx_command, F("run"))) gcode_run();
   else if(strcmp_P(rx_command, F("rpm"))) gcode_rpm();
   else if(strcmp_P(rx_command, F("dir"))) gcode_dir();

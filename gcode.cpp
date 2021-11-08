@@ -188,7 +188,6 @@ void gcode_move_rot_to(){
 void gcode_move_ramp(){
   float rpm_from = 40.0;
   float rpm_to = 160; // rpm_target; // 220.0; // <-- TODO paste value to command
-  float delta_rpm = rpm_to - rpm_from;
   float accel = 300.0;
   float decel = 100.0;
 
@@ -216,7 +215,6 @@ void gcode_move_ramp(){
 void gcode_move_ramp_to(){
   float rpm_from = 40.0;
   float rpm_to = 160; // rpm_target; // 220.0; // <-- TODO paste value to command
-  float delta_rpm = rpm_to - rpm_from;
   float accel = 300.0;
   float decel = 100.0;
 
@@ -237,6 +235,39 @@ void gcode_move_ramp_to(){
 
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   if(value != 0.0) motors[index].plan_ramp_move_to(value, rpm_from, rpm_to, accel, decel);
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_move(){
+  float rpm = 0.0;
+  float rpm_to = 0.0;
+  float accel = 0.0;
+  float decel = 0.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'f': rpm = value; break;
+        case 'g': rpm_to = value; break;
+        case 'a': accel = value; break;
+        case 'd': decel = value; break;
+      }
+
+    }
+  }
+
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  if(value != 0.0){
+    if(rpm != 0.0 && rpm_to != 0.0){
+      motors[index].plan_ramp_move_to(value, rpm, rpm_to, accel, decel);
+    }else{
+      motors[index].plan_rotations_to(value, rpm);
+    }
+  }
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
