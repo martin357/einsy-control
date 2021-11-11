@@ -172,7 +172,25 @@ const char* MenuItemDynamic<T>::getTitle(){
 }
 
 
-// template class MenuItemDynamic<uint32_t>;
+template <>
+const char* MenuItemDynamic<double>::getTitle(){
+  static char buf[20] = {0};
+  char buf_num[10] = {0};
+  dtostrf(value, -8, 2, buf_num);
+  for (size_t i = 0; i < sizeof(buf_num); i++) if(buf_num[i] == ' '){ buf_num[i] = 0; break; }
+
+  memset(buf, ' ', sizeof(buf));
+  buf[sizeof(buf) - 1] = 0;
+
+  memcpy(buf, title, strlen(title));
+  memcpy(buf + strlen(title), ": ", 2);
+  memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
+
+  return buf;
+}
+
+
+template class MenuItemDynamic<double>;
 
 
 
@@ -205,10 +223,10 @@ const char* MenuItemDynamicCallable<T>::getTitle(){
 
 
 template <>
-const char* MenuItemDynamicCallable<float>::getTitle(){
+const char* MenuItemDynamicCallable<double>::getTitle(){
   static char buf[20] = {0};
   char buf_num[10] = {0};
-  float value = value_getter();
+  double value = value_getter();
   dtostrf(value, -8, 2, buf_num);
   for (size_t i = 0; i < sizeof(buf_num); i++) if(buf_num[i] == ' '){ buf_num[i] = 0; break; }
 
@@ -224,7 +242,7 @@ const char* MenuItemDynamicCallable<float>::getTitle(){
 
 
 template class MenuItemDynamicCallable<uint16_t>;
-template class MenuItemDynamicCallable<float>;
+template class MenuItemDynamicCallable<double>;
 
 
 

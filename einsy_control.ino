@@ -92,7 +92,7 @@ void loop() {
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(motors[i].stallguard_triggered){
       motors[i].stallguard_triggered = false;
-      const float rpm = motors[i].rpm();
+      const double rpm = motors[i].rpm();
       const uint32_t lost_steps = motors[i].driver.LOST_STEPS();
       Serial.print(F("Motor "));
       Serial.print("XYZE"[i]);

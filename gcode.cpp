@@ -261,12 +261,10 @@ void gcode_move(){
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  if(value != 0.0){
-    if(rpm != 0.0 && rpm_to != 0.0){
-      motors[index].plan_ramp_move_to(value, rpm, rpm_to, accel, decel);
-    }else{
-      motors[index].plan_rotations_to(value, rpm);
-    }
+  if(rpm != 0.0 && rpm_to != 0.0){
+    motors[index].plan_ramp_move_to(value, rpm, rpm_to, accel, decel);
+  }else{
+    motors[index].plan_rotations_to(value, rpm);
   }
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
@@ -276,6 +274,7 @@ void gcode_home(){
   float initial_rpm = 120.0;
   float final_rpm = 0.0; // 40.0;
   float backstep_rot = 0.1;
+  float ramp_from = 0.0;
   uint16_t wait_duration = 50;
   for (size_t i = 0; i < rx_params; i++) {
     const uint8_t len = strlen(rx_param[i]);
@@ -286,6 +285,7 @@ void gcode_home(){
         case 'f': initial_rpm = value; break;
         case 'g': final_rpm = value; break;
         case 'b': backstep_rot = value; break;
+        case 'r': ramp_from = value; break;
         case 'w': wait_duration = strtoul(&rx_param[i][1], nullptr, 10); break;
       }
 
@@ -293,8 +293,22 @@ void gcode_home(){
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
-  motors[index].plan_home((bool)value, initial_rpm, final_rpm, backstep_rot, wait_duration);
+  motors[index].plan_home((bool)value, initial_rpm, final_rpm, backstep_rot, ramp_from, wait_duration);
+  motors[index].start();
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_autohome(){
+  FOREACH_PARAM_AS_AXIS;
+  if(motors[index].autohome.enabled){
+    motors[index].plan_autohome();
+  }else{
+    Serial.print(F("autohome is disabled for "));
+    Serial.print(motors[index].axis);
+    Serial.println(F(" axis"));
+  }
+  FOREACH_PARAM_AS_AXIS_END;
 }
 
 
@@ -374,6 +388,23 @@ void gcode_repeat_queue(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(REPEAT_QUEUE, value);
   motors[index].start(false);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_set_position(){
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  ADD_TO_QUEUE(SET_POSITION, value);
+  ADD_TO_QUEUE(SET_IS_HOMED, 1);
+  motors[index].planned.position = value;
+  motors[index].planned.is_homed = true;
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_set_invert_direction(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  motors[index].invert_direction = (bool)value;
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 

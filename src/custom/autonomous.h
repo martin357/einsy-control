@@ -15,12 +15,5 @@
 
   #include <Arduino.h>
   #include "../../menu_system_basics.h"
-  class MenuMotorManualStepsXY: public Menu{
-  public:
-    MenuMotorManualStepsXY();
-    void on_enter();
-    void on_press(uint16_t);
-    void draw(bool = true);
-    void move(int8_t);
-  };
+
 #endif

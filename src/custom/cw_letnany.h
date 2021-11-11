@@ -15,6 +15,8 @@
 
   #define CUSTOM_PERMANENT_STORAGE  \
     uint8_t target_temperature = 40;  \
+    uint8_t washing_duration = 1;  \
+    uint8_t water_pump_intensity = 255;  \
 
   #include <Arduino.h>
   const short temperature_table_einsy[][2] PROGMEM = {

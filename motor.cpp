@@ -63,7 +63,7 @@ float _rpm2rps(float rpm){
 
 
 uint16_t _rps2sps(float rps, uint16_t usteps){
-  return uint16_t(FSTEPS_PER_REVOLUTION * usteps * rps);
+  return uint16_t(FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps);
 }
 
 
@@ -78,7 +78,7 @@ uint16_t _rpm2ocr(float rpm, uint16_t usteps){
 
 
 uint16_t _rps2ocr(float rps, uint16_t usteps){
-  return F_CPU / MOTORS_PRESCALER / (FSTEPS_PER_REVOLUTION * usteps * rps);
+  return F_CPU / MOTORS_PRESCALER / (FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps);
 }
 
 
@@ -88,17 +88,17 @@ float _ocr2rpm(uint16_t ocr, uint16_t usteps){
 
 
 float _ocr2rps(uint16_t ocr, uint16_t usteps){
-  return F_CPU / MOTORS_PRESCALER / ocr / usteps / FSTEPS_PER_REVOLUTION;
+  return F_CPU / MOTORS_PRESCALER / ocr / (usteps > 0 ? usteps : 1) / FSTEPS_PER_REVOLUTION;
 }
 
 
 uint32_t _rot2usteps(float rot, uint16_t usteps){
-  return (rot < 0.0 ? -rot : rot) * usteps * FSTEPS_PER_REVOLUTION;
+  return (rot < 0.0 ? -rot : rot) * (usteps > 0 ? usteps : 1) * FSTEPS_PER_REVOLUTION;
 }
 
 
 float _usteps2rot(uint32_t value, uint16_t usteps){
-  return (float)value / usteps / FSTEPS_PER_REVOLUTION;
+  return (float)value / (usteps > 0 ? usteps : 1) / FSTEPS_PER_REVOLUTION;
 }
 
 
@@ -118,6 +118,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   usteps(16),
   pause_steps(false),
   enabled(false),
+  invert_direction(false),
   stop_on_stallguard(true),
   print_stallguard_to_serial(false),
   is_homed(false),
@@ -130,9 +131,10 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   stallguard_triggered(false),
   steps_to_do(0),
   steps_total(0),
+  ignore_stallguard_steps(0),
   last_movement(0),
   planned({0.0, false, false, 0.0, 120.0, 120.0}),
-  autohome({false, false, 120.0, 40.0, 0.1, 50}),
+  autohome({false, false, 120.0, 40.0, 0.1, 0.0, 50}),
   target_rpm(-1.0),
   accel(120),
   decel(120),
@@ -202,18 +204,18 @@ void Motor::step(){
   *step_port ^= 1 << step_bit;
   steps_total++;
   position_usteps += _dir ? 1 : -1;
+  if(ignore_stallguard_steps > 0) ignore_stallguard_steps--;
 }
 
 
 bool Motor::dir(){
   return _dir;
-  // return digitalReadExt(dir_pin);
 }
 
 
 void Motor::dir(bool direction){
-  digitalWriteExt(dir_pin, direction);
-  _dir = direction;
+  _dir = invert_direction ? !direction : direction;
+  digitalWriteExt(dir_pin, _dir);
 }
 
 
@@ -227,7 +229,7 @@ uint16_t Motor::sg_value(){
 void Motor::microsteps(uint16_t microstepping){
   driver.microsteps(microstepping);
   usteps = driver.microsteps();
-  // rpm(_rpm); // update timer
+  rpm(_rpm); // update timer
 
   if(millis() > 300){
     SERIAL_PRINT("new usteps: ");
@@ -276,11 +278,6 @@ float Motor::rpm(){
 void Motor::ramp_to(float value, bool keep_running){
   last_speed_change = millis();
   target_rpm = value;
-  // target_rpm = ocr2rpm(rpm2ocr(value, usteps), usteps);
-  // if(!running){
-  //   rpm(rpm()); // update timer
-  //   start(keep_running);
-  // }
 }
 
 
@@ -298,7 +295,6 @@ bool Motor::is_busy(){
 
 
 bool Motor::is_expecting_stallguard(){
-  // debugPrintQueue();
   return (queue[queue_index].type == MotorQueueItemType::RUN_UNTIL_STALLGUARD);
 }
 
@@ -332,7 +328,7 @@ uint16_t Motor::rpm2ocr(float rpm){
 
 
 uint32_t Motor::rpm2sps(float rps){
-  return FSTEPS_PER_REVOLUTION * usteps * rps / 60;
+  return FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps / 60;
 }
 
 
@@ -436,6 +432,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
     case MotorQueueItemType::RUN_UNTIL_STALLGUARD: {
       // stop_on_stallguard = true;
       if(queue[next].value > 0) stop_at_millis = millis() + queue[next].value;
+      // ignore_stallguard_steps += 64;
       start(true);
       SERIAL_PRINTLN(F("[pnq] run until sg"));
       break;
@@ -565,6 +562,14 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
         return true;
       }
 
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::ADD_IGNORE_STALLGUARD_STEPS: {
+      ignore_stallguard_steps += queue[next].value;
+
+      SERIAL_PRINT(F("[pnq] add ignore sg steps "));
+      SERIAL_PRINTLN(queue[next].value);
       process_next = true;
       break;
     }
@@ -700,7 +705,9 @@ void Motor::plan_rotations_to(float rotations, float rpm){
 }
 
 
-void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float backstep_rot, uint16_t wait_duration){
+void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float backstep_rot, float ramp_from, uint16_t wait_duration){
+  const uint32_t backstep_usteps = rot2usteps(backstep_rot);
+  const uint32_t ignore_stallguard_steps = backstep_usteps;
   uint8_t next = next_empty_queue_index();
 
   if(backstep_rot > 0.0){
@@ -713,7 +720,8 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
       set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
       planned.direction = !direction;
     }
-    set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
+    // set_queue_item(next++, MotorQueueItemType::ADD_IGNORE_STALLGUARD_STEPS, ignore_stallguard_steps);
+    set_queue_item(next++, MotorQueueItemType::DO_STEPS, backstep_usteps);
     set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
   }
 
@@ -722,17 +730,32 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
     set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
     planned.direction = direction;
   }
+  if(ramp_from > 0.0){
+    if(ramp_from != planned.rpm){
+      set_queue_item(next++, MotorQueueItemType::SET_RPM, ramp_from * 100);
+      planned.rpm = ramp_from;
+    }
+    if(initial_rpm != planned.rpm){
+      set_queue_item(next++, MotorQueueItemType::RAMP_TO, initial_rpm * 100);
+      planned.rpm = initial_rpm;
+    }
+  }
   set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
   set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
 
   if(final_rpm > 0.0){
     if(backstep_rot > 0.0){
       // backstep again
+      if(final_rpm != planned.rpm){
+        set_queue_item(next++, MotorQueueItemType::RAMP_TO, final_rpm * 100);
+        planned.rpm = final_rpm;
+      }
       if(!direction != planned.direction){
         set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
         planned.direction = !direction;
       }
-      set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(backstep_rot));
+      set_queue_item(next++, MotorQueueItemType::ADD_IGNORE_STALLGUARD_STEPS, ignore_stallguard_steps);
+      set_queue_item(next++, MotorQueueItemType::DO_STEPS, backstep_usteps);
       set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
     }
 
@@ -759,7 +782,7 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
 
 
 void Motor::plan_autohome(){
-  plan_home(autohome.direction, autohome.initial_rpm, autohome.final_rpm, autohome.backstep_rot, autohome.wait_duration);
+  plan_home(autohome.direction, autohome.initial_rpm, autohome.final_rpm, autohome.backstep_rot, autohome.ramp_from, autohome.wait_duration);
 }
 
 
@@ -951,7 +974,7 @@ ISR(TIMER2_COMPA_vect){
   uint32_t _millis = millis();
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
-    if(motors[i].running || motors[i].steps_to_do){
+    if(!motors[i].pause_steps && (motors[i].running || motors[i].steps_to_do > 0)){
       motors[i].last_movement = _millis;
       if(motors[i].target_rpm >= 0.0){
         float rpm = motors[i].rpm();
@@ -1016,9 +1039,21 @@ ISR(PCINT2_vect){
   SERIAL_PRINT(sg[2]);
   SERIAL_PRINTLN(sg[3]);
 
+  // Serial.print("SG Int ");
+  // Serial.print(sg[0]);
+  // Serial.print(sg[1]);
+  // Serial.print(sg[2]);
+  // Serial.println(sg[3]);
+
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(sg[i]){
       // beep(30);
+      if(motors[i].ignore_stallguard_steps > 0){
+        // Serial.print(F("[sg] ignore sg steps "));
+        // Serial.println(motors[i].ignore_stallguard_steps);
+        continue;
+      }
+
       motors[i].stallguard_triggered = true;
       if(motors[i].is_expecting_stallguard()){
         SERIAL_PRINTLN("[sg] is expected");

@@ -76,6 +76,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("move_ramp"))) gcode_move_ramp();
   else if(strcmp_P(rx_command, F("move_ramp_to"))) gcode_move_ramp_to();
   else if(strcmp_P(rx_command, F("home"))) gcode_home();
+  else if(strcmp_P(rx_command, F("autohome"))) gcode_autohome();
   else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
   else if(strcmp_P(rx_command, F("print_info"))) gcode_print_info();
@@ -85,6 +86,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("wait"))) gcode_wait();
   else if(strcmp_P(rx_command, F("beep"))) gcode_beep();
   else if(strcmp_P(rx_command, F("repeat_queue"))) gcode_repeat_queue();
+  else if(strcmp_P(rx_command, F("set_position"))) gcode_set_position();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   else{
     ok = false;

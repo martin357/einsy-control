@@ -164,7 +164,7 @@ MenuItem motor_stallguard_value(pgmstr_show_stallguard, &menu_motor_stallguard_v
 
 
 // motor stallguard sensitivity
-const char pgmstr_stallguard_sensitivity[] PROGMEM = "Sg sensitivity";
+const char pgmstr_stallguard_sensitivity[] PROGMEM = "Sensitivity";
 MenuRangeMotorSgThreshold menu_motor_sg_threshold;
 MenuItem motor_sg_threshold(pgmstr_stallguard_sensitivity, &menu_motor_sg_threshold);
 
@@ -173,16 +173,20 @@ MenuItem motor_sg_threshold(pgmstr_stallguard_sensitivity, &menu_motor_sg_thresh
 bool is_motor_stop_on_stallguard_on(){ return motors[last_entered_motor_menu].stop_on_stallguard; }
 void do_motor_stop_on_stallguard_on(){ motors[last_entered_motor_menu].stop_on_stallguard = true; }
 void do_motor_stop_on_stallguard_off(){ motors[last_entered_motor_menu].stop_on_stallguard = false; }
+const char pgmstr_stop_on_stallguard_on[] PROGMEM = "Stop on sg: on";
+const char pgmstr_stop_on_stallguard_off[] PROGMEM = "Stop on sg: off";
 MenuItemToggleCallable motor_stop_on_stallguard_on_off(&is_motor_stop_on_stallguard_on,
-  "Stop on SG: on", "Stop on SG: off", &do_motor_stop_on_stallguard_off, &do_motor_stop_on_stallguard_on);
+  pgmstr_stop_on_stallguard_on, pgmstr_stop_on_stallguard_off, &do_motor_stop_on_stallguard_off, &do_motor_stop_on_stallguard_on);
 
 
 // motor print stallguard to serial
 bool is_motor_stallguard_to_serial_on(){ return motors[last_entered_motor_menu].print_stallguard_to_serial; }
 void do_motor_stallguard_to_serial_on(){ motors[last_entered_motor_menu].print_stallguard_to_serial = true; }
 void do_motor_stallguard_to_serial_off(){ motors[last_entered_motor_menu].print_stallguard_to_serial = false; }
+const char pgmstr_echo_to_serial_on[] PROGMEM = "Echo to serial: on";
+const char pgmstr_echo_to_serial_off[] PROGMEM = "Echo to serial: off";
 MenuItemToggleCallable motor_stallguard_to_serial_on_off(&is_motor_stallguard_to_serial_on,
-  "Echo Sg2serial: on", "Echo Sg2serial: off", &do_motor_stallguard_to_serial_off, &do_motor_stallguard_to_serial_on);
+  pgmstr_echo_to_serial_on, pgmstr_echo_to_serial_off, &do_motor_stallguard_to_serial_off, &do_motor_stallguard_to_serial_on);
 
 
 

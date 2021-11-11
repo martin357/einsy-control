@@ -16,13 +16,16 @@ bool half_rot_dir = true;
 MenuItemToggle item_half_rot_dir(&half_rot_dir, "Dir: up", "Dir: down");
 
 MenuRange<uint8_t> menu_half_rot_no("Half rot. no.:", half_rot_no, 1, 255);
-MenuItem item_half_rot_no("Half rot. no.", &menu_half_rot_no);
+const char pgmstr_half_rot_no[] PROGMEM = "Half rot. no.";
+MenuItem item_half_rot_no(pgmstr_half_rot_no, &menu_half_rot_no);
 
 MenuRange<uint8_t> menu_rpm_start("RPM start:", rpm_start, 1, 255);
-MenuItem item_rpm_start("RPM start", &menu_rpm_start);
+const char pgmstr_rpm_start[] PROGMEM = "RPM start";
+MenuItem item_rpm_start(pgmstr_rpm_start, &menu_rpm_start);
 
 MenuRange<uint8_t> menu_rpm_target("RPM target:", rpm_target, 1, 255);
-MenuItem item_rpm_target("RPM target", &menu_rpm_target);
+const char pgmstr_rpm_target[] PROGMEM = "RPM target";
+MenuItem item_rpm_target(pgmstr_rpm_target, &menu_rpm_target);
 
 
 void setupCustom(){
@@ -44,6 +47,15 @@ void setupCustom(){
     // motors[i].driver.sgt(6);
     // motors[i].rpm(120);
   }
+
+  motors[2].driver.semax(5);
+  motors[2].driver.semin(2);
+  motors[2].driver.en_pwm_mode(true);
+  motors[2].driver.pwm_autoscale(true);
+  motors[2].driver.intpol(true);
+  motors[2].driver.rms_current(400);
+  motors[2].driver.sgt(4);
+  motors[2].driver.TCOOLTHRS(460);
 
   motors[3].driver.semax(5);
   motors[3].driver.semin(2);
@@ -67,12 +79,43 @@ void setupCustom(){
   digitalWriteExt(PIN_VALVE_1, LOW);
 
 
+
+  // normal mode
+  // for (size_t i = 0; i < MOTORS_MAX; i++) {
+  motors[2].driver.semax(0);
+  motors[2].driver.semin(0);
+  motors[2].driver.rms_current(1000);
+  motors[2].driver.sgt(12);
+
+  motors[2].driver.en_pwm_mode(false);
+  motors[2].driver.pwm_autoscale(false);
+  motors[2].driver.intpol(false);
+
+  motors[2].driver.TCOOLTHRS(0);
+
+  motors[2].microsteps(8);
+  // }
+  motors[2].invert_direction = true;
+  motors[2].inactivity_timeout = 0;
+  motors[2].on();
+
+  motors[3].inactivity_timeout = 0;
+
+  processCommand(F("home e f80 g60 b0.1 w100"));
+  processCommand(F("move_rot e0.25"));
+  processCommand(F("set_position e0"));
+
+  processCommand(F("dir z0"));
+  processCommand(F("move_rot z-0.25 f20"));
+  processCommand(F("move_rot z0.25 f40"));
+  processCommand(F("set_position z0"));
+
 }
 
 
 
 void do_run_rotations(){
-  if(motors[0].steps_to_do || motors[1].steps_to_do){
+  if(motors[0].steps_to_do || motors[1].steps_to_do || motors[2].steps_to_do){
     beep(30);
     return;
   }
@@ -119,7 +162,58 @@ void do_run_rotations(){
   half_rot_dir = !half_rot_dir;
 
 }
-MenuItemCallable run_rotations("Do rotations!", &do_run_rotations, false);
+const char pgmstr_do_rotations[] PROGMEM = "Do rotations!";
+MenuItemCallable run_rotations(pgmstr_do_rotations, &do_run_rotations, false);
+
+
+
+void do_run_cycle(){
+  const float arms_rpm = 20;
+  const float arms_rpm_to = 120;
+  const float arms_accel = 0;
+  const float arms_decel = 0;
+  const float linear_rpm = 0;
+
+  // move up
+  processCommand(F("empty_queue z e"));
+  motors[2].plan_ramp_move_to(10, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms up
+  motors[3].plan_rotations_to(0, linear_rpm); // linear up
+  motors[2].start();
+  motors[3].start();
+  processCommand(F("wait_for_motor z e"));
+
+  motors[3].plan_rotations_to(1.5, linear_rpm); // ready linear
+  motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms down
+  motors[2].start();
+  motors[3].start();
+  processCommand(F("wait_for_motor z e"));
+
+  motors[3].plan_rotations_to(0, linear_rpm); // linear up
+  motors[3].start();
+  processCommand(F("wait_for_motor e"));
+
+  motors[2].plan_ramp_move_to(1, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms away
+  motors[2].start();
+  processCommand(F("wait_for_motor z"));
+
+
+  motors[3].plan_rotations_to(4, linear_rpm); // linear half way down
+  motors[3].start();
+  processCommand(F("wait_for_motor e"));
+
+  motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms down
+  motors[3].plan_rotations_to(8, linear_rpm); // linear all the way down
+  motors[2].start();
+  motors[3].start();
+  processCommand(F("wait_for_motor z e"));
+
+  beep();
+
+}
+const char pgmstr_run_cycle[] PROGMEM = "Run cycle";
+MenuItemCallable run_cycle(pgmstr_run_cycle, &do_run_cycle, false);
+
+
 
 void do_home_washer_linear(){
   // rpm e180;home e1 f180 g60 b0.25;start e;wait_for_motor e;dir e0;move_rot e0.5
@@ -135,31 +229,16 @@ void do_home_washer_linear(){
   processCommand(F("off e"));
   beep(30);
 }
-MenuItemCallable item_home_washer_linear("Home washer linear", &do_home_washer_linear, false);
+const char pgmstr_home_washer_linear[] PROGMEM = "Home washer linear";
+MenuItemCallable item_home_washer_linear(pgmstr_home_washer_linear, &do_home_washer_linear, false);
 
-// void do_babystep_up(){
-//   processCommand(F("rpm x30 y30 z30"));
-//   processCommand(F("dir x1 y0 z1"));
-//   processCommand(F("move_rot x0.05 y0.05"));
-// }
-// MenuItemCallable item_babystep_up("Babystep up", &do_babystep_up, false);
-
-// void do_babystep_down(){
-//   processCommand(F("rpm x30 y30 z30"));
-//   processCommand(F("dir x0 y1 z0"));
-//   processCommand(F("move_rot x0.05 y0.05"));
-// }
-// MenuItemCallable item_babystep_down("Babystep down", &do_babystep_down, false);
 
 bool is_washing_on(){ return digitalReadExt(PIN_WASHING); }
 void do_washing_on(){ digitalWriteExt(PIN_WASHING, HIGH); }
 void do_washing_off(){ digitalWriteExt(PIN_WASHING, LOW); }
-MenuItemToggleCallable item_washing_on_off(&is_washing_on, "Washing: on", "Washing: off", &do_washing_off, &do_washing_on);
-
-// bool is_e0_heater_on(){ return digitalReadExt(PIN_WATER_PUMP); }
-// void do_e0_heater_on(){ digitalWriteExt(PIN_WATER_PUMP, HIGH); }
-// void do_e0_heater_off(){ digitalWriteExt(PIN_WATER_PUMP, LOW); }
-// MenuItemToggleCallable item_e0_heater_on_off(&is_e0_heater_on, "Heater: on", "Heater: off", &do_e0_heater_off, &do_e0_heater_on);
+const char pgmstr_washing_on[] PROGMEM = "Washing: on";
+const char pgmstr_washing_off[] PROGMEM = "Washing: off";
+MenuItemToggleCallable item_washing_on_off(&is_washing_on, pgmstr_washing_on, pgmstr_washing_off, &do_washing_off, &do_washing_on);
 
 bool is_valve_0_on(){ return digitalReadExt(PIN_VALVE_0); }
 void do_valve_0_on(){ digitalWriteExt(PIN_VALVE_0, HIGH); }
@@ -188,7 +267,8 @@ void do_mode_stealth(){
     motors[i].microsteps(8);
   }
 }
-MenuItemCallable item_mode_stealth("Mode: stealth", &do_mode_stealth, false);
+const char pgmstr_mode_stealth[] PROGMEM = "Mode: stealth";
+MenuItemCallable item_mode_stealth(pgmstr_mode_stealth, &do_mode_stealth, false);
 
 void do_mode_normal(){
   for (size_t i = 0; i < MOTORS_MAX; i++) {
@@ -206,7 +286,8 @@ void do_mode_normal(){
     motors[i].microsteps(8);
   }
 }
-MenuItemCallable item_mode_normal("Mode: normal", &do_mode_normal, false);
+const char pgmstr_mode_normal[] PROGMEM = "Mode: normal";
+MenuItemCallable item_mode_normal(pgmstr_mode_normal, &do_mode_normal, false);
 
 
 void do_debug_rotation_x(){
@@ -248,93 +329,25 @@ MenuItemCallable debug_wait_1s("debug wait 1s", &do_debug_wait, false);
 
 
 
-/*
-  menu motor manual steps - xy
-*/
-MenuMotorManualStepsXY::MenuMotorManualStepsXY():
-  Menu(nullptr, 0){
-    redraw_interval = 50;
-  }
-
-
-void MenuMotorManualStepsXY::on_enter(){
-  motors[0].rpm(50.0);
-  motors[1].rpm(50.0);
-  lcd.clear();
-}
-
-
-void MenuMotorManualStepsXY::on_press(uint16_t duration){
-  motors[0].stop();
-  motors[1].stop();
-  go_back();
-}
-
-
-void MenuMotorManualStepsXY::draw(bool clear){
-  lcd.print("\3", 0, 0);
-  lcd.print("Manual stepping");
-  lcd.print(" \1");
-
-  lcd.print("<", 0, 2);
-  lcd.setCursor(8, 2);
-  lcd.print((uint16_t)(motors[0].steps_to_do / 10));
-  // lcd.print("rot", 8, 2);
-  lcd.print(">", 19, 2);
-}
-
-
-void MenuMotorManualStepsXY::move(int8_t amount){
-  const bool dir = amount > 0;
-  const uint32_t steps = abs(amount) * motors[0].rot2usteps(0.1);
-
-  motors[0].pause_steps = true;
-  motors[1].pause_steps = true;
-  if(dir == motors[0].dir()){
-    motors[0].steps_to_do += steps;
-    motors[1].steps_to_do += steps;
-
-  }else{
-    if(motors[0].steps_to_do > steps){
-      motors[0].steps_to_do -= steps;
-      motors[1].steps_to_do -= steps;
-
-    }else{
-      motors[0].steps_to_do = steps;
-      motors[1].steps_to_do = steps;
-      motors[0].dir(dir);
-      motors[1].dir(!dir);
-
-    }
-
-  }
-  motors[0].pause_steps = false;
-  motors[1].pause_steps = false;
-  motors[0].start();
-  motors[1].start();
-}
-MenuMotorManualStepsXY menu_babystepping_xy;
-MenuItem item_babystepping_xy("Babystepping", &menu_babystepping_xy);
-
-
 
 // main menu
 MenuItem* const main_menu_items[] PROGMEM = {
+  &run_cycle,
   &run_rotations,
   // &debug_rotation_x,
   // &debug_seq,
   // &debug_wait_1s,
-  &item_washing_on_off,
+  // &item_washing_on_off,
   // &item_e0_heater_on_off,
-  &item_home_washer_linear,
-  &item_half_rot_dir,
-  &item_half_rot_no,
+  // &item_home_washer_linear,
+  // &item_half_rot_dir,
+  // &item_half_rot_no,
   // &item_rpm_start,
-  &item_rpm_target,
-  &item_valve_0_on_off,
-  &item_valve_1_on_off,
+  // &item_rpm_target,
+  // &item_valve_0_on_off,
+  // &item_valve_1_on_off,
   // &motor_all,
-  &motor_x,
+  // &motor_x,
   // &motor_y,
   &motor_z,
   &motor_e,
@@ -346,10 +359,10 @@ MenuItem* const main_menu_items[] PROGMEM = {
   // &timer5,
   // &item_babystep_up,
   // &item_babystep_down,
-  &item_babystepping_xy,
+  // &item_babystepping_xy,
 
-  &item_mode_stealth,
-  &item_mode_normal,
+  // &item_mode_stealth,
+  // &item_mode_normal,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 

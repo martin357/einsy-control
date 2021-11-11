@@ -63,6 +63,7 @@ enum MotorQueueItemType: uint8_t {
   SET_POSITION = 18,
   RESET_STALLGUARD_TRIGGERED = 19,
   REPEAT_QUEUE = 20,
+  ADD_IGNORE_STALLGUARD_STEPS = 21,
 };
 
 
@@ -118,6 +119,7 @@ public:
   uint16_t usteps;
   volatile bool pause_steps;
   bool enabled;
+  bool invert_direction;
   bool stop_on_stallguard;
   bool print_stallguard_to_serial;
   bool is_homed;
@@ -130,6 +132,7 @@ public:
   volatile bool stallguard_triggered;
   volatile uint32_t steps_to_do;
   volatile uint32_t steps_total;
+  volatile uint32_t ignore_stallguard_steps;
   volatile uint32_t last_movement;
   struct {
     float rpm;
@@ -145,6 +148,7 @@ public:
     float initial_rpm;
     float final_rpm;
     float backstep_rot;
+    float ramp_from;
     uint16_t wait_duration;
   } autohome;
 
@@ -167,7 +171,7 @@ public:
   void plan_steps(uint32_t);
   void plan_rotations(float, float = 0.0);
   void plan_rotations_to(float, float = 0.0);
-  void plan_home(bool, float = 120.0, float = 40.0, float = 0.1, uint16_t = 50);
+  void plan_home(bool, float = 120.0, float = 40.0, float = 0.1, float = 0.0, uint16_t = 50);
   void plan_autohome();
   void plan_ramp_move(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
   void plan_ramp_move_to(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
