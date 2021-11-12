@@ -191,6 +191,7 @@ const char* MenuItemDynamic<double>::getTitle(){
 
 
 template class MenuItemDynamic<double>;
+template class MenuItemDynamic<uint16_t>;
 
 
 

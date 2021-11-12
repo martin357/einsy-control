@@ -106,6 +106,16 @@ MenuItemToggleCallable motor_intpol_on_off(&is_motor_intpol_on, pgmstr_interpola
   &do_motor_intpol_off, &do_motor_intpol_on);
 
 
+// motor invert direction
+const char pgmstr_invert_direction_on[] PROGMEM = "Invert dir.: on";
+const char pgmstr_invert_direction_off[] PROGMEM = "Invert dir.: off";
+bool is_motor_invert_direction_on(){ return motors[last_entered_motor_menu].invert_direction; }
+void do_motor_invert_direction_on(){ motors[last_entered_motor_menu].invert_direction = true; }
+void do_motor_invert_direction_off(){ motors[last_entered_motor_menu].invert_direction = false; }
+MenuItemToggleCallable motor_invert_direction_on_off(&is_motor_invert_direction_on, pgmstr_invert_direction_on,
+  pgmstr_invert_direction_off, &do_motor_invert_direction_off, &do_motor_invert_direction_on);
+
+
 // motor current
 const char pgmstr_current[] PROGMEM = "Current";
 MenuListMotorCurrent menu_motor_current;
@@ -229,6 +239,7 @@ MenuItem* const motor_items[] PROGMEM = {
   &motor_en_pwm_mode_on_off,
   &motor_pwm_autoscale_on_off,
   &motor_intpol_on_off,
+  &motor_invert_direction_on_off,
 };
 MenuMotor menu_motor_x(MOTOR_X, motor_items, sizeof(motor_items) / 2);
 MenuMotor menu_motor_y(MOTOR_Y, motor_items, sizeof(motor_items) / 2);

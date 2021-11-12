@@ -209,7 +209,7 @@ void Motor::step(){
 
 
 bool Motor::dir(){
-  return _dir;
+  return invert_direction ? !_dir : _dir;
 }
 
 

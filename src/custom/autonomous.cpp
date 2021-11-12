@@ -72,6 +72,9 @@ void setupCustom(){
   pinModeOutput(PIN_WASHING);
   digitalWriteExt(PIN_WASHING, LOW);
 
+  pinModeOutput(PIN_HEATING);
+  digitalWriteExt(PIN_HEATING, LOW);
+
   pinModeOutput(PIN_VALVE_0);
   digitalWriteExt(PIN_VALVE_0, LOW);
 
@@ -176,35 +179,43 @@ void do_run_cycle(){
 
   // move up
   processCommand(F("empty_queue z e"));
-  motors[2].plan_ramp_move_to(10, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms up
+  motors[2].plan_ramp_move_to(10.25, arms_rpm, arms_rpm_to, 100, 50); // arms up
   motors[3].plan_rotations_to(0, linear_rpm); // linear up
   motors[2].start();
   motors[3].start();
+  delay(10);
   processCommand(F("wait_for_motor z e"));
 
-  motors[3].plan_rotations_to(1.5, linear_rpm); // ready linear
-  motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms down
+  delay(500);
+
+  motors[3].plan_rotations_to(0.2, linear_rpm); // ready linear
+  motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, 50, 100); // arms down
   motors[2].start();
   motors[3].start();
+  delay(10);
   processCommand(F("wait_for_motor z e"));
 
   motors[3].plan_rotations_to(0, linear_rpm); // linear up
   motors[3].start();
+  delay(10);
   processCommand(F("wait_for_motor e"));
 
   motors[2].plan_ramp_move_to(1, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms away
   motors[2].start();
+  delay(10);
   processCommand(F("wait_for_motor z"));
 
 
   motors[3].plan_rotations_to(4, linear_rpm); // linear half way down
   motors[3].start();
+  delay(10);
   processCommand(F("wait_for_motor e"));
 
   motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms down
   motors[3].plan_rotations_to(8, linear_rpm); // linear all the way down
   motors[2].start();
   motors[3].start();
+  delay(10);
   processCommand(F("wait_for_motor z e"));
 
   beep();
@@ -240,15 +251,26 @@ const char pgmstr_washing_on[] PROGMEM = "Washing: on";
 const char pgmstr_washing_off[] PROGMEM = "Washing: off";
 MenuItemToggleCallable item_washing_on_off(&is_washing_on, pgmstr_washing_on, pgmstr_washing_off, &do_washing_off, &do_washing_on);
 
+bool is_heating_on(){ return digitalReadExt(PIN_HEATING); }
+void do_heating_on(){ digitalWriteExt(PIN_HEATING, HIGH); }
+void do_heating_off(){ digitalWriteExt(PIN_HEATING, LOW); }
+const char pgmstr_heating_on[] PROGMEM = "Heating: on";
+const char pgmstr_heating_off[] PROGMEM = "Heating: off";
+MenuItemToggleCallable item_heating_on_off(&is_heating_on, pgmstr_heating_on, pgmstr_heating_off, &do_heating_off, &do_heating_on);
+
 bool is_valve_0_on(){ return digitalReadExt(PIN_VALVE_0); }
 void do_valve_0_on(){ digitalWriteExt(PIN_VALVE_0, HIGH); }
 void do_valve_0_off(){ digitalWriteExt(PIN_VALVE_0, LOW); }
-MenuItemToggleCallable item_valve_0_on_off(&is_valve_0_on, "Ventil VYPUST: on", "Ventil VYPUST: off", &do_valve_0_off, &do_valve_0_on);
+const char pgmstr_valve_0_on[] PROGMEM = "Ventil VYPUST: on";
+const char pgmstr_valve_0_off[] PROGMEM = "Ventil VYPUST: off";
+MenuItemToggleCallable item_valve_0_on_off(&is_valve_0_on, pgmstr_valve_0_on, pgmstr_valve_0_off, &do_valve_0_off, &do_valve_0_on);
 
 bool is_valve_1_on(){ return digitalReadExt(PIN_VALVE_1); }
 void do_valve_1_on(){ digitalWriteExt(PIN_VALVE_1, HIGH); }
 void do_valve_1_off(){ digitalWriteExt(PIN_VALVE_1, LOW); }
-MenuItemToggleCallable item_valve_1_on_off(&is_valve_1_on, "Ventil NAPUST: on", "Ventil NAPUST: off", &do_valve_1_off, &do_valve_1_on);
+const char pgmstr_valve_1_on[] PROGMEM = "Ventil NAPUST: on";
+const char pgmstr_valve_1_off[] PROGMEM = "Ventil NAPUST: off";
+MenuItemToggleCallable item_valve_1_on_off(&is_valve_1_on, pgmstr_valve_1_on, pgmstr_valve_1_off, &do_valve_1_off, &do_valve_1_on);
 
 
 void do_mode_stealth(){
@@ -337,15 +359,16 @@ MenuItem* const main_menu_items[] PROGMEM = {
   // &debug_rotation_x,
   // &debug_seq,
   // &debug_wait_1s,
-  // &item_washing_on_off,
+  &item_washing_on_off,
+  &item_heating_on_off,
   // &item_e0_heater_on_off,
   // &item_home_washer_linear,
   // &item_half_rot_dir,
   // &item_half_rot_no,
   // &item_rpm_start,
   // &item_rpm_target,
-  // &item_valve_0_on_off,
-  // &item_valve_1_on_off,
+  &item_valve_0_on_off,
+  &item_valve_1_on_off,
   // &motor_all,
   // &motor_x,
   // &motor_y,

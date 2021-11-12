@@ -4,7 +4,8 @@
 
 // #define CUSTOM_AUTONOMOUS
 // #define CUSTOM_CW
-#define CUSTOM_CW_LETNANY
+// #define CUSTOM_CW_LETNANY
+#define CUSTOM_RESIN_MIXER
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -17,6 +18,10 @@
 
 #ifdef CUSTOM_CW_LETNANY
   #include "src/custom/cw_letnany.h"
+#endif
+
+#ifdef CUSTOM_RESIN_MIXER
+  #include "src/custom/resin_mixer.h"
 #endif
 
 
