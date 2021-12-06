@@ -64,6 +64,7 @@ enum MotorQueueItemType: uint8_t {
   RESET_STALLGUARD_TRIGGERED = 19,
   REPEAT_QUEUE = 20,
   ADD_IGNORE_STALLGUARD_STEPS = 21,
+  SET_IS_HOMING = 22,
 };
 
 
@@ -123,6 +124,7 @@ public:
   bool stop_on_stallguard;
   bool print_stallguard_to_serial;
   bool is_homed;
+  bool is_homing;
   bool reset_is_homed_on_power_off;
   bool reset_is_homed_on_stall;
   uint32_t inactivity_timeout;

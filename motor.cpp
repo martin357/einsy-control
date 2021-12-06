@@ -57,7 +57,7 @@ int8_t axis2motor(const char axis){
 }
 
 
-float _rpm2rps(float rpm){
+inline float _rpm2rps(float rpm){
   return rpm / 60;
 }
 
@@ -67,17 +67,17 @@ uint16_t _rps2sps(float rps, uint16_t usteps){
 }
 
 
-uint16_t _sps2ocr(uint16_t sps){
+inline uint16_t _sps2ocr(uint16_t sps){
   return F_CPU / MOTORS_PRESCALER / sps;
 }
 
 
-uint16_t _rpm2ocr(float rpm, uint16_t usteps){
+inline uint16_t _rpm2ocr(float rpm, uint16_t usteps){
   return _rps2ocr(rpm / 60, usteps);
 }
 
 
-uint16_t _rps2ocr(float rps, uint16_t usteps){
+inline uint16_t _rps2ocr(float rps, uint16_t usteps){
   return F_CPU / MOTORS_PRESCALER / (FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps);
 }
 
@@ -122,6 +122,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   stop_on_stallguard(true),
   print_stallguard_to_serial(false),
   is_homed(false),
+  is_homing(false),
   reset_is_homed_on_power_off(true),
   reset_is_homed_on_stall(true),
   inactivity_timeout(120000),
@@ -573,6 +574,14 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       process_next = true;
       break;
     }
+    case MotorQueueItemType::SET_IS_HOMING: {
+      is_homing = (bool)queue[next].value;
+
+      SERIAL_PRINT(F("[pnq] set is_homing "));
+      SERIAL_PRINTLN(queue[next].value ? "true" : "false");
+      process_next = true;
+      break;
+    }
 
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
@@ -710,6 +719,8 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
   const uint32_t ignore_stallguard_steps = backstep_usteps;
   uint8_t next = next_empty_queue_index();
 
+  set_queue_item(next++, MotorQueueItemType::SET_IS_HOMING, 1);
+
   if(backstep_rot > 0.0){
     // backstep
     if(initial_rpm != planned.rpm){
@@ -774,6 +785,7 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
 
   set_queue_item(next++, MotorQueueItemType::SET_IS_HOMED, 1);
   set_queue_item(next++, MotorQueueItemType::SET_POSITION, 0);
+  set_queue_item(next++, MotorQueueItemType::SET_IS_HOMING, 0);
 
   planned.is_homed = true;
   planned.position = 0.0;
@@ -1011,6 +1023,7 @@ ISR(TIMER2_COMPA_vect){
 
         cli();
         *motors[i].timer_counter_port = 0;
+        // *motors[i].timer_counter_port = -10;
         *motors[i].timer_compare_port = ocr;
         sei();
 

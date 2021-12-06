@@ -55,7 +55,7 @@ void gcode_start(){
   const bool old_running = motors[index].running; // we need to check against old value since start() might change it
   motors[index].start((bool)value);
   if(motors[index].steps_to_do == 0 && !old_running){
-    Serial.println("got start gcode, but no steps scheduled. PNQ!");
+    // Serial.println("got start gcode, but no steps scheduled. PNQ!");
     motors[index].process_next_queue_item();
   }
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
@@ -180,7 +180,7 @@ void gcode_move_rot_to(){
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  if(value != 0.0) motors[index].plan_rotations_to(value, rpm);
+  motors[index].plan_rotations_to(value, rpm);
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -234,7 +234,7 @@ void gcode_move_ramp_to(){
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  if(value != 0.0) motors[index].plan_ramp_move_to(value, rpm_from, rpm_to, accel, decel);
+  motors[index].plan_ramp_move_to(value, rpm_from, rpm_to, accel, decel);
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -366,7 +366,7 @@ void gcode_wait_for_motor(){
     }
     delay(10);
   }
-  Serial.println(F("wait_for_motor done!!"));
+  // Serial.println(F("wait_for_motor done!!"));
 }
 
 

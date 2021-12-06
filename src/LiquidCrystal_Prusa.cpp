@@ -222,6 +222,11 @@ void LiquidCrystal_Prusa::print_P(const char *str, uint8_t col, uint8_t row) {
 	SimplePrint::print_P(str);
 }
 
+void LiquidCrystal_Prusa::printTime(uint32_t time) {
+	SimplePrint::print((uint16_t)time / 1000);
+	SimplePrint::print("s");
+}
+
 void LiquidCrystal_Prusa::clearLine(uint8_t row) {
 	setCursor(0, row);
 	for (uint8_t i = 0; i < DISPLAY_CHARS; i++) {

@@ -12,6 +12,7 @@ uint8_t half_rot_no = 20;
 uint8_t rpm_start = 60;
 uint8_t rpm_target = 160;
 bool half_rot_dir = true;
+// bool engage_pinda = false;
 
 MenuItemToggle item_half_rot_dir(&half_rot_dir, "Dir: up", "Dir: down");
 
@@ -48,6 +49,15 @@ void setupCustom(){
     // motors[i].rpm(120);
   }
 
+  motors[0].driver.semax(5);
+  motors[0].driver.semin(2);
+  motors[0].driver.en_pwm_mode(true);
+  motors[0].driver.pwm_autoscale(true);
+  motors[0].driver.intpol(true);
+  motors[0].driver.rms_current(400);
+  motors[0].driver.sgt(4);
+  motors[0].driver.TCOOLTHRS(460);
+
   motors[2].driver.semax(5);
   motors[2].driver.semin(2);
   motors[2].driver.en_pwm_mode(true);
@@ -82,9 +92,18 @@ void setupCustom(){
   digitalWriteExt(PIN_VALVE_1, LOW);
 
 
+  // setup diag pin interrupt
+  PCICR |= (1 << PCIE0);
+  PCMSK0 = 0;
+  PCMSK0 |= (1 << PCINT4); // Z_MIN
+  // PCMSK0 |= (1 << PCINT5); // Y_MIN
+  PCMSK0 |= (1 << PCINT6); // X_MIN
+
 
   // normal mode
   // for (size_t i = 0; i < MOTORS_MAX; i++) {
+  motors[0].inactivity_timeout = 0;
+
   motors[2].driver.semax(0);
   motors[2].driver.semin(0);
   motors[2].driver.rms_current(1000);
@@ -104,16 +123,158 @@ void setupCustom(){
 
   motors[3].inactivity_timeout = 0;
 
+  lcd.clear();
+  lcd.print("Homing:");
+
+  // prepare linear (x)
+  lcd.setCursor(0, 1);
+  lcd.print("Platform prepare    ");
+
+  processCommand(F("move_rot z0.08 f30")); // move arms out of the way
+  processCommand(F("stop_on_stallguard e1"));
+  processCommand(F("dir e0"));
+  processCommand(F("move_rot e3.5 f80"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
+  processCommand(F("stop_on_stallguard e0"));
+
+
+  // home platform rotation (x)
+  lcd.setCursor(0, 1);
+  lcd.print("Platform rotation   ");
+
+  processCommand(F("stop_on_stallguard x0"));
+  // processCommand(F("home x1 f60 g10 b0.1 w100"));
+  processCommand(F("home x1 f1 g4 b0.1 w100"));
+  // processCommand(F("move_rot x0.01"));
+  processCommand(F("dir x1"));
+  processCommand(F("do_steps x20"));
+  processCommand(F("set_position x0"));
+  processCommand(F("start x"));
+  delay(20); processCommand(F("wait_for_motor x"));
+
+
+  // home arms (z)
+  lcd.setCursor(0, 1);
+  lcd.print("Collector arms      ");
+
+  processCommand(F("dir z0"));
+  processCommand(F("home z0 f60 b0.5"));
+  processCommand(F("stop_on_stallguard z0"));
+  processCommand(F("move z0.15"));
+  processCommand(F("set_position z0"));
+  processCommand(F("stop_on_stallguard z1"));
+  processCommand(F("move z0.8"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+  motors[2].stallguard_triggered = false;
+
+
+  // home linear (e)
+  lcd.setCursor(0, 1);
+  lcd.print("Platform rail       ");
+
   processCommand(F("home e f80 g60 b0.1 w100"));
   processCommand(F("move_rot e0.25"));
   processCommand(F("set_position e0"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
 
-  processCommand(F("dir z0"));
-  processCommand(F("move_rot z-0.25 f20"));
-  processCommand(F("move_rot z0.25 f40"));
-  processCommand(F("set_position z0"));
+
+  // park arms
+  lcd.clear();
+  lcd.print("Park arms");
+
+  processCommand(F("move z0"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
+  beep();
+  // // Serial.println("[XX] pre wait");
+  //
+  // processCommand(F("wait_for_motor z"));
+  // // processCommand(F("wait_for_motor x z e"));
+  //
+  // // Serial.println("[XX] post wait");
+  // processCommand(F("set_position z0"));
+  // // Serial.println("[XX] Z position reset!");
+  // motors[2].stallguard_triggered = false;
+  // // engage_pinda = false;
 
 }
+
+
+
+// stallguard(pinda) pin change interrupt
+ISR(PCINT0_vect){
+  const bool sg[MOTORS_MAX] = {
+    !(PINB & (1 << PINB4)), // Z_MIN, motor X is stopped by pinda
+    false, // PINB & (1 << PINB5), // Y_MIN
+    PINB & (1 << PINB6), // X_MIN, motor Z is stopped by microswitch
+    false, // E0_MIN
+  };
+
+  // Serial.print("SG Cust Int ");
+  // Serial.print(sg[0]);
+  // Serial.print(sg[1]);
+  // Serial.print(sg[2]);
+  // Serial.println(sg[3]);
+
+  if(!sg[0] && !sg[1] && !sg[2] && !sg[3]) return;
+
+  // beep(30);
+  for(size_t i = 0; i < MOTORS_MAX; i++){
+    if(sg[i]){
+      Serial.print(F("[sg] index "));
+      Serial.println(i);
+
+      if(!motors[i].is_homing){
+        Serial.println(F("[sg] motor not homing, ignoring"));
+        continue;
+      }
+
+      if(motors[i].ignore_stallguard_steps > 0){
+        Serial.print(F("[sg] ignore sg steps "));
+        Serial.println(motors[i].ignore_stallguard_steps);
+        continue;
+      }
+
+      motors[i].stallguard_triggered = true;
+      if(motors[i].is_expecting_stallguard()){
+        Serial.println("[sg] is expected");
+
+        motors[i].running = false;
+        motors[i].pause_steps = true;
+        motors[i].steps_to_do = 0;
+        Serial.print("[sg] ");
+        motors[i].process_next_queue_item();
+        Serial.print("s2d=");
+        Serial.println(motors[i].steps_to_do);
+        motors[i].pause_steps = false;
+
+      }else{
+        Serial.println("[sg] unexpected");
+
+        // motors[i].stallguard_triggered = true;
+        // if(motors[i].stop_on_stallguard) motors[i].stop();
+        if(motors[i].stop_on_stallguard){
+          motors[i].stop();
+          Serial.println("[sg] stop motor");
+        }
+        if(motors[i].reset_is_homed_on_stall){
+          motors[i].is_homed = false;
+          motors[i].planned.is_homed = false;
+        }
+
+      }
+
+      Serial.print("[sg] is_triggered=");
+      Serial.println((uint8_t)motors[i].stallguard_triggered);
+    }
+  }
+
+}
+
 
 
 
@@ -177,48 +338,107 @@ void do_run_cycle(){
   const float arms_decel = 0;
   const float linear_rpm = 0;
 
-  // move up
-  processCommand(F("empty_queue z e"));
-  motors[2].plan_ramp_move_to(10.25, arms_rpm, arms_rpm_to, 100, 50); // arms up
-  motors[3].plan_rotations_to(0, linear_rpm); // linear up
-  motors[2].start();
-  motors[3].start();
-  delay(10);
-  processCommand(F("wait_for_motor z e"));
+  processCommand(F("set_position x0 y0 z0 e0"));
+  processCommand(F("empty_queue x y z e"));
 
+  processCommand(F("move_ramp_to z10.28 s20 f120 a100 d50")); // arms up
+  processCommand(F("move_rot_to e-0.1 f0")); // linear above top
+  processCommand(F("start z e"));
+  delay(20); processCommand(F("wait_for_motor z e"));
+
+  delay(500); // 800
+
+  processCommand(F("move_rot_to e0.18 f0")); // linear to ready position
+  // processCommand(F("move z9 f30")); // arms slowly away
+  processCommand(F("move_ramp_to z-0.15 s20 f120 a50 d100")); // arms down
+  processCommand(F("start z e"));
+  delay(20); processCommand(F("wait_for_motor z e"));
+
+  // do_tower_to_locked_position(control, printer)
+
+  // beep(); delay(500);
+
+  processCommand(F("move_rot_to e-0.2 f0"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
+
+  // beep(); delay(500);
+
+  processCommand(F("move_ramp_to z1.0 s20 f120 a100 d100"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
+  // beep(); delay(500);
+
+  processCommand(F("move_rot_to e1.8 f0"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
+
+  // beep(); delay(500);
+
+  processCommand(F("move_ramp_to z0 s20 f120 a100 d100"));
+  processCommand(F("move x-0.008"));
+
+  processCommand(F("move_rot_to e8.32 f0"));
+  processCommand(F("start z e"));
+  delay(20); processCommand(F("wait_for_motor z e"));
+
+
+  // back to beginning...
   delay(500);
+  beep();
 
-  motors[3].plan_rotations_to(0.2, linear_rpm); // ready linear
-  motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, 50, 100); // arms down
-  motors[2].start();
-  motors[3].start();
-  delay(10);
-  processCommand(F("wait_for_motor z e"));
-
-  motors[3].plan_rotations_to(0, linear_rpm); // linear up
-  motors[3].start();
-  delay(10);
-  processCommand(F("wait_for_motor e"));
-
-  motors[2].plan_ramp_move_to(1, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms away
-  motors[2].start();
-  delay(10);
-  processCommand(F("wait_for_motor z"));
-
-
-  motors[3].plan_rotations_to(4, linear_rpm); // linear half way down
-  motors[3].start();
-  delay(10);
-  processCommand(F("wait_for_motor e"));
-
-  motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms down
-  motors[3].plan_rotations_to(8, linear_rpm); // linear all the way down
-  motors[2].start();
-  motors[3].start();
-  delay(10);
-  processCommand(F("wait_for_motor z e"));
+  processCommand(F("move_ramp_to z0.0 s20 f120 a100 d100"));
+  processCommand(F("move_rot_to e0.0 f0"));
+  processCommand(F("start z e"));
+  delay(20); processCommand(F("wait_for_motor z e"));
 
   beep();
+  return;
+
+  //
+  // // move up
+  // processCommand(F("empty_queue z e"));
+  // motors[2].plan_ramp_move_to(10.25, arms_rpm, arms_rpm_to, 100, 50); // arms up
+  // motors[3].plan_rotations_to(0, linear_rpm); // linear up
+  // motors[2].start();
+  // motors[3].start();
+  // delay(10);
+  // processCommand(F("wait_for_motor z e"));
+  //
+  // delay(500);
+  //
+  // motors[3].plan_rotations_to(0.2, linear_rpm); // ready linear
+  // motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, 50, 100); // arms down
+  // motors[2].start();
+  // motors[3].start();
+  // delay(10);
+  // processCommand(F("wait_for_motor z e"));
+  //
+  // motors[3].plan_rotations_to(0, linear_rpm); // linear up
+  // motors[3].start();
+  // delay(10);
+  // processCommand(F("wait_for_motor e"));
+  //
+  // motors[2].plan_ramp_move_to(1, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms away
+  // motors[2].start();
+  // delay(10);
+  // processCommand(F("wait_for_motor z"));
+  //
+  //
+  // motors[3].plan_rotations_to(4, linear_rpm); // linear half way down
+  // motors[3].start();
+  // delay(10);
+  // processCommand(F("wait_for_motor e"));
+  //
+  // motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms down
+  // motors[3].plan_rotations_to(8, linear_rpm); // linear all the way down
+  // motors[2].start();
+  // motors[3].start();
+  // delay(10);
+  // processCommand(F("wait_for_motor z e"));
+  //
+  // beep();
 
 }
 const char pgmstr_run_cycle[] PROGMEM = "Run cycle";
@@ -242,6 +462,18 @@ void do_home_washer_linear(){
 }
 const char pgmstr_home_washer_linear[] PROGMEM = "Home washer linear";
 MenuItemCallable item_home_washer_linear(pgmstr_home_washer_linear, &do_home_washer_linear, false);
+
+
+
+void do_move_linear_step(){
+  // rpm e180;home e1 f180 g60 b0.25;start e;wait_for_motor e;dir e0;move_rot e0.5
+  // processCommand(F("move_rot x0.125 f15"));
+  processCommand(F("move_ramp x0.125 s1 f10 a30 d30"));
+  // processCommand(F("start x"));
+  // beep(30);
+}
+const char pgmstr_move_linear_step[] PROGMEM = "Rotate by 1/8";
+MenuItemCallable item_move_linear_step(pgmstr_move_linear_step, &do_move_linear_step, false);
 
 
 bool is_washing_on(){ return digitalReadExt(PIN_WASHING); }
@@ -355,6 +587,7 @@ MenuItemCallable debug_wait_1s("debug wait 1s", &do_debug_wait, false);
 // main menu
 MenuItem* const main_menu_items[] PROGMEM = {
   &run_cycle,
+  &item_move_linear_step,
   &run_rotations,
   // &debug_rotation_x,
   // &debug_seq,
@@ -370,8 +603,8 @@ MenuItem* const main_menu_items[] PROGMEM = {
   &item_valve_0_on_off,
   &item_valve_1_on_off,
   // &motor_all,
-  // &motor_x,
-  // &motor_y,
+  &motor_x,
+  &motor_y,
   &motor_z,
   &motor_e,
   // &timer1,

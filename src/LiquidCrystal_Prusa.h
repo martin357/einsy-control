@@ -80,6 +80,7 @@ public:
 	// void print(float number, uint8_t col, uint8_t row);
 	void print(const char* str, uint8_t col, uint8_t row);
 	void print_P(const char* str, uint8_t col, uint8_t row);
+	void printTime(uint32_t time);
 	void clearLine(uint8_t row);
 
 private:
