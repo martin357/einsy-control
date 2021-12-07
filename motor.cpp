@@ -1022,8 +1022,8 @@ ISR(TIMER2_COMPA_vect){
         if(rpm <= 0.0) motors[i].stop();
 
         cli();
-        *motors[i].timer_counter_port = 0;
-        // *motors[i].timer_counter_port = -10;
+        // *motors[i].timer_counter_port = 0;
+        *motors[i].timer_counter_port = -10;
         *motors[i].timer_compare_port = ocr;
         sei();
 

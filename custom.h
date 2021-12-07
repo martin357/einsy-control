@@ -2,10 +2,10 @@
 
 // select one custom variant below
 
-// #define CUSTOM_AUTONOMOUS
+#define CUSTOM_AUTONOMOUS
 // #define CUSTOM_CW
 // #define CUSTOM_CW_LETNANY
-#define CUSTOM_RESIN_MIXER
+// #define CUSTOM_RESIN_MIXER
 
 
 #ifdef CUSTOM_AUTONOMOUS

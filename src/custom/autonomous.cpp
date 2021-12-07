@@ -85,12 +85,17 @@ void setupCustom(){
   pinModeOutput(PIN_HEATING);
   digitalWriteExt(PIN_HEATING, LOW);
 
-  pinModeOutput(PIN_VALVE_0);
-  digitalWriteExt(PIN_VALVE_0, LOW);
+  pinModeOutput(PIN_VALVE_OUT);
+  digitalWriteExt(PIN_VALVE_OUT, LOW);
 
-  pinModeOutput(PIN_VALVE_1);
-  digitalWriteExt(PIN_VALVE_1, LOW);
+  pinModeOutput(PIN_VALVE_IN);
+  digitalWriteExt(PIN_VALVE_IN, LOW);
 
+  pinModeOutput(PIN_DRYING_FAN);
+  digitalWriteExt(PIN_DRYING_FAN, HIGH);
+
+  pinModeOutput(PIN_UV_LED);
+  digitalWriteExt(PIN_UV_LED, HIGH);
 
   // setup diag pin interrupt
   PCICR |= (1 << PCIE0);
@@ -122,6 +127,15 @@ void setupCustom(){
   motors[2].on();
 
   motors[3].inactivity_timeout = 0;
+
+
+  if(digitalReadExt(11) == LOW){
+    lcd.clear();
+    lcd.print("Skip homing...");
+    for (size_t i = 0; i < MOTORS_MAX; i++) motors[i].off();
+    return;
+
+  }
 
   lcd.clear();
   lcd.print("Homing:");
@@ -350,7 +364,8 @@ void do_run_cycle(){
 
   processCommand(F("move_rot_to e0.18 f0")); // linear to ready position
   // processCommand(F("move z9 f30")); // arms slowly away
-  processCommand(F("move_ramp_to z-0.15 s20 f120 a50 d100")); // arms down
+  // processCommand(F("move_ramp_to z-0.15 s20 f120 a50 d100")); // arms down (slow, not working)
+  processCommand(F("move_ramp_to z-0.15 s80 f120 a80 d100")); // arms down (faster, is working)
   processCommand(F("start z e"));
   delay(20); processCommand(F("wait_for_motor z e"));
 
@@ -394,52 +409,6 @@ void do_run_cycle(){
   delay(20); processCommand(F("wait_for_motor z e"));
 
   beep();
-  return;
-
-  //
-  // // move up
-  // processCommand(F("empty_queue z e"));
-  // motors[2].plan_ramp_move_to(10.25, arms_rpm, arms_rpm_to, 100, 50); // arms up
-  // motors[3].plan_rotations_to(0, linear_rpm); // linear up
-  // motors[2].start();
-  // motors[3].start();
-  // delay(10);
-  // processCommand(F("wait_for_motor z e"));
-  //
-  // delay(500);
-  //
-  // motors[3].plan_rotations_to(0.2, linear_rpm); // ready linear
-  // motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, 50, 100); // arms down
-  // motors[2].start();
-  // motors[3].start();
-  // delay(10);
-  // processCommand(F("wait_for_motor z e"));
-  //
-  // motors[3].plan_rotations_to(0, linear_rpm); // linear up
-  // motors[3].start();
-  // delay(10);
-  // processCommand(F("wait_for_motor e"));
-  //
-  // motors[2].plan_ramp_move_to(1, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms away
-  // motors[2].start();
-  // delay(10);
-  // processCommand(F("wait_for_motor z"));
-  //
-  //
-  // motors[3].plan_rotations_to(4, linear_rpm); // linear half way down
-  // motors[3].start();
-  // delay(10);
-  // processCommand(F("wait_for_motor e"));
-  //
-  // motors[2].plan_ramp_move_to(0, arms_rpm, arms_rpm_to, arms_accel, arms_decel); // arms down
-  // motors[3].plan_rotations_to(8, linear_rpm); // linear all the way down
-  // motors[2].start();
-  // motors[3].start();
-  // delay(10);
-  // processCommand(F("wait_for_motor z e"));
-  //
-  // beep();
-
 }
 const char pgmstr_run_cycle[] PROGMEM = "Run cycle";
 MenuItemCallable run_cycle(pgmstr_run_cycle, &do_run_cycle, false);
@@ -490,19 +459,88 @@ const char pgmstr_heating_on[] PROGMEM = "Heating: on";
 const char pgmstr_heating_off[] PROGMEM = "Heating: off";
 MenuItemToggleCallable item_heating_on_off(&is_heating_on, pgmstr_heating_on, pgmstr_heating_off, &do_heating_off, &do_heating_on);
 
-bool is_valve_0_on(){ return digitalReadExt(PIN_VALVE_0); }
-void do_valve_0_on(){ digitalWriteExt(PIN_VALVE_0, HIGH); }
-void do_valve_0_off(){ digitalWriteExt(PIN_VALVE_0, LOW); }
-const char pgmstr_valve_0_on[] PROGMEM = "Ventil VYPUST: on";
-const char pgmstr_valve_0_off[] PROGMEM = "Ventil VYPUST: off";
-MenuItemToggleCallable item_valve_0_on_off(&is_valve_0_on, pgmstr_valve_0_on, pgmstr_valve_0_off, &do_valve_0_off, &do_valve_0_on);
+bool is_valve_out_on(){ return digitalReadExt(PIN_VALVE_OUT); }
+void do_valve_out_on(){ digitalWriteExt(PIN_VALVE_OUT, HIGH); }
+void do_valve_out_off(){ digitalWriteExt(PIN_VALVE_OUT, LOW); }
+const char pgmstr_valve_out_on[] PROGMEM = "Ventil VYPUST: on";
+const char pgmstr_valve_out_off[] PROGMEM = "Ventil VYPUST: off";
+MenuItemToggleCallable item_valve_out_on_off(&is_valve_out_on, pgmstr_valve_out_on, pgmstr_valve_out_off, &do_valve_out_off, &do_valve_out_on);
 
-bool is_valve_1_on(){ return digitalReadExt(PIN_VALVE_1); }
-void do_valve_1_on(){ digitalWriteExt(PIN_VALVE_1, HIGH); }
-void do_valve_1_off(){ digitalWriteExt(PIN_VALVE_1, LOW); }
-const char pgmstr_valve_1_on[] PROGMEM = "Ventil NAPUST: on";
-const char pgmstr_valve_1_off[] PROGMEM = "Ventil NAPUST: off";
-MenuItemToggleCallable item_valve_1_on_off(&is_valve_1_on, pgmstr_valve_1_on, pgmstr_valve_1_off, &do_valve_1_off, &do_valve_1_on);
+bool is_valve_in_on(){ return digitalReadExt(PIN_VALVE_IN); }
+void do_valve_in_on(){ digitalWriteExt(PIN_VALVE_IN, HIGH); }
+void do_valve_in_off(){ digitalWriteExt(PIN_VALVE_IN, LOW); }
+const char pgmstr_valve_in_on[] PROGMEM = "Ventil NAPUST: on";
+const char pgmstr_valve_in_off[] PROGMEM = "Ventil NAPUST: off";
+MenuItemToggleCallable item_valve_in_on_off(&is_valve_in_on, pgmstr_valve_in_on, pgmstr_valve_in_off, &do_valve_in_off, &do_valve_in_on);
+
+
+bool is_drying_fan_on(){ return !digitalReadExt(PIN_DRYING_FAN); }
+void do_drying_fan_on(){ digitalWriteExt(PIN_DRYING_FAN, LOW); }
+void do_drying_fan_off(){ digitalWriteExt(PIN_DRYING_FAN, HIGH); }
+const char pgmstr_drying_fan_on[] PROGMEM = "Drying fan: on";
+const char pgmstr_drying_fan_off[] PROGMEM = "Drying fan: off";
+MenuItemToggleCallable item_drying_fan_on_off(&is_drying_fan_on, pgmstr_drying_fan_on, pgmstr_drying_fan_off, &do_drying_fan_off, &do_drying_fan_on);
+
+bool is_uv_led_on(){ return !digitalReadExt(PIN_UV_LED); }
+void do_uv_led_on(){ digitalWriteExt(PIN_UV_LED, LOW); }
+void do_uv_led_off(){ digitalWriteExt(PIN_UV_LED, HIGH); }
+const char pgmstr_uv_led_on[] PROGMEM = "UV led: on";
+const char pgmstr_uv_led_off[] PROGMEM = "UV led: off";
+MenuItemToggleCallable item_uv_led_on_off(&is_uv_led_on, pgmstr_uv_led_on, pgmstr_uv_led_off, &do_uv_led_off, &do_uv_led_on);
+
+
+
+void do_washing_cycle(){
+  lcd.clear();
+  lcd.print("Washing cycle");
+
+  // fill water tank
+  lcd.setCursor(0, 1);
+  lcd.print("Fill water tank     ");
+  do_valve_in_on();
+
+  // TODO: replace with liquid level sensor
+  delay(5000);
+
+  // let water fill the pump
+  lcd.setCursor(0, 1);
+  lcd.print("Filling pump        ");
+  do_washing_on();
+
+  delay(15000);
+
+  // cut off water inflow
+  lcd.setCursor(0, 1);
+  lcd.print("Cut off water       ");
+  do_valve_in_off();
+
+  // TODO: heating ON
+  // TODO: preheat now
+
+  // actual washing
+  beep(10);
+  delay(10000);
+  beep(10);
+
+  // TODO: heating OFF
+
+  lcd.setCursor(0, 1);
+  lcd.print("Empty pump          ");
+  do_valve_out_on();
+
+  delay(10000);
+
+  do_valve_out_off();
+  do_washing_off();
+
+  lcd.clear();
+  lcd.print("Done!");
+  beep();
+}
+const char pgmstr_washing_cycle[] PROGMEM = "Washing cycle";
+MenuItemCallable washing_cycle(pgmstr_washing_cycle, &do_washing_cycle, false);
+
+
 
 
 void do_mode_stealth(){
@@ -584,9 +622,16 @@ MenuItemCallable debug_wait_1s("debug wait 1s", &do_debug_wait, false);
 
 
 
+
+
+
+
+
+
 // main menu
 MenuItem* const main_menu_items[] PROGMEM = {
   &run_cycle,
+  &washing_cycle,
   &item_move_linear_step,
   &run_rotations,
   // &debug_rotation_x,
@@ -600,8 +645,8 @@ MenuItem* const main_menu_items[] PROGMEM = {
   // &item_half_rot_no,
   // &item_rpm_start,
   // &item_rpm_target,
-  &item_valve_0_on_off,
-  &item_valve_1_on_off,
+  &item_valve_out_on_off,
+  &item_valve_in_on_off,
   // &motor_all,
   &motor_x,
   &motor_y,
@@ -619,6 +664,8 @@ MenuItem* const main_menu_items[] PROGMEM = {
 
   // &item_mode_stealth,
   // &item_mode_normal,
+  &item_drying_fan_on_off,
+  &item_uv_led_on_off,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 
