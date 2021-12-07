@@ -6,6 +6,7 @@
 // #define CUSTOM_CW
 // #define CUSTOM_CW_LETNANY
 // #define CUSTOM_RESIN_MIXER
+// #define CUSTOM_HEATBED
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -22,6 +23,10 @@
 
 #ifdef CUSTOM_RESIN_MIXER
   #include "src/custom/resin_mixer.h"
+#endif
+
+#ifdef CUSTOM_HEATBED
+  #include "src/custom/heatbed.h"
 #endif
 
 
