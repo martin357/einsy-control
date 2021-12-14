@@ -333,6 +333,16 @@ void gcode_print_info(){
 }
 
 
+void gcode_pos(){
+  FOREACH_PARAM_AS_AXIS;
+  Serial.print(F("position "));
+  Serial.print(motors[index].axis);
+  Serial.print(F(": "));
+  Serial.println(motors[index].position());
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
 void gcode_stop_on_stallguard(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(SET_STOP_ON_STALLGUARD, value);

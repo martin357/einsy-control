@@ -80,6 +80,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
   else if(strcmp_P(rx_command, F("print_info"))) gcode_print_info();
+  else if(strcmp_P(rx_command, F("pos"))) gcode_pos();
   else if(strcmp_P(rx_command, F("stop_on_stallguard"))) gcode_stop_on_stallguard();
   else if(strcmp_P(rx_command, F("print_stallguard"))) gcode_print_stallguard();
   else if(strcmp_P(rx_command, F("wait_for_motor"))) gcode_wait_for_motor();
@@ -88,6 +89,9 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("repeat_queue"))) gcode_repeat_queue();
   else if(strcmp_P(rx_command, F("set_position"))) gcode_set_position();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
+  #ifdef CUSTOM_GCODE
+    CUSTOM_GCODE
+  #endif
   else{
     ok = false;
     Serial.print(F("unknown command "));

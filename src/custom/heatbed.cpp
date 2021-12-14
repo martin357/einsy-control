@@ -72,10 +72,33 @@ uint8_t samples_collected = 0;
 double temperature_raw[THERMISTOR_CNT] = {0};
 double temperature[THERMISTOR_CNT] = {0};
 uint32_t last_temp_change = 0;
+uint32_t last_no_therm_beep = 0;
 
 
 void loopCustom(){
   const uint32_t _millis = millis();
+  uint8_t active_therm = 2;
+  uint8_t target_temp = storage.target_temperature;
+  if(temperature[0] != 0.0){
+    active_therm = 0;
+    if(!lcd_present) target_temp = 40;
+  }
+  else if(temperature[1] != 0.0){
+    active_therm = 1;
+    if(!lcd_present) target_temp = 60;
+  }
+  else if(temperature[2] != 0.0){
+    active_therm = 2;
+    if(!lcd_present) target_temp = 80;
+  }
+  else{
+    target_temp = 0;
+    if(heating_is_on && _millis >= last_no_therm_beep + 5000){
+      last_no_therm_beep = _millis;
+      beep(1);
+    }
+  }
+
   for (size_t i = 0; i < THERMISTOR_CNT; i++) {
     const uint16_t uval = analogRead(A0 + i);
 
@@ -88,13 +111,19 @@ void loopCustom(){
   }
   if(samples_collected < samples_total) samples_collected++;
 
-  if(heating_is_on && _millis > last_temp_change + 333){
+  if((!lcd_present || heating_is_on) && _millis > last_temp_change + 600){
     const bool heater_pin = digitalReadExt(PIN_HEATER);
-    if(heater_pin){
-      if(temperature[HEATER_THERM] + 2.0 >= storage.target_temperature) digitalWriteExt(PIN_HEATER, LOW);
 
+    if(target_temp > 0){
+      if(heater_pin){
+        if(temperature[active_therm] + 2.0 >= target_temp) digitalWriteExt(PIN_HEATER, LOW);
+
+      }else{
+        if(temperature[active_therm] + 1.0 <= target_temp) digitalWriteExt(PIN_HEATER, HIGH);
+
+      }
     }else{
-      if(temperature[HEATER_THERM] + 1.0 <= storage.target_temperature) digitalWriteExt(PIN_HEATER, HIGH);
+      digitalWriteExt(PIN_HEATER, LOW);
 
     }
     last_temp_change = _millis;

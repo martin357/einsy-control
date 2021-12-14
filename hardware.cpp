@@ -2,9 +2,20 @@
 
 
 // extern
+bool _is_lcd_present(){
+  pinModeOutput(LCD_PINS_RS);
+  digitalWriteExt(LCD_PINS_RS, LOW);
+  pinModeInput(LCD_PINS_RS);
+  bool _lcd_present = digitalReadExt(LCD_PINS_RS);
+  pinModeOutput(LCD_PINS_RS);
+  digitalWriteExt(LCD_PINS_RS, LOW);
+  return _lcd_present;
+}
+
 int8_t enc_diff = 0;
 uint8_t enc_click = 0;
 uint32_t beeper_off_at = 0;
+const bool lcd_present = _is_lcd_present();
 #define INIT_MOTOR(i, d, n, a) Motor(d##_STEP_PIN, d##_DIR_PIN, d##_ENABLE_PIN, d##_TMC2130_CS, d##_TMC2130_DIAG, &PORTC, PINC##i, &OCR##n##A, &TCNT##n, &TIMSK##n, OCIE##n##A, a)
 Motor motors[] = {
   INIT_MOTOR(0, X, 1, 'x'),

@@ -62,22 +62,22 @@ inline float _rpm2rps(float rpm){
 }
 
 
-uint16_t _rps2sps(float rps, uint16_t usteps){
+uint32_t _rps2sps(float rps, uint16_t usteps){
   return uint16_t(FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps);
 }
 
 
-inline uint16_t _sps2ocr(uint16_t sps){
+inline uint32_t _sps2ocr(uint16_t sps){
   return F_CPU / MOTORS_PRESCALER / sps;
 }
 
 
-inline uint16_t _rpm2ocr(float rpm, uint16_t usteps){
+inline uint32_t _rpm2ocr(float rpm, uint16_t usteps){
   return _rps2ocr(rpm / 60, usteps);
 }
 
 
-inline uint16_t _rps2ocr(float rps, uint16_t usteps){
+inline uint32_t _rps2ocr(float rps, uint16_t usteps){
   return F_CPU / MOTORS_PRESCALER / (FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps);
 }
 
@@ -289,9 +289,11 @@ void Motor::ramp_off(){
 
 
 bool Motor::is_busy(){
+  const uint8_t next = next_queue_index();
   return pause_steps || running || steps_to_do > 0 ||
     (queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS &&
-      !queue[queue_index].processed);
+      !queue[queue_index].processed) ||
+    (queue[next].type != MotorQueueItemType::NOOP && !queue[next].processed);
 }
 
 
@@ -323,7 +325,7 @@ float Motor::usteps2rot(uint32_t value){
 }
 
 
-uint16_t Motor::rpm2ocr(float rpm){
+uint32_t Motor::rpm2ocr(float rpm){
   return _rpm2ocr(rpm, usteps);
 }
 
@@ -604,10 +606,10 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
     SERIAL_PRINTLN(F("[[pnq]] is wait_in_progress:"));
     // debugPrintQueue();
   }
-  // if(process_next){
-  //   SERIAL_PRINTLN(F("[pqn finished] process_next!"));
-  //   process_next_queue_item();
-  // }
+  if(process_next){
+    SERIAL_PRINTLN(F("[pqn finished] process_next!"));
+    process_next_queue_item();
+  }
   return true;
 
 }
@@ -1022,8 +1024,7 @@ ISR(TIMER2_COMPA_vect){
         if(rpm <= 0.0) motors[i].stop();
 
         cli();
-        // *motors[i].timer_counter_port = 0;
-        *motors[i].timer_counter_port = -10;
+        *motors[i].timer_counter_port = 0;
         *motors[i].timer_compare_port = ocr;
         sei();
 

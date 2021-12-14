@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "custom.h"
 
 
 #define RX_PARAM_LEN 64

@@ -32,8 +32,6 @@
   #define BED_OFFSET_START 40
   #define BED_OFFSET_CENTER 50
 
-  #define HEATER_THERM 2
-
   #define PGM_RD_W(x)   (short)pgm_read_word(&x)
 
 #endif

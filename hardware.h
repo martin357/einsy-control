@@ -1,6 +1,7 @@
 #pragma once
 #include "src/LiquidCrystal_Prusa.h"
 #include "motor.h"
+#include "pins.h"
 
 #define _PRINT_VAR(v) #v
 #define PRINT_VAR(v) Serial.print(F(_PRINT_VAR(v) "=")); Serial.println(v);
@@ -30,3 +31,4 @@ float read_float_from_uint32(uint32_t*);
 extern int8_t enc_diff;
 extern uint8_t enc_click; // 0=no_press, 1=short, 2=long
 extern uint32_t beeper_off_at;
+extern const bool lcd_present;

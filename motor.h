@@ -31,10 +31,10 @@
 void setupMotorTimers();
 int8_t axis2motor(const char);
 float _rpm2rps(float);
-uint16_t _rps2sps(float, uint16_t);
-uint16_t _sps2ocr(uint16_t);
-uint16_t _rpm2ocr(float, uint16_t);
-uint16_t _rps2ocr(float, uint16_t);
+uint32_t _rps2sps(float, uint16_t);
+uint32_t _sps2ocr(uint16_t);
+uint32_t _rpm2ocr(float, uint16_t);
+uint32_t _rps2ocr(float, uint16_t);
 float _ocr2rpm(uint16_t, uint16_t);
 float _ocr2rps(uint16_t, uint16_t);
 uint32_t _rot2usteps(float, uint16_t);
@@ -105,7 +105,7 @@ public:
   MotorStallguardInfo get_stallguard_info();
   uint32_t rot2usteps(float);
   float usteps2rot(uint32_t);
-  uint16_t rpm2ocr(float);
+  uint32_t rpm2ocr(float);
   uint32_t rpm2sps(float);
   float position();
   const char axis;

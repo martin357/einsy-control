@@ -29,6 +29,61 @@ const char pgmstr_rpm_target[] PROGMEM = "RPM target";
 MenuItem item_rpm_target(pgmstr_rpm_target, &menu_rpm_target);
 
 
+void home_x(bool wait = true){
+  // processCommand(F("home x1 g1 f4 b0.1 w100"));
+  processCommand(F("home x1 g4 f8 b0.1 w100"));
+  processCommand(F("dir x1"));
+  processCommand(F("do_steps x20"));
+  processCommand(F("set_position x0"));
+  if(wait){
+    delay(20);
+    processCommand(F("start x"));
+    processCommand(F("wait_for_motor x"));
+  }
+}
+
+void home_z(bool wait = true, bool move_away = true){
+  processCommand(F("dir z0"));
+  // processCommand(F("home z0 f60 b0.5"));
+  processCommand(F("home z0 f60 g20 b0.3"));
+  // processCommand(F("stop_on_stallguard z0"));
+  processCommand(F("move z0.15"));
+  processCommand(F("set_position z0"));
+  // processCommand(F("stop_on_stallguard z1"));
+  processCommand(F("rpm z60"));
+  if(move_away){
+    processCommand(F("move z0.8"));
+  }
+  processCommand(F("start z"));
+  if(wait){
+    delay(20);
+    processCommand(F("wait_for_motor z"));
+    motors[2].stallguard_triggered = false;
+  }
+}
+
+void home_e(bool wait = true){
+  processCommand(F("home e f80 g60 b0.1 w100"));
+  processCommand(F("move_rot e0.25"));
+  processCommand(F("set_position e0"));
+  processCommand(F("start e"));
+  if(wait){
+    delay(20);
+    processCommand(F("wait_for_motor e"));
+  }
+}
+
+
+void do_run_cycle();
+void do_hand_over_print();
+
+void custom_gcode_home_x(){ home_x(true); }
+void custom_gcode_home_z(){ home_z(true, false); }
+void custom_gcode_home_e(){ home_e(true); }
+void custom_gcode_collect(){ do_run_cycle(); }
+void custom_gcode_hand_it_over(){ do_hand_over_print(); }
+
+
 void setupCustom(){
   for (size_t i = 0; i < MOTORS_MAX; i++) {
     motors[i].driver.semax(0);
@@ -44,6 +99,8 @@ void setupCustom(){
 
     motors[i].microsteps(8);
 
+    motors[i].stop_on_stallguard = false;
+    motors[i].reset_is_homed_on_stall = false;
     // motors[i].driver.rms_current(400);
     // motors[i].driver.sgt(6);
     // motors[i].rpm(120);
@@ -82,8 +139,8 @@ void setupCustom(){
   pinModeOutput(PIN_WASHING);
   digitalWriteExt(PIN_WASHING, LOW);
 
-  pinModeOutput(PIN_HEATING);
-  digitalWriteExt(PIN_HEATING, LOW);
+  pinModeOutput(PIN_HEATER);
+  digitalWriteExt(PIN_HEATER, LOW);
 
   pinModeOutput(PIN_VALVE_OUT);
   digitalWriteExt(PIN_VALVE_OUT, LOW);
@@ -144,7 +201,11 @@ void setupCustom(){
   lcd.setCursor(0, 1);
   lcd.print("Platform prepare    ");
 
-  processCommand(F("move_rot z0.08 f30")); // move arms out of the way
+  // processCommand(F("move_rot z0.08 f30")); // move arms out of the way
+  processCommand(F("move_rot z0.13 f30")); // move arms out of the way
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
   processCommand(F("stop_on_stallguard e1"));
   processCommand(F("dir e0"));
   processCommand(F("move_rot e3.5 f80"));
@@ -156,44 +217,21 @@ void setupCustom(){
   // home platform rotation (x)
   lcd.setCursor(0, 1);
   lcd.print("Platform rotation   ");
-
-  processCommand(F("stop_on_stallguard x0"));
+  // processCommand(F("stop_on_stallguard x0"));
   // processCommand(F("home x1 f60 g10 b0.1 w100"));
-  processCommand(F("home x1 f1 g4 b0.1 w100"));
-  // processCommand(F("move_rot x0.01"));
-  processCommand(F("dir x1"));
-  processCommand(F("do_steps x20"));
-  processCommand(F("set_position x0"));
-  processCommand(F("start x"));
-  delay(20); processCommand(F("wait_for_motor x"));
-
+  // processCommand(F("home x1 g1 f4 b0.1 w100"));
+  home_x(true);
 
   // home arms (z)
   lcd.setCursor(0, 1);
   lcd.print("Collector arms      ");
-
-  processCommand(F("dir z0"));
-  processCommand(F("home z0 f60 b0.5"));
-  processCommand(F("stop_on_stallguard z0"));
-  processCommand(F("move z0.15"));
-  processCommand(F("set_position z0"));
-  processCommand(F("stop_on_stallguard z1"));
-  processCommand(F("move z0.8"));
-  processCommand(F("start z"));
-  delay(20); processCommand(F("wait_for_motor z"));
-  motors[2].stallguard_triggered = false;
-
+  home_z(true, true);
 
   // home linear (e)
   lcd.setCursor(0, 1);
   lcd.print("Platform rail       ");
-
-  processCommand(F("home e f80 g60 b0.1 w100"));
-  processCommand(F("move_rot e0.25"));
-  processCommand(F("set_position e0"));
-  processCommand(F("start e"));
-  delay(20); processCommand(F("wait_for_motor e"));
-
+  // processCommand(F("home e f80 g60 b0.1 w100"));
+  home_e(true);
 
   // park arms
   lcd.clear();
@@ -291,6 +329,103 @@ ISR(PCINT0_vect){
 
 
 
+bool heating_is_on = false;
+bool is_heater_on(){ return heating_is_on; }
+void do_heater_on(){ heating_is_on = true; }
+void do_heater_off(){ digitalWriteExt(PIN_HEATER, LOW); heating_is_on = false; }
+const char pgmstr_heater_on[] PROGMEM = "Heater: on";
+const char pgmstr_heater_off[] PROGMEM = "Heater: off";
+MenuItemToggleCallable item_heater_on_off(&is_heater_on, pgmstr_heater_on, pgmstr_heater_off, &do_heater_off, &do_heater_on);
+
+
+const char pgmstr_temperature[] PROGMEM = "Cilova teplota";
+MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 45, true);
+MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
+
+
+static float analog2tempBed(int raw) {
+  float celsius = 0;
+  byte i;
+
+  for (i=1; i<TEMPERATURE_TABLE_EINSY_LEN; i++)
+  {
+    if (PGM_RD_W(temperature_table_einsy[i][0]) > raw)
+    {
+      celsius  = PGM_RD_W(temperature_table_einsy[i-1][1]) +
+        (raw - PGM_RD_W(temperature_table_einsy[i-1][0])) *
+        (float)(PGM_RD_W(temperature_table_einsy[i][1]) - PGM_RD_W(temperature_table_einsy[i-1][1])) /
+        (float)(PGM_RD_W(temperature_table_einsy[i][0]) - PGM_RD_W(temperature_table_einsy[i-1][0]));
+      break;
+    }
+  }
+
+  // Overflow: Set to last value in the table
+  if (i == TEMPERATURE_TABLE_EINSY_LEN) celsius = PGM_RD_W(temperature_table_einsy[i-1][1]);
+
+	// temperature offset adjustment
+#ifdef BED_OFFSET
+	float _offset = BED_OFFSET;
+	float _offset_center = BED_OFFSET_CENTER;
+	float _offset_start = BED_OFFSET_START;
+	float _first_koef = (_offset / 2) / (_offset_center - _offset_start);
+	float _second_koef = (_offset / 2) / (100 - _offset_center);
+
+	if (celsius >= _offset_start && celsius <= _offset_center){
+		celsius = celsius + (_first_koef * (celsius - _offset_start));
+	}
+	else if (celsius > _offset_center && celsius <= 100){
+		celsius = celsius + (_first_koef * (_offset_center - _offset_start)) + ( _second_koef * ( celsius - ( 100 - _offset_center ) )) ;
+	}
+	else if (celsius > 100){
+		celsius = celsius + _offset;
+	}
+#endif
+
+  return celsius;
+}
+
+
+#define THERMISTOR_CNT 3
+
+const uint8_t samples_total = 64;
+uint8_t samples_collected = 0;
+double temperature_raw[THERMISTOR_CNT] = {0};
+double temperature[THERMISTOR_CNT] = {0};
+uint32_t last_temp_change = 0;
+
+
+void loopCustom(){
+  const uint32_t _millis = millis();
+  for (size_t i = 0; i < THERMISTOR_CNT; i++) {
+    const uint16_t uval = analogRead(A0 + i);
+
+    if(samples_collected < samples_total){
+      temperature_raw[i] = ((temperature_raw[i] * samples_collected) + (double)uval) / (samples_collected + 1);
+    }else{
+      temperature_raw[i] = ((temperature_raw[i] * (samples_collected - 1)) + (double)uval) / samples_collected;
+    }
+    temperature[i] = analog2tempBed(temperature_raw[i]);
+  }
+  if(samples_collected < samples_total) samples_collected++;
+
+  if(heating_is_on && _millis > last_temp_change + 333){
+    const bool heater_pin = digitalReadExt(PIN_HEATER);
+    if(heater_pin){
+      if(temperature[HEATER_THERM] + 2.0 >= storage.target_temperature) digitalWriteExt(PIN_HEATER, LOW);
+
+    }else{
+      if(temperature[HEATER_THERM] + 1.0 <= storage.target_temperature) digitalWriteExt(PIN_HEATER, HIGH);
+
+    }
+    last_temp_change = _millis;
+  }
+}
+
+
+MenuItemDynamic<double> item_temp0("Temp0", temperature[0]);
+MenuItemDynamic<double> item_temp1("T. zasobnik", temperature[1]);
+MenuItemDynamic<double> item_temp2("T. trubka <-", temperature[2]);
+
 
 void do_run_rotations(){
   if(motors[0].steps_to_do || motors[1].steps_to_do || motors[2].steps_to_do){
@@ -346,13 +481,7 @@ MenuItemCallable run_rotations(pgmstr_do_rotations, &do_run_rotations, false);
 
 
 void do_run_cycle(){
-  const float arms_rpm = 20;
-  const float arms_rpm_to = 120;
-  const float arms_accel = 0;
-  const float arms_decel = 0;
-  const float linear_rpm = 0;
-
-  processCommand(F("set_position x0 y0 z0 e0"));
+  // processCommand(F("set_position x0 y0 z0 e0"));
   processCommand(F("empty_queue x y z e"));
 
   processCommand(F("move_ramp_to z10.28 s20 f120 a100 d50")); // arms up
@@ -390,8 +519,7 @@ void do_run_cycle(){
   delay(20); processCommand(F("wait_for_motor e"));
 
   // beep(); delay(500);
-
-  processCommand(F("move_ramp_to z0 s20 f120 a100 d100"));
+  processCommand(F("move_ramp_to z0.13 s20 f120 a100 d100"));
   processCommand(F("move x-0.008"));
 
   processCommand(F("move_rot_to e8.32 f0"));
@@ -400,37 +528,45 @@ void do_run_cycle(){
 
 
   // back to beginning...
-  delay(500);
+  delay(2500);
   beep();
 
-  processCommand(F("move_ramp_to z0.0 s20 f120 a100 d100"));
+  // processCommand(F("move_ramp_to z0.0 s20 f120 a100 d100"));
+  processCommand(F("move_rot_to e1.8 f0"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
+
+  processCommand(F("move x0"));
   processCommand(F("move_rot_to e0.0 f0"));
-  processCommand(F("start z e"));
-  delay(20); processCommand(F("wait_for_motor z e"));
+  processCommand(F("start x e"));
+  delay(20); processCommand(F("wait_for_motor x e"));
 
   beep();
 }
-const char pgmstr_run_cycle[] PROGMEM = "Run cycle";
+const char pgmstr_run_cycle[] PROGMEM = "Collect print";
 MenuItemCallable run_cycle(pgmstr_run_cycle, &do_run_cycle, false);
 
 
 
-void do_home_washer_linear(){
-  // rpm e180;home e1 f180 g60 b0.25;start e;wait_for_motor e;dir e0;move_rot e0.5
-  processCommand(F("empty_queue e"));
-  processCommand(F("rpm e180"));
-  processCommand(F("home e1 f120 g50 b0.25"));
-  processCommand(F("start e"));
-  processCommand(F("wait_for_motor e"));
-  processCommand(F("dir e0"));
-  processCommand(F("move_rot e0.25"));
-  processCommand(F("wait_for_motor e"));
-  processCommand(F("stop e"));
-  processCommand(F("off e"));
-  beep(30);
-}
-const char pgmstr_home_washer_linear[] PROGMEM = "Home washer linear";
-MenuItemCallable item_home_washer_linear(pgmstr_home_washer_linear, &do_home_washer_linear, false);
+
+
+
+// void do_home_washer_linear(){
+//   // rpm e180;home e1 f180 g60 b0.25;start e;wait_for_motor e;dir e0;move_rot e0.5
+//   processCommand(F("empty_queue e"));
+//   processCommand(F("rpm e180"));
+//   processCommand(F("home e1 f120 g50 b0.25"));
+//   processCommand(F("start e"));
+//   processCommand(F("wait_for_motor e"));
+//   processCommand(F("dir e0"));
+//   processCommand(F("move_rot e0.25"));
+//   processCommand(F("wait_for_motor e"));
+//   processCommand(F("stop e"));
+//   processCommand(F("off e"));
+//   beep(30);
+// }
+// const char pgmstr_home_washer_linear[] PROGMEM = "Home washer linear";
+// MenuItemCallable item_home_washer_linear(pgmstr_home_washer_linear, &do_home_washer_linear, false);
 
 
 
@@ -451,13 +587,6 @@ void do_washing_off(){ digitalWriteExt(PIN_WASHING, LOW); }
 const char pgmstr_washing_on[] PROGMEM = "Washing: on";
 const char pgmstr_washing_off[] PROGMEM = "Washing: off";
 MenuItemToggleCallable item_washing_on_off(&is_washing_on, pgmstr_washing_on, pgmstr_washing_off, &do_washing_off, &do_washing_on);
-
-bool is_heating_on(){ return digitalReadExt(PIN_HEATING); }
-void do_heating_on(){ digitalWriteExt(PIN_HEATING, HIGH); }
-void do_heating_off(){ digitalWriteExt(PIN_HEATING, LOW); }
-const char pgmstr_heating_on[] PROGMEM = "Heating: on";
-const char pgmstr_heating_off[] PROGMEM = "Heating: off";
-MenuItemToggleCallable item_heating_on_off(&is_heating_on, pgmstr_heating_on, pgmstr_heating_off, &do_heating_off, &do_heating_on);
 
 bool is_valve_out_on(){ return digitalReadExt(PIN_VALVE_OUT); }
 void do_valve_out_on(){ digitalWriteExt(PIN_VALVE_OUT, HIGH); }
@@ -507,7 +636,7 @@ void do_washing_cycle(){
   lcd.print("Filling pump        ");
   do_washing_on();
 
-  delay(15000);
+  delay(8000);
 
   // cut off water inflow
   lcd.setCursor(0, 1);
@@ -540,6 +669,167 @@ void do_washing_cycle(){
 const char pgmstr_washing_cycle[] PROGMEM = "Washing cycle";
 MenuItemCallable washing_cycle(pgmstr_washing_cycle, &do_washing_cycle, false);
 
+
+
+void rotate_platform_by_cycles(const uint8_t cycles){
+  for (size_t i = 0; i < cycles * 8; i++) {
+    processCommand(F("empty_queue x e"));
+
+    processCommand(F("move e1 f15"));
+    processCommand(F("start e"));
+    delay(20); processCommand(F("wait_for_motor e"));
+
+    processCommand(F("move_ramp x0.125 s1 f10 a30 d30"));
+    processCommand(F("start x"));
+    delay(20); processCommand(F("wait_for_motor x"));
+
+    processCommand(F("move e0"));
+    processCommand(F("start e"));
+    delay(20); processCommand(F("wait_for_motor e"));
+  }
+}
+
+
+void do_drying_cycle(){
+  const uint8_t cycles = 1;
+  do_drying_fan_on();
+  processCommand(F("move z0.13"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
+  rotate_platform_by_cycles(cycles);
+
+  do_drying_fan_off();
+  beep();
+}
+const char pgmstr_drying_cycle[] PROGMEM = "Do drying cycle";
+MenuItemCallable drying_cycle(pgmstr_drying_cycle, &do_drying_cycle, false);
+
+
+void do_curing_cycle(){
+  const uint8_t cycles = 1;
+  do_uv_led_on();
+  processCommand(F("move z0.13"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
+  rotate_platform_by_cycles(cycles);
+
+  do_uv_led_off();
+  beep();
+}
+const char pgmstr_curing_cycle[] PROGMEM = "Do curing cycle";
+MenuItemCallable curing_cycle(pgmstr_curing_cycle, &do_curing_cycle, false);
+
+
+
+void do_arms_to_zero(){
+  lcd.clear();
+  lcd.print("Parking arms...");
+
+  processCommand(F("move_ramp_to z0 s60 f120 a100 d100"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+  beep();
+}
+const char pgmstr_arms_to_zero[] PROGMEM = "Park arms to zero";
+MenuItemCallable arms_to_zero(pgmstr_arms_to_zero, &do_arms_to_zero, false);
+
+
+
+void do_hand_over_print(){
+  processCommand(F("move e1"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
+
+  processCommand(F("move z0.6"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
+
+  // processCommand(F("home x1 g1 f4 b0.1 w100"));
+  // home_x(true);
+
+  motors[0].driver.semax(0);
+  motors[0].driver.semin(0);
+  motors[0].driver.en_pwm_mode(false);
+  motors[0].driver.pwm_autoscale(false);
+  motors[0].driver.intpol(false);
+  motors[0].driver.rms_current(800);
+  // motors[0].driver.sgt(4);
+  motors[0].driver.TCOOLTHRS(0);
+
+  processCommand(F("move x0.01"));
+  processCommand(F("move e0.1"));
+  processCommand(F("start x e"));
+  delay(20); processCommand(F("wait_for_motor x e"));
+
+  processCommand(F("move z0.45"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
+  processCommand(F("move x-0.01"));
+  processCommand(F("start x"));
+  delay(20); processCommand(F("wait_for_motor x"));
+
+  processCommand(F("move z-0.2"));
+  processCommand(F("start z"));
+  delay(20); processCommand(F("wait_for_motor z"));
+
+  motors[0].off();
+  motors[0].driver.semax(5);
+  motors[0].driver.semin(2);
+  motors[0].driver.en_pwm_mode(true);
+  motors[0].driver.pwm_autoscale(true);
+  motors[0].driver.intpol(true);
+  motors[0].driver.rms_current(400);
+  // motors[0].driver.sgt(4);
+  motors[0].driver.TCOOLTHRS(460);
+
+  // processCommand(F("off z"));
+  processCommand(F("move e0.23"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
+
+  // processCommand(F("move_ramp_to z8 s20 f120 a100 d50")); // arms up
+  // processCommand(F("wait x800"));
+  // home_x(false);
+  // processCommand(F("start x z"));
+  // delay(20); processCommand(F("wait_for_motor x z"));
+
+  motors[2].driver.semax(0);
+  motors[2].driver.semin(0);
+  motors[2].driver.en_pwm_mode(false);
+  motors[2].driver.pwm_autoscale(false);
+  motors[2].driver.intpol(false);
+  motors[2].driver.rms_current(1400);
+  // motors[2].driver.sgt(4);
+  motors[2].driver.TCOOLTHRS(0xFFFF);
+
+  // processCommand(F("move_ramp_to z8.5 s20 f120 a100 d50")); // arms up
+  beep(5);
+  // processCommand(F("move_ramp_to z2.3 s20 f120 a100 d50")); // arms up
+  // processCommand(F("move_ramp_to z7 s20 f120 a100 d50")); // arms up
+  processCommand(F("move z3.2 f100")); // arms somewhat up
+  processCommand(F("move e0.52"));
+  processCommand(F("start e z"));
+  delay(20); processCommand(F("wait_for_motor e z"));
+  beep(5);
+
+  delay(100);
+  motors[2].driver.semax(5);
+  motors[2].driver.semin(2);
+  motors[2].driver.en_pwm_mode(true);
+  motors[2].driver.pwm_autoscale(true);
+  motors[2].driver.intpol(true);
+  motors[2].driver.rms_current(400);
+  // motors[2].driver.sgt(4);
+  motors[2].driver.TCOOLTHRS(460);
+
+  beep();
+}
+const char pgmstr_hand_over_print[] PROGMEM = "Hand it over";
+MenuItemCallable hand_over_print(pgmstr_hand_over_print, &do_hand_over_print, false);
 
 
 
@@ -632,13 +922,19 @@ MenuItemCallable debug_wait_1s("debug wait 1s", &do_debug_wait, false);
 MenuItem* const main_menu_items[] PROGMEM = {
   &run_cycle,
   &washing_cycle,
+  &drying_cycle,
+  &curing_cycle,
+  &hand_over_print,
+  &arms_to_zero,
+
   &item_move_linear_step,
   &run_rotations,
   // &debug_rotation_x,
   // &debug_seq,
   // &debug_wait_1s,
   &item_washing_on_off,
-  &item_heating_on_off,
+  &item_heater_on_off,
+  &item_target_temperature,
   // &item_e0_heater_on_off,
   // &item_home_washer_linear,
   // &item_half_rot_dir,
@@ -666,6 +962,9 @@ MenuItem* const main_menu_items[] PROGMEM = {
   // &item_mode_normal,
   &item_drying_fan_on_off,
   &item_uv_led_on_off,
+  &item_temp0,
+  &item_temp1,
+  &item_temp2,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 

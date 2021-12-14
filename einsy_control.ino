@@ -12,9 +12,6 @@ uint32_t last_stallguard_print_to_serial = 0;
 uint32_t last_lcd_reinit = 0;
 
 
-uint16_t counter = 0;
-
-
 void printBinary(byte inByte) { for (int b = 7; b >= 0; b--) Serial.print(bitRead(inByte, b)); Serial.println(); }
 #define _PRINT_BIN(v) #v
 #define PRINT_BIN(v) Serial.print(F(#v "\t= ")); printBinary(v);

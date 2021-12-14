@@ -24,6 +24,7 @@ void gcode_autohome();
 void gcode_print_queue();
 void gcode_empty_queue();
 void gcode_print_info();
+void gcode_pos();
 void gcode_stop_on_stallguard();
 void gcode_print_stallguard();
 void gcode_wait_for_motor();
