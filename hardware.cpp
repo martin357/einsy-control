@@ -15,7 +15,17 @@ bool _is_lcd_present(){
 int8_t enc_diff = 0;
 uint8_t enc_click = 0;
 uint32_t beeper_off_at = 0;
+bool read_temperature = true;
+uint8_t temperature_samples_collected = 0;
+double temperature_raw[THERMISTOR_CNT] = {0};
+double temperature[THERMISTOR_CNT] = {0};
+bool read_voltage = true;
+uint8_t voltage_samples_collected = 0;
+double voltage_raw[VOLTAGE_ADC_CNT] = {0};
+double voltage[VOLTAGE_ADC_CNT] = {0};
 const bool lcd_present = _is_lcd_present();
+const uint8_t temperature_samples_total = 64;
+const uint8_t voltage_samples_total = 16;
 #define INIT_MOTOR(i, d, n, a) Motor(d##_STEP_PIN, d##_DIR_PIN, d##_ENABLE_PIN, d##_TMC2130_CS, d##_TMC2130_DIAG, &PORTC, PINC##i, &OCR##n##A, &TCNT##n, &TIMSK##n, OCIE##n##A, a)
 Motor motors[] = {
   INIT_MOTOR(0, X, 1, 'x'),
@@ -88,6 +98,19 @@ void setupPins(){
   pinModeInput(BTN_EN1, true);
   pinModeInput(BTN_EN2, true);
   pinModeInput(BTN_ENC, true);
+
+  // thermistors
+  pinModeInput(TEMP_0_PIN);
+  pinModeInput(TEMP_1_PIN);
+  pinModeInput(TEMP_2_PIN);
+  pinModeInput(TEMP_PINDA_PIN);
+  pinModeInput(TEMP_AMBIENT_PIN);
+
+  // power
+  pinModeOutput(HEATER_BED_PIN);
+  digitalWriteExt(HEATER_BED_PIN, LOW);
+  pinModeOutput(HEATER_0_PIN);
+  digitalWriteExt(HEATER_0_PIN, LOW);
 
   // misc
   pinModeInput(MISO, true);
@@ -208,6 +231,111 @@ void readEncoder() {
     last_click = _millis;
     prev_click_state = click;
   }
+}
+
+
+double _analog_to_temp(int raw){
+  double celsius = 0;
+  byte i;
+
+  for (i=1; i<temperature_table_einsy_len; i++){
+    if ((short)pgm_read_word(&temperature_table_einsy[i][0]) > raw){
+      celsius = (short)pgm_read_word(&temperature_table_einsy[i-1][1]) +
+        (raw - (short)pgm_read_word(&temperature_table_einsy[i-1][0])) *
+        (double)((short)pgm_read_word(&temperature_table_einsy[i][1]) - (short)pgm_read_word(&temperature_table_einsy[i-1][1])) /
+        (double)((short)pgm_read_word(&temperature_table_einsy[i][0]) - (short)pgm_read_word(&temperature_table_einsy[i-1][0]));
+      break;
+    }
+  }
+
+  if (i == temperature_table_einsy_len) celsius = (short)pgm_read_word(&temperature_table_einsy[i-1][1]);
+
+	const double _offset = 10;
+	const double _offset_center = 50;
+	const double _offset_start = 40;
+	const double _first_koef = (_offset / 2) / (_offset_center - _offset_start);
+	const double _second_koef = (_offset / 2) / (100 - _offset_center);
+
+	if (celsius >= _offset_start && celsius <= _offset_center){
+		celsius = celsius + (_first_koef * (celsius - _offset_start));
+	}else if (celsius > _offset_center && celsius <= 100){
+		celsius = celsius + (_first_koef * (_offset_center - _offset_start)) + (_second_koef * (celsius - (100 - _offset_center)));
+	}else if (celsius > 100){
+		celsius = celsius + _offset;
+	}
+
+  return celsius;
+}
+
+
+double _analog_to_temp_ambient(int raw){
+  double celsius = 0;
+  byte i;
+
+  for (i=1; i<temperature_table_einsy_ambient_len; i++){
+    if ((short)pgm_read_word(&temperature_table_einsy_ambient[i][0]) > raw){
+      celsius = (short)pgm_read_word(&temperature_table_einsy_ambient[i-1][1]) +
+        (raw - (short)pgm_read_word(&temperature_table_einsy_ambient[i-1][0])) *
+        (double)((short)pgm_read_word(&temperature_table_einsy_ambient[i][1]) - (short)pgm_read_word(&temperature_table_einsy_ambient[i-1][1])) /
+        (double)((short)pgm_read_word(&temperature_table_einsy_ambient[i][0]) - (short)pgm_read_word(&temperature_table_einsy_ambient[i-1][0]));
+      break;
+    }
+  }
+
+  if (i == temperature_table_einsy_ambient_len) celsius = (short)pgm_read_word(&temperature_table_einsy_ambient[i-1][1]);
+
+  return celsius;
+}
+
+
+
+void readThermistors(){
+  for (size_t i = 0; i < THERMISTOR_CNT; i++) {
+    uint16_t uval;
+    switch (i) {
+      case 0: uval = analogRead(TEMP_0_PIN); break;
+      case 1: uval = analogRead(TEMP_1_PIN); break;
+      case 2: uval = analogRead(TEMP_2_PIN); break;
+      case 3: uval = analogRead(TEMP_PINDA_PIN); break;
+      case 4: uval = analogRead(TEMP_AMBIENT_PIN); break;
+    }
+
+    if(temperature_samples_collected < temperature_samples_total){
+      temperature_raw[i] = ((temperature_raw[i] * temperature_samples_collected) + (double)uval) / (temperature_samples_collected + 1);
+    }else{
+      temperature_raw[i] = ((temperature_raw[i] * (temperature_samples_collected - 1)) + (double)uval) / temperature_samples_collected;
+    }
+    if(i == 4) temperature[i] = _analog_to_temp_ambient(temperature_raw[i]);
+    else temperature[i] = _analog_to_temp(temperature_raw[i]);
+  }
+  if(temperature_samples_collected < temperature_samples_total) temperature_samples_collected++;
+}
+
+
+#define VOLT_DIV_REF 5
+#define VOLT_DIV_R1 10000
+#define VOLT_DIV_R2 2370
+#define VOLT_DIV_FAC ((float)VOLT_DIV_R2 / (VOLT_DIV_R2 + VOLT_DIV_R1))
+
+void readVoltages(){
+  for (size_t i = 0; i < VOLTAGE_ADC_CNT; i++) {
+    uint16_t uval;
+    switch (i) {
+      case 0: uval = analogRead(VOLT_PWR_PIN); break;
+      case 1: uval = analogRead(VOLT_BED_PIN); break;
+      case 2: uval = analogRead(VOLT_IR_PIN); break;
+    }
+
+    if(voltage_samples_collected < voltage_samples_total){
+      voltage_raw[i] = ((voltage_raw[i] * voltage_samples_collected) + (double)uval) / (voltage_samples_collected + 1);
+    }else{
+      voltage_raw[i] = ((voltage_raw[i] * (voltage_samples_collected - 1)) + (double)uval) / voltage_samples_collected;
+    }
+    if(i == 2) voltage[i] = VOLT_DIV_REF * voltage_raw[i] / 1023;
+    else voltage[i] = VOLT_DIV_REF * voltage_raw[i] / 1023 / VOLT_DIV_FAC;
+
+  }
+  if(voltage_samples_collected < voltage_samples_total) voltage_samples_collected++;
 }
 
 

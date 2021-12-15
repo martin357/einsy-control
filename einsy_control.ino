@@ -113,6 +113,9 @@ void loop() {
     last_lcd_reinit = _millis;
   }
 
+  if(read_temperature) readThermistors();
+  if(read_voltage) readVoltages();
+
   #ifdef CUSTOM_LOOP
     loopCustom();
   #endif
