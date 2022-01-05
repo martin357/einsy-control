@@ -397,6 +397,8 @@ MenuItemToggleCallable item_uv_led_on_off(&is_uv_led_on, pgmstr_uv_led_on, pgmst
 
 
 void do_run_cycle(){
+  lcd.clear();
+  lcd.print("Collecting print");
   // processCommand(F("set_position x0 y0 z0 e0"));
   processCommand(F("empty_queue x y z e"));
 
@@ -437,6 +439,7 @@ void do_run_cycle(){
   // beep(); delay(500);
   processCommand(F("move_ramp_to z0.13 s20 f120 a100 d100"));
   processCommand(F("move x-0.008"));
+  processCommand(F("start x"));
 
   processCommand(F("move_rot_to e8.32 f0"));
   processCommand(F("start z e"));
@@ -444,20 +447,20 @@ void do_run_cycle(){
 
 
   // back to beginning...
-  delay(2500);
-  beep();
-
-  // processCommand(F("move_ramp_to z0.0 s20 f120 a100 d100"));
-  processCommand(F("move_rot_to e1.8 f0"));
-  processCommand(F("start e"));
-  delay(20); processCommand(F("wait_for_motor e"));
-
-  processCommand(F("move x0"));
-  processCommand(F("move_rot_to e0.0 f0"));
-  processCommand(F("start x e"));
-  delay(20); processCommand(F("wait_for_motor x e"));
-
-  beep();
+  // delay(2500);
+  // beep();
+  //
+  // // processCommand(F("move_ramp_to z0.0 s20 f120 a100 d100"));
+  // processCommand(F("move_rot_to e1.8 f0"));
+  // processCommand(F("start e"));
+  // delay(20); processCommand(F("wait_for_motor e"));
+  //
+  // processCommand(F("move x0"));
+  // processCommand(F("move_rot_to e0.0 f0"));
+  // processCommand(F("start x e"));
+  // delay(20); processCommand(F("wait_for_motor x e"));
+  //
+  // beep();
 }
 const char pgmstr_run_cycle[] PROGMEM = "1/5 Collect print";
 MenuItemCallable run_cycle(pgmstr_run_cycle, &do_run_cycle, false);
@@ -474,14 +477,14 @@ void do_washing_cycle(){
   do_valve_in_on();
 
   // TODO: replace with liquid level sensor
-  delay(1000L * storage.wash__valve_in_on_time);
+  delay((uint32_t)storage.wash__valve_in_on_time * 1000);
 
   // let water fill the pump
   lcd.setCursor(0, 1);
   lcd.print("Filling pump        ");
   do_washing_on();
 
-  delay(1000L * storage.wash__pump_on_valve_in_off_delay);
+  delay((uint32_t)storage.wash__pump_on_valve_in_off_delay * 1000);
 
   // cut off water inflow
   lcd.setCursor(0, 1);
@@ -493,7 +496,7 @@ void do_washing_cycle(){
 
   // actual washing
   beep(10);
-  delay(1000L * storage.wash__washing_duration);
+  delay((uint32_t)storage.wash__washing_duration * 1000);
   beep(10);
 
   // TODO: heating OFF
@@ -502,7 +505,7 @@ void do_washing_cycle(){
   lcd.print("Empty pump          ");
   do_valve_out_on();
 
-  delay(1000L * storage.wash__empty_pump_duration);
+  delay((uint32_t)storage.wash__empty_pump_duration * 1000);
 
   do_valve_out_off();
   do_washing_off();
@@ -517,6 +520,10 @@ MenuItemCallable washing_cycle(pgmstr_washing_cycle, &do_washing_cycle, false);
 
 
 void rotate_platform_by_cycles(const uint8_t cycles){
+  processCommand(F("move x0 f30"));
+  processCommand(F("start x"));
+  delay(20); processCommand(F("wait_for_motor x"));
+
   for (size_t i = 0; i < cycles * 8; i++) {
     processCommand(F("empty_queue x e"));
 
@@ -538,13 +545,24 @@ void rotate_platform_by_cycles(const uint8_t cycles){
 
 
 void do_drying_cycle(){
-  const uint8_t cycles = 1;
+  lcd.clear();
+  lcd.print("Drying...");
   do_drying_fan_on();
   processCommand(F("move z0.13"));
   processCommand(F("start z"));
   delay(20); processCommand(F("wait_for_motor z"));
 
-  rotate_platform_by_cycles(cycles);
+  if(storage.drying_preheat > 0){
+    lcd.clear();
+    lcd.print("Preheating...");
+
+    delay((uint32_t)storage.drying_preheat * 1000);
+
+    lcd.clear();
+    lcd.print("Drying...");
+  }
+
+  rotate_platform_by_cycles(storage.drying_cycles);
 
   do_drying_fan_off();
   beep();
@@ -555,13 +573,14 @@ MenuItemCallable drying_cycle(pgmstr_drying_cycle, &do_drying_cycle, false);
 
 
 void do_curing_cycle(){
-  const uint8_t cycles = 1;
+  lcd.clear();
+  lcd.print("Curing...");
   do_uv_led_on();
   processCommand(F("move z0.13"));
   processCommand(F("start z"));
   delay(20); processCommand(F("wait_for_motor z"));
 
-  rotate_platform_by_cycles(cycles);
+  rotate_platform_by_cycles(storage.curing_cycles);
 
   do_uv_led_off();
   beep();
@@ -681,6 +700,33 @@ MenuItemCallable arms_to_zero(pgmstr_arms_to_zero, &do_arms_to_zero, false);
 
 
 
+void custom_gcode_do_cycle(){
+  lcd.clear();
+  lcd.print("Doing cycle...");
+
+  if(storage.cycle__do_collect){
+    do_run_cycle();
+  }
+
+  if(storage.cycle__do_wash){
+    do_washing_cycle();
+  }
+
+  if(storage.cycle__do_dry){
+    do_drying_cycle();
+  }
+
+  if(storage.cycle__do_cure){
+    do_curing_cycle();
+  }
+
+  if(storage.cycle__do_hand_it_over){
+    do_hand_over_print();
+  }
+
+}
+
+
 //////////// DEBUG MENU
 MenuItem* const debug_menu_items[] PROGMEM = {
   &back,
@@ -736,11 +782,68 @@ MenuItem item_washing_config_menu(pgmstr_washing_config_menu, &washing_config_me
 
 
 
+///////// AFTER-PRINT CONFIG MENU
+const char pgmstr_after_print_config__do_collect[] PROGMEM = "1/5 collect";
+MenuRange<uint8_t> menu_after_print_config__do_collect("1/5 collect:", storage.cycle__do_collect, 0, 1, true);
+MenuItem item_after_print_config__do_collect(pgmstr_after_print_config__do_collect, &menu_after_print_config__do_collect);
+
+const char pgmstr_after_print_config__do_wash[] PROGMEM = "2/5 wash";
+MenuRange<uint8_t> menu_after_print_config__do_wash("2/5 wash:", storage.cycle__do_wash, 0, 1, true);
+MenuItem item_after_print_config__do_wash(pgmstr_after_print_config__do_wash, &menu_after_print_config__do_wash);
+
+const char pgmstr_after_print_config__do_dry[] PROGMEM = "3/5 dry";
+MenuRange<uint8_t> menu_after_print_config__do_dry("3/5 dry:", storage.cycle__do_dry, 0, 1, true);
+MenuItem item_after_print_config__do_dry(pgmstr_after_print_config__do_dry, &menu_after_print_config__do_dry);
+
+const char pgmstr_after_print_config__do_cure[] PROGMEM = "4/5 cure";
+MenuRange<uint8_t> menu_after_print_config__do_cure("4/5 cure:", storage.cycle__do_cure, 0, 1, true);
+MenuItem item_after_print_config__do_cure(pgmstr_after_print_config__do_cure, &menu_after_print_config__do_cure);
+
+const char pgmstr_after_print_config__do_hand_it_over[] PROGMEM = "5/5 hand out";
+MenuRange<uint8_t> menu_after_print_config__do_hand_it_over("5/5 hand out:", storage.cycle__do_hand_it_over, 0, 1, true);
+MenuItem item_after_print_config__do_hand_it_over(pgmstr_after_print_config__do_hand_it_over, &menu_after_print_config__do_hand_it_over);
+
+
+
+MenuItem* const after_print_menu_items[] PROGMEM = {
+  &back,
+  &item_after_print_config__do_collect,
+  &item_after_print_config__do_wash,
+  &item_after_print_config__do_dry,
+  &item_after_print_config__do_cure,
+  &item_after_print_config__do_hand_it_over,
+};
+Menu after_print_menu(after_print_menu_items, sizeof(after_print_menu_items) / 2);
+const char pgmstr_after_print_menu[] PROGMEM = "After-print config";
+MenuItem item_after_print_menu(pgmstr_after_print_menu, &after_print_menu);
+
+
+
 //////// CONFIG MENU
+const char pgmstr_config_drying_cycles[] PROGMEM = "Drying cycles";
+MenuRange<uint8_t> menu_config_drying_cycles("drying cycles:", storage.drying_cycles, 1, 30, true);
+MenuItem item_config_drying_cycles(pgmstr_config_drying_cycles, &menu_config_drying_cycles);
+
+
+const char pgmstr_config_curing_cycles[] PROGMEM = "Curing cycles";
+MenuRange<uint8_t> menu_config_curing_cycles("curing cycles:", storage.curing_cycles, 1, 30, true);
+MenuItem item_config_curing_cycles(pgmstr_config_curing_cycles, &menu_config_curing_cycles);
+
+
+const char pgmstr_config_drying_preheat[] PROGMEM = "Drying preheat";
+MenuRange<uint16_t> menu_config_drying_preheat("drying preheat: [s]", storage.drying_preheat, 0, 1200, true);
+MenuItem item_config_drying_preheat(pgmstr_config_drying_preheat, &menu_config_drying_preheat);
+
+
+
 MenuItem* const config_menu_items[] PROGMEM = {
   &back,
   &item_target_temperature,
+  &item_config_drying_preheat,
+  &item_config_drying_cycles,
+  &item_config_curing_cycles,
   &item_washing_config_menu,
+  &item_after_print_menu,
 };
 Menu config_menu(config_menu_items, sizeof(config_menu_items) / 2);
 const char pgmstr_config_menu[] PROGMEM = "Settings";

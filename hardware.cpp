@@ -23,6 +23,7 @@ bool read_voltage = true;
 uint8_t voltage_samples_collected = 0;
 double voltage_raw[VOLTAGE_ADC_CNT] = {0};
 double voltage[VOLTAGE_ADC_CNT] = {0};
+uint32_t last_lcd_reinit = 0;
 const bool lcd_present = _is_lcd_present();
 const uint8_t temperature_samples_total = 64;
 const uint8_t voltage_samples_total = 16;

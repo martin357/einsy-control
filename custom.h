@@ -7,6 +7,7 @@
 // #define CUSTOM_CW_LETNANY
 // #define CUSTOM_RESIN_MIXER
 // #define CUSTOM_HEATBED
+// #define CUSTOM_MFRC522_TEST
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -27,6 +28,10 @@
 
 #ifdef CUSTOM_HEATBED
   #include "src/custom/heatbed.h"
+#endif
+
+#ifdef CUSTOM_MFRC522_TEST
+  #include "src/custom/mfrc522_test.h"
 #endif
 
 

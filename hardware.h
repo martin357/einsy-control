@@ -42,5 +42,6 @@ extern double temperature[THERMISTOR_CNT];
 extern double temperature_raw[THERMISTOR_CNT];
 extern bool read_voltage;
 extern double voltage[VOLTAGE_ADC_CNT];
+extern uint32_t last_lcd_reinit;
 extern double voltage_raw[VOLTAGE_ADC_CNT];
 extern const bool lcd_present;

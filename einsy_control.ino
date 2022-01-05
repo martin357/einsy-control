@@ -9,7 +9,6 @@
 
 uint16_t print_stallguard_to_serial_interval = 30;
 uint32_t last_stallguard_print_to_serial = 0;
-uint32_t last_lcd_reinit = 0;
 
 
 void printBinary(byte inByte) { for (int b = 7; b >= 0; b--) Serial.print(bitRead(inByte, b)); Serial.println(); }
