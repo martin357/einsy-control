@@ -2,12 +2,13 @@
 
 // select one custom variant below
 
-#define CUSTOM_AUTONOMOUS
+// #define CUSTOM_AUTONOMOUS
 // #define CUSTOM_CW
-// #define CUSTOM_CW_LETNANY
+#define CUSTOM_CW_LETNANY
 // #define CUSTOM_RESIN_MIXER
 // #define CUSTOM_HEATBED
 // #define CUSTOM_MFRC522_TEST
+// #define CUSTOM_GESTURES_TEST
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -34,6 +35,10 @@
   #include "src/custom/mfrc522_test.h"
 #endif
 
+#ifdef CUSTOM_GESTURES_TEST
+  #include "src/custom/gestures_test.h"
+#endif
+
 
 
 #ifdef CUSTOM_SETUP
@@ -42,4 +47,8 @@
 
 #ifdef CUSTOM_LOOP
   void loopCustom();
+#endif
+
+#ifdef CUSTOM_TIMER0_ISR
+  void timer0Custom();
 #endif

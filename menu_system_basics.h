@@ -98,6 +98,7 @@ public:
   virtual void move(int8_t);
   virtual void loop();
   void go_back();
+  bool has_back();
   MenuItem* const* const items;
   size_t items_count;
   Menu* came_from;

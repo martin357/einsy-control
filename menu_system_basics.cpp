@@ -326,6 +326,16 @@ void Menu::go_back(){
 }
 
 
+bool Menu::has_back(){
+  for (size_t i = 0; i < items_count; i++) {
+    // MenuItem* item = (MenuItem*)pgm_read_word(&items[i]);
+    // if(item == back) return true;
+    if(pgm_read_word(&items[i]) == &back) return true;
+  }
+  return false;
+}
+
+
 
 /*
   menu range

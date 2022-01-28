@@ -1,5 +1,6 @@
 #pragma once
 #include "src/TMCStepper.h"
+#include "custom.h"
 
 
 // #define DEBUG_PRINT

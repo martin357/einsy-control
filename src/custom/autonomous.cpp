@@ -436,12 +436,15 @@ void do_run_cycle(){
   processCommand(F("start e"));
   delay(20); processCommand(F("wait_for_motor e"));
 
+  home_x(true);
+
   // beep(); delay(500);
   processCommand(F("move_ramp_to z0.13 s20 f120 a100 d100"));
   processCommand(F("move x-0.008"));
   processCommand(F("start x"));
 
-  processCommand(F("move_rot_to e8.32 f0"));
+  // processCommand(F("move_rot_to e8.32 f0"));
+  processCommand(F("move_rot_to e8.15 f0"));
   processCommand(F("start z e"));
   delay(20); processCommand(F("wait_for_motor z e"));
 
@@ -552,6 +555,9 @@ void do_drying_cycle(){
   processCommand(F("start z"));
   delay(20); processCommand(F("wait_for_motor z"));
 
+  processCommand(F("move_rot_to e1 f120"));
+  processCommand(F("start e"));
+
   if(storage.drying_preheat > 0){
     lcd.clear();
     lcd.print("Preheating...");
@@ -561,6 +567,8 @@ void do_drying_cycle(){
     lcd.clear();
     lcd.print("Drying...");
   }
+
+  delay(20); processCommand(F("wait_for_motor e"));
 
   rotate_platform_by_cycles(storage.drying_cycles);
 
@@ -579,6 +587,10 @@ void do_curing_cycle(){
   processCommand(F("move z0.13"));
   processCommand(F("start z"));
   delay(20); processCommand(F("wait_for_motor z"));
+
+  processCommand(F("move_rot_to e1 f120"));
+  processCommand(F("start e"));
+  delay(20); processCommand(F("wait_for_motor e"));
 
   rotate_platform_by_cycles(storage.curing_cycles);
 

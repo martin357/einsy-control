@@ -31,7 +31,7 @@ MenuItemToggleCallable item_heater_on_off(&is_heater_on, pgmstr_heater_on, pgmst
 
 
 const char pgmstr_temperature[] PROGMEM = "Cilova teplota";
-MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 45, true);
+MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 65, true);
 MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
 
 

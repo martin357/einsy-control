@@ -979,6 +979,10 @@ ISR(TIMER0_COMPA_vect){
     beeper_off_at = 0;
     digitalWriteExt(BEEPER, LOW);
   }
+
+  #ifdef CUSTOM_TIMER0_ISR
+    timer0Custom();
+  #endif
 }
 
 
