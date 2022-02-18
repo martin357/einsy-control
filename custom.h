@@ -4,11 +4,12 @@
 
 // #define CUSTOM_AUTONOMOUS
 // #define CUSTOM_CW
-#define CUSTOM_CW_LETNANY
+// #define CUSTOM_CW_LETNANY
 // #define CUSTOM_RESIN_MIXER
 // #define CUSTOM_HEATBED
 // #define CUSTOM_MFRC522_TEST
 // #define CUSTOM_GESTURES_TEST
+#define CUSTOM_TILT_TEST
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -37,6 +38,10 @@
 
 #ifdef CUSTOM_GESTURES_TEST
   #include "src/custom/gestures_test.h"
+#endif
+
+#ifdef CUSTOM_TILT_TEST
+  #include "src/custom/tilt_test.h"
 #endif
 
 
