@@ -9,7 +9,8 @@
 // #define CUSTOM_HEATBED
 // #define CUSTOM_MFRC522_TEST
 // #define CUSTOM_GESTURES_TEST
-#define CUSTOM_TILT_TEST
+// #define CUSTOM_TILT_TEST
+#define CUSTOM_CAP_SENSE_TEST
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -42,6 +43,10 @@
 
 #ifdef CUSTOM_TILT_TEST
   #include "src/custom/tilt_test.h"
+#endif
+
+#ifdef CUSTOM_CAP_SENSE_TEST
+  #include "src/custom/cap_sense_test.h"
 #endif
 
 

@@ -89,6 +89,7 @@ void loop() {
   }
 
 
+  #ifndef DISABLE_STALLGUARD_TRIGGERED_PRINT_TO_SERIAL
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(motors[i].stallguard_triggered){
       motors[i].stallguard_triggered = false;
@@ -101,10 +102,9 @@ void loop() {
       Serial.print(F(" RPM with "));
       Serial.print(lost_steps);
       Serial.println(F(" lost steps!"));
-
     }
-
   }
+  #endif // DISABLE_STALLGUARD_TRIGGERED_PRINT_TO_SERIAL
 
   if(_millis > last_lcd_reinit + 5000){
     lcd.reinit();
