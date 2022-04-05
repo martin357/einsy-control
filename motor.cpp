@@ -360,11 +360,11 @@ int16_t Motor::next_empty_queue_index(){
 void Motor::set_queue_item(uint8_t index, MotorQueueItemType type, uint32_t value){
   // while(index >= MOTOR_QUEUE_LEN) index -= MOTOR_QUEUE_LEN;
   while(index >= MOTOR_QUEUE_LEN){
-    Serial.print(F("[sqi] overflow from "));
-    Serial.print(index);
-    Serial.print(F(" to "));
+    SERIAL_PRINT(F("[sqi] overflow from "));
+    SERIAL_PRINT(index);
+    SERIAL_PRINT(F(" to "));
     index -= MOTOR_QUEUE_LEN;
-    Serial.println(index);
+    SERIAL_PRINTLN(index);
   }
   queue[index].type = type;
   queue[index].value = value;
@@ -588,10 +588,10 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
   if(next < queue_index){
-    Serial.print(F("[pnq] rollover from "));
-    Serial.print(queue_index);
-    Serial.print(F(" to "));
-    Serial.println(next);
+    SERIAL_PRINT(F("[pnq] rollover from "));
+    SERIAL_PRINT(queue_index);
+    SERIAL_PRINT(F(" to "));
+    SERIAL_PRINTLN(next);
   }
 
   queue[queue_index].processed = true;

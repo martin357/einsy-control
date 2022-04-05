@@ -17,41 +17,62 @@ ad7150_reg_capdac ch1_capdac, ch2_capdac;
 ad7150_reg_configuration configuration;
 int32_t initial_tare = 0;
 int32_t tare = 0;
-uint8_t samples_total = 6; // *32;
-uint8_t samples_collected = 0;
-float running_average;
+uint16_t samples_total = 128; // 256; // 6; // *32;
+uint16_t samples_collected = 0;
+double running_average;
+double running_average_corrected;
+double offset = 94.0;
+// double offset = -8.5;
+
+int32_t last_autolevel_tick = 0;
+bool autolevel_enabled = false;
+double level_tolerance = 0.5; // 0.3;
+double level_min = 1.0;
+double level_optimal = 4.5;
+double level_max = 9.0; // 7.0;
+
+// double rpm_min = 20.0;
+// double rpm_optimal = 150.0;
+double rpm_min = 50.0;
+double rpm_optimal = 180.0; // 120.0;
+double rpm_max = 180.0; // 160.0; // 80.0; // sucking resin out
+double new_rpm = 0.0001;
+double total_dist = 0.0;
 
 uint16_t samples_collected_16 = 0;
-float running_average_16;
+double running_average_16;
 uint16_t samples_collected_32 = 0;
-float running_average_32;
+double running_average_32;
 uint16_t samples_collected_64 = 0;
-float running_average_64;
+double running_average_64;
 uint16_t samples_collected_128 = 0;
-float running_average_128;
+double running_average_128;
 uint16_t samples_collected_256 = 0;
-float running_average_256;
+double running_average_256;
 uint16_t samples_collected_512 = 0;
-float running_average_512;
+double running_average_512;
 uint16_t samples_collected_1024 = 0;
-float running_average_1024;
+double running_average_1024;
+
+uint32_t autolevel_on_at = 0;
 
 void writeRegister(uint8_t reg, uint16_t value, bool wait = true);
 uint8_t readRegister(uint8_t reg);
 
 
-void pump_start(bool dir){
+void pump_start(bool dir, double target_rpm = 150){
   processCommand(F("halt y"));
   processCommand(F("empty_queue y"));
   processCommand(dir ? F("dir y0") : F("dir y1"));
-  processCommand(F("accel y150"));
+  // processCommand(F("accel y150"));
   processCommand(F("rpm y0.01"));
   processCommand(F("start y1"));
-  processCommand(F("ramp_to y150"));
+  // processCommand(F("ramp_to y150"));
+  motors[1].ramp_to(target_rpm);
 }
 
 void pump_stop(bool wait = false){
-  processCommand(F("decel y150"));
+  // processCommand(F("decel y150"));
   // processCommand(F("ramp_to y0.01"));
   processCommand(F("ramp_to y0"));
   if(wait) processCommand(F("wait_for_motor y"));
@@ -63,6 +84,11 @@ void loopCustom(){
   Wire.requestFrom(AD7150_I2C_ADDRESS, 1);
   const ad7150_reg_status status{.reg = (uint8_t)Wire.read()};
 
+  if(autolevel_on_at > 0 && _millis >= autolevel_on_at){
+    autolevel_on_at = 0;
+    custom_gcode_autofill_on();
+  }
+
   if(!status.RDY1 && !status.RDY2){
     uint8_t data[5] = {0};
 
@@ -71,7 +97,6 @@ void loopCustom(){
       while(!Wire.available());
       data[i] = Wire.read();
     }
-    // writeRegister(AD7150_REG_CONFIGURATION, MODE_POWER_DOWN);
 
     if(skip_samples > 0){
       skip_samples--;
@@ -80,19 +105,8 @@ void loopCustom(){
 
     const uint16_t ch1_val = (((uint16_t)data[1] << 4) | ((uint16_t)data[2] >> 4));
     const uint16_t ch2_val = (((uint16_t)data[3] << 4) | ((uint16_t)data[4] >> 4));
-    // const uint16_t ch1_val = (((uint16_t)data[1] << 4) | data[2]) >> 4;
-    // const uint16_t ch2_val = (((uint16_t)data[3] << 4) | data[4]) >> 4;
-    //const uint16_t ch1_val = data[1] << 4 | data[2] >> 4;
-    //const uint16_t ch2_val = data[3] << 4 | data[4] >> 4;
 
-    // Serial.print(data[0], BIN);
-    // Serial.print("\t");
-
-    if(initial_tare == 0) initial_tare = (int32_t)ch2_val - ch1_val;
-    //if(tare == 0) tare = (int32_t)ch2_val - ch1_val;
     const int32_t delta = (int32_t)ch2_val - ch1_val - tare;
-    //const int32_t delta = (int32_t)ch2_val - ch1_val;
-    //const int32_t delta = (int32_t)ch1_val - ch2_val;
 
     if(samples_collected < samples_total){
       running_average = ((running_average * samples_collected) + (float)delta) / (samples_collected + 1);
@@ -150,24 +164,7 @@ void loopCustom(){
       running_average_1024 = ((running_average_1024 * (samples_collected_1024 - 1)) + (float)delta) / samples_collected_1024;
     }
 
-    // const int32_t abs_delta = abs((int32_t)ch2_val - ch1_val);
-    // const bool is_triggered = delta > 30; // abs_delta > 60;
-    // const bool is_triggered = delta > 30; // abs_delta > 60;
-    // static bool old_is_triggered = !is_triggered;
-
-    static ResinLevel old_resin_level = UNKNOWN;
-    static uint32_t last_resin_level_change = 0;
-    // ResinLevel resin_level = NORMAL;
-    // if(running_average_1024 < 26.0) resin_level = BELOW;
-    // else if(running_average_1024 > 30.0) resin_level = ABOVE;
-
-    // #define RESIN_LEVEL_MIN 26.0
-    // #define RESIN_LEVEL_MAX 30.0
-    #define RESIN_LEVEL_MIN 38.0
-    #define RESIN_LEVEL_MAX 40.0
-
-    //const ResinLevel resin_level = running_average_1024 < 25.0 ? BELOW : (running_average_1024 > 32.0 ? ABOVE : NORMAL);
-    const ResinLevel resin_level = running_average_1024 < RESIN_LEVEL_MIN ? BELOW : (running_average_1024 > RESIN_LEVEL_MAX ? ABOVE : NORMAL);
+    running_average_corrected = running_average + offset;
 
     static double max_avg = 0.0;
     static uint32_t max_avg_last_change = 0;
@@ -176,149 +173,77 @@ void loopCustom(){
       max_avg = 0.0;
     }
 
-    // if(running_average > max_avg){
-    //   max_avg_last_change = _millis;
-    //   max_avg = running_average;
-    // }
-
     if(running_average_1024 > max_avg){
       max_avg_last_change = _millis;
       max_avg = running_average_1024;
     }
 
     static uint32_t last_announce = 0; // 655356540;
-    if(_millis >= last_announce + 10){
+    if(_millis >= last_announce + 100){
+      // const double level_delta = running_average - level_optimal;
       last_announce = _millis;
+
+      if(abs(running_average_corrected - level_optimal) > level_tolerance){
+        if(running_average_corrected <= level_optimal){
+          // need more resin
+          if(running_average_corrected <= level_min){
+            new_rpm = rpm_optimal;
+          }else{
+            const double pwr = 1.0 - ((running_average_corrected - level_min) / (level_optimal - level_min));
+            new_rpm = rpm_min + ((rpm_optimal - rpm_min) * pwr);
+          }
+          if(autolevel_enabled){
+            if(motors[1].dir()) motors[1].dir(false);
+            motors[1].target_rpm = new_rpm;
+          }
+
+        }else{
+          // too much resin
+          if(running_average_corrected >= level_max){
+            new_rpm = rpm_max;
+          }else{
+            const double pwr = 1.0 - ((running_average_corrected - level_optimal) / (level_max - level_optimal));
+            new_rpm = rpm_min + ((rpm_max - rpm_min) * pwr);
+          }
+          if(autolevel_enabled){
+            if(!motors[1].dir()) motors[1].dir(true);
+            motors[1].target_rpm = new_rpm;
+          }
+
+        }
+      }else{
+        if(autolevel_enabled){
+          new_rpm = 0.0001;
+          motors[1].target_rpm = new_rpm;
+        }
+
+      }
+
+      // Serial.print(running_average_corrected); Serial.print("\t");
       // Serial.print(running_average); Serial.print("\t");
       // Serial.print(running_average_16); Serial.print("\t");
       // Serial.print(running_average_32); Serial.print("\t");
       // Serial.print(running_average_64); Serial.print("\t");
       // Serial.print(running_average_128); Serial.print("\t");
-      Serial.print(running_average_256); Serial.print("\t");
-      Serial.print(running_average_512); Serial.print("\t");
-      Serial.print(running_average_1024); Serial.print("\t");
+      // Serial.print(running_average_256); Serial.print("\t");
+      // Serial.print(running_average_512); Serial.print("\t");
+      // Serial.print(running_average_1024); Serial.print("\t");
+      // Serial.print(max_avg); Serial.print("\t");
+      //
+      // Serial.print(running_average - level_optimal); Serial.print("\t");
+      // Serial.print(new_rpm); Serial.print("\t");
 
-      Serial.print(max_avg);
-      Serial.println();
-    }
-
-    if(resin_level != old_resin_level){
-      last_resin_level_change = _millis;
-      old_resin_level = resin_level;
-      // if(resin_level == BELOW){
-      //   Serial.println("resin level BELOW threshold!");
-      // }else if(resin_level == ABOVE){
-      //   Serial.println("resin level ABOVE threshold!");
-      // }else if(resin_level == NORMAL){
-      //   Serial.println("resin level normal");
-      // }else if(resin_level == UNKNOWN){
-      //   Serial.println("resin level UNKNOWN!!");
-      // }
-    }
-
-    if(false && last_resin_level_change > 0 && _millis >= last_resin_level_change + /* 300 */ 700){
-      last_resin_level_change = 0;
-      // Serial.println("reacting to resin level change...");
-      if(resin_level == BELOW){
-        // Serial.println("    resin level BELOW threshold!");
-        pump_start(true);
-
-      }else if(resin_level == ABOVE){
-        // Serial.println("    resin level ABOVE threshold!");
-        pump_start(false);
-
-      }else if(resin_level == NORMAL){
-        // Serial.println("    resin level normal");
-        pump_stop();
-
-      }
+      // Serial.println();
     }
 
 
 
+  }
 
-    // if(resin_level != old_resin_level){
-    //   old_resin_level = resin_level;
-    //   if(resin_level == BELOW){
-    //     Serial.println("resin level BELOW threshold!");
-    //     pump_start(true);
-    //
-    //   }else if(resin_level == ABOVE){
-    //     Serial.println("resin level ABOVE threshold!");
-    //     pump_start(false);
-    //
-    //   }else if(resin_level == NORMAL){
-    //     Serial.println("resin level normal");
-    //     pump_stop();
-    //
-    //   }
-    // }
-
-    // if(is_triggered != old_is_triggered){
-    //   old_is_triggered = is_triggered;
-    //   Serial.print("is_triggered=");
-    //   Serial.println(is_triggered ? "true" : "false");
-    //
-    //   if(is_triggered){
-    //     pump_stop(true);
-    //     pump_start(false);
-    //
-    //   }else{
-    //     pump_stop(true);
-    //     pump_start(true);
-    //
-    //   }
-    // }
-
-//    digitalWrite(LED_BUILTIN, is_triggered);
-
-//    Serial.print("0\t255\t");
-//
-//    if(print_full_data){
-     // Serial.print(running_average);
-//      Serial.print("\t");
-//
-//      Serial.print(ch2_val);
-//      Serial.print("\t");
-//
-//      Serial.print(ch1_val);
-//      Serial.print("\t");
-//
-//      //Serial.print((int32_t)ch2_val - ch1_val);
-//      Serial.print(delta);
-//      Serial.print("\t");
-//      // Serial.print((int32_t)max(ch1_val, ch2_val) - min(ch1_val, ch2_val));
-//
-////      Serial.print(abs_delta);
-////      Serial.print("\t");
-//
-//      Serial.print(is_triggered ? "\t1024" : "\t0");
-//
-     // Serial.println();
-//
-//    }else{
-//      //Serial.println((int32_t)ch2_val - ch1_val);
-//      Serial.print(running_average);
-//      //Serial.print(delta);
-//      Serial.println(is_triggered ? "\t128" : "\t0");
-//
-//    }
-
-    // if(!status.DacStep2){
-    //   ch2_capdac.reg = readRegister(AD7150_REG_CH2_CAPDAC);
-    //   ch1_capdac.DacValue = ch2_capdac.DacValue;
-    //   writeRegister(AD7150_REG_CH1_CAPDAC, ch1_capdac.reg, false);
-    //
-    //   // Serial.print(ch2_capdac.DacValue);
-    //   // Serial.print("\t");
-    //   //
-    //   // Serial.print(!status.DacStep1 ? "TRUE  " : "false ");
-    //   // Serial.print(!status.DacStep2 ? "TRUE " : "false");
-    //   // Serial.print("\t");
-    // }
-
-    // delay(10);
-    // writeRegister(AD7150_REG_CONFIGURATION, MODE_SINGLE_CONV);
+  static uint32_t last_total_dist_calculated_at = 0;
+  if(_millis >= last_total_dist_calculated_at + 50){
+    last_total_dist_calculated_at = _millis;
+    total_dist = (double)motors[1].steps_total / 200.0 / motors[1].usteps;
   }
 }
 
@@ -350,24 +275,63 @@ void do_pump_start_empty(){
     do_pump_stop();
     return;
   }
-  pump_start(false);
+  pump_start(false, 60);
 }
 const char pgmstr_pump_start_empty[] PROGMEM = "pump_start_empty";
 MenuItemCallable item_pump_start_empty(pgmstr_pump_start_empty, &do_pump_start_empty, false);
 
 
+// MenuItemToggle item_auto_level(&autolevel_enabled, "Autolevel: on", "Autolevel: off", false);
+bool is_auto_level_on(){ return autolevel_enabled; }
+void do_auto_level_on(){
+  autolevel_enabled = true;
+  if(!motors[1].is_busy()){
+    motors[1].rpm(10.0);
+    motors[1].start(true);
+  }
+}
+void do_auto_level_off(){
+  autolevel_enabled = false;
+  if(motors[1].is_busy()){
+    do_pump_stop();
+  }
+}
+const char pgmstr_auto_level_on[] PROGMEM = "Autolevel: on";
+const char pgmstr_auto_level_off[] PROGMEM = "Autolevel: off";
+MenuItemToggleCallable item_auto_level(&is_auto_level_on, pgmstr_auto_level_on, pgmstr_auto_level_off, &do_auto_level_off, &do_auto_level_on);
+
+MenuItemDynamic<double> item_cap_val("Avg", running_average);
+MenuItemDynamic<double> item_cap_val_corrected("AvgCor", running_average_corrected);
+MenuItemDynamic<double> item_cap_val_128("Avg128", running_average_128);
+MenuItemDynamic<double> item_cap_val_256("Avg256", running_average_256);
+MenuItemDynamic<double> item_cap_val_512("Avg512", running_average_512);
+MenuItemDynamic<double> item_cap_val_1024("Avg1024", running_average_1024);
+MenuItemDynamic<double> item_new_rpm("New RPM", new_rpm);
+MenuItemDynamic<double> item_distance("Dist", total_dist);
+
 MenuItem* const main_menu_items[] PROGMEM = {
+  // &item_cap_val_1024,
+  // &item_cap_val_512,
+  // &item_cap_val_256,
+  // &item_cap_val_128,
+  &item_cap_val_corrected,
+  &item_new_rpm,
+  &item_auto_level,
+  &item_distance,
   &item_pump_start_fill,
   &item_pump_start_empty,
   &item_pump_stop,
   &motor_x,
   &motor_y,
+  &item_cap_val,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 
 
 
 void setupCustom(){
+  motors[1].accel = 150;
+  motors[1].decel = 400;
   motors[1].stop_on_stallguard = false;
   motors[1].driver.sgt(5);
   ch1_capdac.DacAuto = false;
@@ -395,6 +359,8 @@ void setupCustom(){
   writeRegister(AD7150_REG_POWER_DOWN_TIMER, 0x00);
   writeRegister(AD7150_REG_CH1_CAPDAC, 0xC0);
   writeRegister(AD7150_REG_CH2_CAPDAC, 0xC0);
+
+  main_menu.redraw_interval = 50;
 }
 
 
@@ -417,6 +383,85 @@ uint8_t readRegister(uint8_t reg){
   const uint8_t result = /*(uint8_t)*/Wire.read();
   Wire.endTransmission();
   return result;
+}
+
+
+void custom_gcode_autofill_on_delayed(){
+  autolevel_on_at = millis() + 3500UL; // 30000UL;
+}
+
+
+void custom_gcode_autofill_on(){
+  autolevel_on_at = 0;
+  autolevel_enabled = true;
+  if(!motors[1].is_busy()){
+    motors[1].rpm(10.0);
+    motors[1].start(true);
+  }
+}
+
+
+void custom_gcode_autofill_off(){
+  autolevel_on_at = 0;
+  autolevel_enabled = false;
+  if(motors[1].is_busy()){
+    pump_stop(false);
+  }
+}
+
+
+void custom_gcode_fill_wait(){
+  static bool fill_wait_last_state = false;
+  static uint32_t fill_wait_last_hit = 0;
+  // Serial.println("fill with wait...");
+  const bool old_autolevel_enabled = autolevel_enabled;
+  custom_gcode_autofill_on();
+  // while(running_average_corrected <= (level_optimal - level_tolerance - 0.3)){
+  //   // loopCustom();
+  //   loop();
+  //   delay(1);
+  // }
+
+  // while(1){
+  //   const uint32_t _millis = millis();
+  //   const bool state = running_average_corrected <= (level_optimal - level_tolerance - 1.3 /*0.3*/);
+  //   if(state != fill_wait_last_state){
+  //     fill_wait_last_state = state;
+  //     // fill_wait_last_hit = state ? _millis : 0;
+  //     fill_wait_last_hit = _millis;
+  //     // Serial.print("change to ");
+  //     // Serial.print(running_average_corrected);
+  //     // Serial.print(" at ");
+  //     // Serial.print(fill_wait_last_hit);
+  //     // Serial.println(state ? " true" : " false");
+  //   }
+  //
+  //   if(!state && fill_wait_last_hit > 0 && _millis > fill_wait_last_hit + 10000UL /*30000UL*/ /*120000*/){
+  //     // Serial.print("return at ");
+  //     // Serial.println(_millis);
+  //
+  //     return;
+  //   }
+  //
+  //   loop();
+  //   delay(1);
+  // }
+  while(running_average_corrected < (level_optimal - 2.3)){
+    loop();
+    delay(1);
+  }
+
+  // if(!old_autolevel_enabled) custom_gcode_autofill_off();
+  custom_gcode_autofill_off();
+}
+
+
+void custom_gcode_empty_tank(){
+  if(motors[1].is_busy()){
+    pump_stop(false);
+    return;
+  }
+  pump_start(false, 140);
 }
 
 
