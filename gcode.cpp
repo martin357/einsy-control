@@ -419,6 +419,13 @@ void gcode_set_invert_direction(){
 }
 
 
+void gcode_reset_steps_total(){
+  FOREACH_PARAM_AS_AXIS;
+  motors[index].steps_total = 0;
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
 void gcode_test_sg(){
   const uint8_t wait_duration = 50;
   float rpm = 120;

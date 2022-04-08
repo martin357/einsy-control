@@ -33,4 +33,5 @@ void gcode_beep();
 void gcode_repeat_queue();
 void gcode_set_position();
 void gcode_set_invert_direction();
+void gcode_reset_steps_total();
 void gcode_test_sg();

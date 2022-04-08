@@ -123,6 +123,7 @@ public:
   bool enabled;
   bool invert_direction;
   bool stop_on_stallguard;
+  bool stop_on_stallguard_only_when_homing;
   bool print_stallguard_to_serial;
   bool is_homed;
   bool is_homing;
@@ -162,7 +163,7 @@ public:
   volatile uint32_t last_speed_change;
 
   volatile uint8_t queue_index;
-  MotorQueueItem queue[MOTOR_QUEUE_LEN] = {0};
+  MotorQueueItem queue[MOTOR_QUEUE_LEN];
   uint8_t next_queue_index();
   int16_t next_empty_queue_index();
   void set_queue_item(uint8_t, MotorQueueItemType, uint32_t = 0);

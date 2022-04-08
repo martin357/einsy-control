@@ -88,6 +88,8 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("beep"))) gcode_beep();
   else if(strcmp_P(rx_command, F("repeat_queue"))) gcode_repeat_queue();
   else if(strcmp_P(rx_command, F("set_position"))) gcode_set_position();
+  else if(strcmp_P(rx_command, F("set_invert_direction"))) gcode_set_invert_direction();
+  else if(strcmp_P(rx_command, F("reset_steps_total"))) gcode_reset_steps_total();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   #ifdef CUSTOM_GCODE
     CUSTOM_GCODE

@@ -120,6 +120,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   enabled(false),
   invert_direction(false),
   stop_on_stallguard(true),
+  stop_on_stallguard_only_when_homing(false),
   print_stallguard_to_serial(false),
   is_homed(false),
   is_homing(false),
@@ -1066,6 +1067,12 @@ ISR(PCINT2_vect){
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(sg[i]){
       // beep(30);
+
+      if(motors[i].stop_on_stallguard_only_when_homing && !motors[i].is_homing){
+        // Serial.println(F("[sg] motor not homing, ignoring"));
+        continue;
+      }
+
       if(motors[i].ignore_stallguard_steps > 0){
         // Serial.print(F("[sg] ignore sg steps "));
         // Serial.println(motors[i].ignore_stallguard_steps);
