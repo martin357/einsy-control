@@ -644,7 +644,7 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(stop_on_stallguard);
   PRINT_VAR(running);
   PRINT_VAR(position_usteps);
-  PRINT_VAR(position());
+  PRINT_VARF(position());
   PRINT_VAR(is_homed);
   PRINT_VAR(reset_is_homed_on_power_off);
   PRINT_VAR(reset_is_homed_on_stall);
@@ -664,7 +664,7 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(planned.rpm);
   PRINT_VAR(planned.direction);
   PRINT_VAR(planned.is_homed);
-  PRINT_VAR(planned.position);
+  PRINT_VARF(planned.position);
   PRINT_VAR(planned.accel);
   PRINT_VAR(planned.decel);
   Serial.print(F("__min_rpm: ")); Serial.println(_ocr2rpm(65535, usteps));

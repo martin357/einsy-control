@@ -70,6 +70,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("accel"))) gcode_accel();
   else if(strcmp_P(rx_command, F("decel"))) gcode_decel();
   else if(strcmp_P(rx_command, F("ramp")) || strcmp_P(rx_command, F("ramp_to"))) gcode_ramp_to();
+  else if(strcmp_P(rx_command, F("do_steps_dir"))) gcode_do_steps_dir();
   else if(strcmp_P(rx_command, F("do_steps"))) gcode_do_steps();
   else if(strcmp_P(rx_command, F("move_rot"))) gcode_move_rot();
   else if(strcmp_P(rx_command, F("move_rot_to"))) gcode_move_rot_to();
@@ -80,6 +81,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("print_queue"))) gcode_print_queue();
   else if(strcmp_P(rx_command, F("empty_queue"))) gcode_empty_queue();
   else if(strcmp_P(rx_command, F("print_info"))) gcode_print_info();
+  else if(strcmp_P(rx_command, F("pos_usteps"))) gcode_pos_usteps();
   else if(strcmp_P(rx_command, F("pos"))) gcode_pos();
   else if(strcmp_P(rx_command, F("stop_on_stallguard"))) gcode_stop_on_stallguard();
   else if(strcmp_P(rx_command, F("print_stallguard"))) gcode_print_stallguard();
@@ -90,6 +92,9 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("set_position"))) gcode_set_position();
   else if(strcmp_P(rx_command, F("set_invert_direction"))) gcode_set_invert_direction();
   else if(strcmp_P(rx_command, F("reset_steps_total"))) gcode_reset_steps_total();
+  else if(strcmp_P(rx_command, F("is_busy"))) gcode_is_busy();
+  else if(strcmp_P(rx_command, F("is_homed"))) gcode_is_homed();
+  else if(strcmp_P(rx_command, F("is_homing"))) gcode_is_homing();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   #ifdef CUSTOM_GCODE
     CUSTOM_GCODE

@@ -6,9 +6,13 @@
 
 #define THERMISTOR_CNT  5
 #define VOLTAGE_ADC_CNT 3
+#define FLOAT_DECIMALS  6
 
 #define _PRINT_VAR(v) #v
 #define PRINT_VAR(v) Serial.print(F(_PRINT_VAR(v) "=")); Serial.println(v);
+
+#define _PRINT_VARF(v) #v
+#define PRINT_VARF(v) Serial.print(F(_PRINT_VARF(v) "=")); Serial.println(v, FLOAT_DECIMALS);
 
 // #define DEBUG_PRINT
 #ifdef DEBUG_PRINT

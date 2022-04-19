@@ -143,6 +143,22 @@ void gcode_do_steps(){
 }
 
 
+void gcode_do_steps_dir(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  if(value != 0){
+    const bool direction = value > 0;
+    if(direction != motors[index].planned.direction){
+      ADD_TO_QUEUE(SET_DIRECTION, direction);
+      motors[index].planned.direction = direction;
+    }
+    ADD_TO_QUEUE(DO_STEPS, value < 0 ? -value : value);
+    motors[index].planned.position += direction ?
+      motors[index].usteps2rot(value) : -motors[index].usteps2rot(value);
+  }
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
 void gcode_move_rot(){
   float rpm = 0.0;
 
@@ -333,12 +349,16 @@ void gcode_print_info(){
 }
 
 
+void gcode_pos_usteps(){
+  FOREACH_PARAM_AS_AXIS;
+  Serial.println(motors[index].position_usteps);
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
 void gcode_pos(){
   FOREACH_PARAM_AS_AXIS;
-  Serial.print(F("position "));
-  Serial.print(motors[index].axis);
-  Serial.print(F(": "));
-  Serial.println(motors[index].position());
+  Serial.println(motors[index].position(), FLOAT_DECIMALS);
   FOREACH_PARAM_AS_AXIS_END;
 }
 
@@ -422,6 +442,27 @@ void gcode_set_invert_direction(){
 void gcode_reset_steps_total(){
   FOREACH_PARAM_AS_AXIS;
   motors[index].steps_total = 0;
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_is_homed(){
+  FOREACH_PARAM_AS_AXIS;
+  Serial.println(motors[index].is_homed);
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_is_busy(){
+  FOREACH_PARAM_AS_AXIS;
+  Serial.println(motors[index].is_busy());
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_is_homing(){
+  FOREACH_PARAM_AS_AXIS;
+  Serial.println(motors[index].is_homing);
   FOREACH_PARAM_AS_AXIS_END;
 }
 
