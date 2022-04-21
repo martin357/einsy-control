@@ -81,65 +81,37 @@ ISR(PCINT0_vect){
     !(PINB & (1 << PINB4)), // false, // E0_MIN
   };
 
-  Serial.print("SG Cust Int ");
-  Serial.print(sg[0]);
-  Serial.print(sg[1]);
-  Serial.print(sg[2]);
-  Serial.println(sg[3]);
+  // Serial.print("SG Cust Int ");
+  // Serial.print(sg[0]);
+  // Serial.print(sg[1]);
+  // Serial.print(sg[2]);
+  // Serial.println(sg[3]);
 
   if(!sg[0] && !sg[1] && !sg[2] && !sg[3]) return;
 
-  // beep(30);
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(sg[i]){
-      Serial.print(F("[sg] index "));
-      Serial.println(i);
-
-      if(!motors[i].is_homing){
-        Serial.println(F("[sg] motor not homing, ignoring"));
-        continue;
-      }
-
-      if(motors[i].ignore_stallguard_steps > 0){
-        Serial.print(F("[sg] ignore sg steps "));
-        Serial.println(motors[i].ignore_stallguard_steps);
-        continue;
-      }
+      if(!motors[i].is_homing) continue;
+      if(motors[i].ignore_stallguard_steps > 0) continue;
 
       motors[i].stallguard_triggered = true;
       if(motors[i].is_expecting_stallguard()){
-        Serial.println("[sg] is expected");
-
         motors[i].running = false;
         motors[i].pause_steps = true;
         motors[i].steps_to_do = 0;
-        Serial.print("[sg] ");
         motors[i].process_next_queue_item();
-        Serial.print("s2d=");
-        Serial.println(motors[i].steps_to_do);
         motors[i].pause_steps = false;
 
       }else{
-        Serial.println("[sg] unexpected");
-
-        // motors[i].stallguard_triggered = true;
-        // if(motors[i].stop_on_stallguard) motors[i].stop();
-        if(motors[i].stop_on_stallguard){
-          motors[i].stop();
-          Serial.println("[sg] stop motor");
-        }
+        if(motors[i].stop_on_stallguard) motors[i].stop();
         if(motors[i].reset_is_homed_on_stall){
           motors[i].is_homed = false;
           motors[i].planned.is_homed = false;
         }
-
       }
 
-      Serial.print("[sg] is_triggered=");
-      Serial.println((uint8_t)motors[i].stallguard_triggered);
     }
   }
-
 }
 
 
@@ -403,8 +375,17 @@ MenuItemCallable item_home_weak(pgmstr_home_weak, &do_home_weak, false);
 
 
 void do_home_tilt(){
+  while(!(PINB & (1 << PINB4))){
+    processCommand(F("move_rot e0.3 f50"));
+    processCommand(F("start e0"));
+    delay(10);
+    processCommand(F("wait_for_motor e"));
+  }
+
   processCommand(F("autohome e"));
-  processCommand(F("move e3.8 f50"));
+  // processCommand(F("move e3.8 f50"));
+  processCommand(F("move_rot e-0.1 f50"));
+  processCommand(F("set_position e0"));
   processCommand(F("start e0"));
   delay(10);
   processCommand(F("wait_for_motor e"));
@@ -413,6 +394,11 @@ void do_home_tilt(){
 void custom_gcode_home_tilt(){ do_home_tilt(); }
 const char pgmstr_home_tilt[] PROGMEM = "home tilt";
 MenuItemCallable item_home_tilt(pgmstr_home_tilt, &do_home_tilt, false);
+
+
+void custom_gcode_is_endstop_triggered(){
+  Serial.println(!(PINB & (1 << PINB4)));
+}
 
 
 

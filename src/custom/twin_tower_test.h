@@ -20,11 +20,13 @@
 
   extern void custom_gcode_home_weak();
   extern void custom_gcode_home_tilt();
+  extern void custom_gcode_is_endstop_triggered();
   // extern void custom_gcode_autofill_on();
 
   #define CUSTOM_GCODE \
     else if(strcmp_P(rx_command, F("home_weak"))) custom_gcode_home_weak();  \
     else if(strcmp_P(rx_command, F("home_tilt"))) custom_gcode_home_tilt();  \
+    else if(strcmp_P(rx_command, F("is_endstop_triggered"))) custom_gcode_is_endstop_triggered();  \
   //   else if(strcmp_P(rx_command, F("autofill_on"))) custom_gcode_autofill_on();  \
   //   else if(strcmp_P(rx_command, F("autofill_off"))) custom_gcode_autofill_off();  \
   //   else if(strcmp_P(rx_command, F("fill_wait"))) custom_gcode_fill_wait();  \

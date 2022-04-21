@@ -70,11 +70,11 @@ void gcode_stop(){
 
 
 void gcode_halt(){
-  FOREACH_PARAM_AS_AXIS;
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   motors[index].stop();
-  motors[index].off();
+  if(!value) motors[index].off();
   motors[index].empty_queue();
-  FOREACH_PARAM_AS_AXIS_END;
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
 
@@ -136,8 +136,7 @@ void gcode_do_steps(){
   FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE;
   if(value > 0){
     ADD_TO_QUEUE(DO_STEPS, value);
-    motors[index].planned.position += motors[index].planned.direction ?
-      motors[index].usteps2rot(value) : -motors[index].usteps2rot(value);
+    motors[index].planned.position_usteps += motors[index].planned.direction ? value : -value;
   }
   FOREACH_PARAM_AS_AXIS_WITH_UNSIGNED_VALUE_END;
 }
@@ -152,8 +151,41 @@ void gcode_do_steps_dir(){
       motors[index].planned.direction = direction;
     }
     ADD_TO_QUEUE(DO_STEPS, value < 0 ? -value : value);
-    motors[index].planned.position += direction ?
-      motors[index].usteps2rot(value) : -motors[index].usteps2rot(value);
+    motors[index].planned.position_usteps += direction ? value : -value;
+  }
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_do_steps_to(){
+  float rpm = 0.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'f': rpm = value; break;
+      }
+
+    }
+  }
+
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  const int32_t steps_delta = value - motors[index].planned.position_usteps;
+  if(steps_delta != 0){
+    const bool direction = steps_delta > 0;
+    if(rpm > 0.0 && rpm != motors[index].planned.rpm){
+      ADD_TO_QUEUE(SET_RPM, rpm * 100.0);
+      motors[index].planned.rpm = value;
+    }
+    if(direction != motors[index].planned.direction){
+      ADD_TO_QUEUE(SET_DIRECTION, direction);
+      motors[index].planned.direction = direction;
+    }
+    ADD_TO_QUEUE(DO_STEPS, steps_delta < 0 ? -steps_delta : steps_delta);
+    motors[index].planned.position_usteps = value;
   }
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
@@ -424,11 +456,24 @@ void gcode_repeat_queue(){
 
 void gcode_set_position(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  const bool negative = value < 0;
   ADD_TO_QUEUE(SET_POSITION, value);
   ADD_TO_QUEUE(SET_IS_HOMED, 1);
-  motors[index].planned.position = value;
+  motors[index].planned.position_usteps = negative ? \
+    -(motors[index].rot2usteps(value)) : motors[index].rot2usteps(value);
   motors[index].planned.is_homed = true;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_set_position_usteps(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  const bool negative = value < 0;
+  ADD_TO_QUEUE(SET_POSITION, motors[index].usteps2rot(value)); // TODO do it the correct way!!!
+  ADD_TO_QUEUE(SET_IS_HOMED, 1);
+  motors[index].planned.position_usteps = value;
+  motors[index].planned.is_homed = true;
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
 
@@ -442,6 +487,13 @@ void gcode_set_invert_direction(){
 void gcode_reset_steps_total(){
   FOREACH_PARAM_AS_AXIS;
   motors[index].steps_total = 0;
+  FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_sync_position(){
+  FOREACH_PARAM_AS_AXIS;
+  motors[index].planned.position_usteps = motors[index].position_usteps;
   FOREACH_PARAM_AS_AXIS_END;
 }
 

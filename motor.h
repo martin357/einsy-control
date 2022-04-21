@@ -108,6 +108,8 @@ public:
   float usteps2rot(uint32_t);
   uint32_t rpm2ocr(float);
   uint32_t rpm2sps(float);
+  uint32_t rps2ocr(float);
+  uint32_t rps2sps(float);
   float position();
   const char axis;
   uint8_t step_pin;
@@ -129,6 +131,7 @@ public:
   bool is_homing;
   bool reset_is_homed_on_power_off;
   bool reset_is_homed_on_stall;
+  uint16_t usteps_per_unit;
   uint32_t inactivity_timeout;
   uint32_t stop_at_millis;
   volatile int32_t position_usteps;
@@ -142,9 +145,15 @@ public:
     float rpm;
     bool direction;
     bool is_homed;
-    float position;
+    int32_t position_usteps;
     float accel;
     float decel;
+    Motor* _parent;
+    float position(){
+      const bool negative = position_usteps < 0;
+      const uint32_t steps = negative ? -position_usteps : position_usteps;
+      return negative ? -(_parent->usteps2rot(steps)) : _parent->usteps2rot(steps);
+    }
   } planned;
   struct {
     bool enabled;

@@ -71,6 +71,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("decel"))) gcode_decel();
   else if(strcmp_P(rx_command, F("ramp")) || strcmp_P(rx_command, F("ramp_to"))) gcode_ramp_to();
   else if(strcmp_P(rx_command, F("do_steps_dir"))) gcode_do_steps_dir();
+  else if(strcmp_P(rx_command, F("do_steps_to"))) gcode_do_steps_to();
   else if(strcmp_P(rx_command, F("do_steps"))) gcode_do_steps();
   else if(strcmp_P(rx_command, F("move_rot"))) gcode_move_rot();
   else if(strcmp_P(rx_command, F("move_rot_to"))) gcode_move_rot_to();
@@ -89,9 +90,11 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("wait"))) gcode_wait();
   else if(strcmp_P(rx_command, F("beep"))) gcode_beep();
   else if(strcmp_P(rx_command, F("repeat_queue"))) gcode_repeat_queue();
+  else if(strcmp_P(rx_command, F("set_position_usteps"))) gcode_set_position_usteps();
   else if(strcmp_P(rx_command, F("set_position"))) gcode_set_position();
   else if(strcmp_P(rx_command, F("set_invert_direction"))) gcode_set_invert_direction();
   else if(strcmp_P(rx_command, F("reset_steps_total"))) gcode_reset_steps_total();
+  else if(strcmp_P(rx_command, F("sync_position"))) gcode_sync_position();
   else if(strcmp_P(rx_command, F("is_busy"))) gcode_is_busy();
   else if(strcmp_P(rx_command, F("is_homed"))) gcode_is_homed();
   else if(strcmp_P(rx_command, F("is_homing"))) gcode_is_homing();

@@ -126,6 +126,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   is_homing(false),
   reset_is_homed_on_power_off(true),
   reset_is_homed_on_stall(true),
+  usteps_per_unit(0),
   inactivity_timeout(120000),
   stop_at_millis(0),
   position_usteps(0),
@@ -135,11 +136,11 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   steps_total(0),
   ignore_stallguard_steps(0),
   last_movement(0),
-  planned({0.0, false, false, 0.0, 120.0, 120.0}),
+  planned({0.0, false, false, 0, 120.0, 120.0, nullptr}),
   autohome({false, false, 120.0, 40.0, 0.1, 0.0, 50}),
   target_rpm(-1.0),
-  accel(120),
-  decel(120),
+  accel(120.0),
+  decel(120.0),
   last_speed_change(last_speed_change),
   queue_index(0),
   _rpm(0.0),
@@ -157,6 +158,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
     digitalWriteExt(dir_pin, LOW);
     digitalWriteExt(step_pin, LOW);
     digitalWriteExt(cs_pin, HIGH);
+    planned._parent = this;
   }
 
 
@@ -331,8 +333,18 @@ uint32_t Motor::rpm2ocr(float rpm){
 }
 
 
-uint32_t Motor::rpm2sps(float rps){
-  return FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps / 60;
+uint32_t Motor::rpm2sps(float rpm){
+  return FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rpm / 60;
+}
+
+
+uint32_t Motor::rps2ocr(float rps){
+  return _rps2ocr(rps, usteps);
+}
+
+
+uint32_t Motor::rps2sps(float rps){
+  return FSTEPS_PER_REVOLUTION * (usteps > 0 ? usteps : 1) * rps;
 }
 
 
@@ -538,9 +550,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       break;
     }
     case MotorQueueItemType::SET_POSITION: {
-      // position = *reinterpret_cast<float*>(&queue[next].value);
       position_usteps = rot2usteps(*reinterpret_cast<float*>(&queue[next].value));
-      // planned.position = position;
 
       SERIAL_PRINT(F("[pnq] set position to "));
       SERIAL_PRINTLN(position());
@@ -664,7 +674,8 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(planned.rpm);
   PRINT_VAR(planned.direction);
   PRINT_VAR(planned.is_homed);
-  PRINT_VARF(planned.position);
+  PRINT_VARF(planned.position());
+  PRINT_VAR(planned.position_usteps);
   PRINT_VAR(planned.accel);
   PRINT_VAR(planned.decel);
   Serial.print(F("__min_rpm: ")); Serial.println(_ocr2rpm(65535, usteps));
@@ -678,6 +689,7 @@ void Motor::plan_steps(uint32_t){
 
 void Motor::plan_rotations(float rotations, float rpm){
   const bool rot_direction = rotations > 0.0;
+  const uint32_t steps = rot2usteps(rotations);
   uint8_t next = next_empty_queue_index();
   if(rot_direction != planned.direction){
     set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, rot_direction);
@@ -687,13 +699,13 @@ void Motor::plan_rotations(float rotations, float rpm){
     set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm * 100);
     planned.rpm = rpm;
   }
-  set_queue_item(next++, MotorQueueItemType::DO_STEPS, rot2usteps(rotations));
-  planned.position += rotations;
+  set_queue_item(next++, MotorQueueItemType::DO_STEPS, steps);
+  planned.position_usteps += rot_direction ? steps : -steps;
 }
 
 
 void Motor::plan_rotations_to(float rotations, float rpm){
-  const float rot_delta = rotations - planned.position;
+  const float rot_delta = rotations - planned.position();
   if(rot_delta != 0.0){
     if(planned.is_homed){
       plan_rotations(rot_delta, rpm);
@@ -791,7 +803,7 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
   set_queue_item(next++, MotorQueueItemType::SET_IS_HOMING, 0);
 
   planned.is_homed = true;
-  planned.position = 0.0;
+  planned.position_usteps = 0;
 
 }
 
@@ -861,14 +873,14 @@ void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float 
   set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_from * 100);
   set_queue_item(next++, MotorQueueItemType::DO_STEPS, decel_steps);
 
-  planned.position += rotations;
+  planned.position_usteps += rotations < 0.0 ? -steps : steps;
   planned.rpm = rpm_from;
 
 }
 
 
 void Motor::plan_ramp_move_to(float rotations, float rpm_from, float rpm_to, float accel, float decel){
-  const float rot_delta = rotations - planned.position;
+  const float rot_delta = rotations - planned.position();
   if(rot_delta != 0.0){
     if(planned.is_homed){
       plan_ramp_move(rot_delta, rpm_from, rpm_to, accel, decel);
