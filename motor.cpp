@@ -103,9 +103,10 @@ float _usteps2rot(uint32_t value, uint16_t usteps){
 
 
 
-Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_pin, uint8_t diag_pin,
-    uint8_t* step_port, uint8_t step_bit, uint16_t* timer_compare_port, uint16_t* timer_counter_port,
-    uint8_t* timer_enable_port, uint8_t timer_enable_bit, const char axis):
+Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_pin,
+    uint8_t diag_pin, volatile uint8_t* step_port, uint8_t step_bit,
+    volatile uint16_t* timer_compare_port, volatile uint16_t* timer_counter_port,
+    volatile uint8_t* timer_enable_port, uint8_t timer_enable_bit, const char axis):
   axis(axis),
   step_pin(step_pin),
   dir_pin(dir_pin),
@@ -117,7 +118,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   driver(cs_pin, 0.2f),
   usteps(16),
   pause_steps(false),
-  enabled(false),
+  started(false),
   invert_direction(false),
   stop_on_stallguard(true),
   stop_on_stallguard_only_when_homing(false),
@@ -137,10 +138,12 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   ignore_stallguard_steps(0),
   last_movement(0),
   planned({0.0, false, false, 0, 120.0, 120.0, nullptr}),
-  autohome({false, false, 120.0, 40.0, 0.1, 0.0, 50}),
+  autohome({false, false, 120.0, 40.0, 0.1, 0.1, 0.0, 50}),
   target_rpm(-1.0),
   accel(120.0),
   decel(120.0),
+  default_ramp_rpm_from(0.0),
+  default_ramp_rpm_to(0.0),
   last_speed_change(last_speed_change),
   queue_index(0),
   _rpm(0.0),
@@ -168,8 +171,8 @@ void Motor::on(){
 
 
 void Motor::off(){
-  digitalWriteExt(enable_pin, HIGH);
   stop();
+  digitalWriteExt(enable_pin, HIGH);
   if(reset_is_homed_on_power_off){
     is_homed = false;
     planned.is_homed = false;
@@ -185,7 +188,7 @@ bool Motor::is_on(){
 void Motor::start(bool start_running){
   if(!is_on()) on();
   running = start_running;
-  enabled = true;
+  started = true;
   *timer_counter_port = 0;
   *timer_enable_port |= (1 << timer_enable_bit);
   // Serial.println(F("[motor] start"));
@@ -194,7 +197,7 @@ void Motor::start(bool start_running){
 
 void Motor::stop(){
   *timer_enable_port = 0;
-  enabled = false;
+  started = false;
   running = false;
   steps_to_do = 0;
   ramp_off();
@@ -207,7 +210,7 @@ void Motor::step(){
   delayMicroseconds(2);
   *step_port ^= 1 << step_bit;
   steps_total++;
-  position_usteps += _dir ? 1 : -1;
+  position_usteps += (invert_direction ? !(_dir) : _dir) ? 1 : -1;
   if(ignore_stallguard_steps > 0) ignore_stallguard_steps--;
 }
 
@@ -290,9 +293,17 @@ void Motor::ramp_off(){
   last_speed_change = millis();
 }
 
-
+// TODO count total_steps according to direction/invert_direction
 bool Motor::is_busy(){
   const uint8_t next = next_queue_index();
+  // Serial.print("is_busy");
+  // Serial.print(" ps "); Serial.print(pause_steps ? "1" : "0");
+  // Serial.print(", r "); Serial.print(running ? "1" : "0");
+  // Serial.print(", std "); Serial.print(steps_to_do > 0 ? "1" : "0"); Serial.print(" ("); Serial.print(steps_to_do); Serial.print(")");
+  // Serial.print(", wip "); Serial.print((queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed) ? "1" : "0");
+  // Serial.print(", noop "); Serial.print((queue[next].type != MotorQueueItemType::NOOP && !queue[next].processed) ? "1" : "0");
+  // Serial.println();
+
   return pause_steps || running || steps_to_do > 0 ||
     (queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS &&
       !queue[queue_index].processed) ||
@@ -557,6 +568,11 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       process_next = true;
       break;
     }
+    case MotorQueueItemType::SET_POSITION_USTEPS: {
+      position_usteps = queue[next].value;
+      process_next = true;
+      break;
+    }
     case MotorQueueItemType::RESET_STALLGUARD_TRIGGERED: {
       stallguard_triggered = false;
 
@@ -592,6 +608,21 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
 
       SERIAL_PRINT(F("[pnq] set is_homing "));
       SERIAL_PRINTLN(queue[next].value ? "true" : "false");
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::SET_STALLGUARD_THRESHOLD: {
+      driver.sgt(queue[next].value);
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::SET_CURRENT: {
+      driver.rms_current(queue[next].value);
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::SET_MICROSTEPPING: {
+      microsteps(queue[next].value);
       process_next = true;
       break;
     }
@@ -649,7 +680,7 @@ void Motor::debugPrintInfo(){
   Serial.print(F("Motor: ")); Serial.println(axis);
   PRINT_VAR(pause_steps);
   PRINT_VAR(usteps);
-  PRINT_VAR(enabled);
+  PRINT_VAR(started);
   PRINT_VAR(dir());
   PRINT_VAR(stop_on_stallguard);
   PRINT_VAR(running);
@@ -663,6 +694,8 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(target_rpm);
   PRINT_VAR(accel);
   PRINT_VAR(decel);
+  PRINT_VAR(default_ramp_rpm_from);
+  PRINT_VAR(default_ramp_rpm_to);
   PRINT_VAR(_rpm);
   PRINT_VAR(_dir);
   PRINT_VAR(queue_index);
@@ -671,6 +704,14 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(stop_at_millis);
   PRINT_VAR(last_speed_change);
   PRINT_VAR(last_movement);
+  PRINT_VAR(autohome.enabled);
+  PRINT_VAR(autohome.direction);
+  PRINT_VAR(autohome.initial_rpm);
+  PRINT_VAR(autohome.final_rpm);
+  PRINT_VAR(autohome.initial_backstep_rot);
+  PRINT_VAR(autohome.final_backstep_rot);
+  PRINT_VAR(autohome.ramp_from);
+  PRINT_VAR(autohome.wait_duration);
   PRINT_VAR(planned.rpm);
   PRINT_VAR(planned.direction);
   PRINT_VAR(planned.is_homed);
@@ -729,25 +770,25 @@ void Motor::plan_rotations_to(float rotations, float rpm){
 }
 
 
-void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float backstep_rot, float ramp_from, uint16_t wait_duration){
-  const uint32_t backstep_usteps = rot2usteps(backstep_rot);
-  const uint32_t ignore_stallguard_steps = backstep_usteps;
+void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float initial_backstep_rot, float final_backstep_rot, float ramp_from, uint16_t wait_duration){
+  const uint32_t initial_backstep_usteps = rot2usteps(initial_backstep_rot);
+  const uint32_t final_backstep_usteps = rot2usteps(final_backstep_rot);
   uint8_t next = next_empty_queue_index();
 
   set_queue_item(next++, MotorQueueItemType::SET_IS_HOMING, 1);
 
-  if(backstep_rot > 0.0){
+  if(initial_backstep_rot > 0.0){
     // backstep
-    if(initial_rpm != planned.rpm){
+    // if(initial_rpm != planned.rpm){
       set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
       planned.rpm = initial_rpm;
-    }
+    // }
     if(!direction != planned.direction){
       set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
       planned.direction = !direction;
     }
-    // set_queue_item(next++, MotorQueueItemType::ADD_IGNORE_STALLGUARD_STEPS, ignore_stallguard_steps);
-    set_queue_item(next++, MotorQueueItemType::DO_STEPS, backstep_usteps);
+    // set_queue_item(next++, MotorQueueItemType::ADD_IGNORE_STALLGUARD_STEPS, initial_backstep_usteps);
+    set_queue_item(next++, MotorQueueItemType::DO_STEPS, initial_backstep_usteps);
     set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
   }
 
@@ -757,50 +798,78 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
     planned.direction = direction;
   }
   if(ramp_from > 0.0){
-    if(ramp_from != planned.rpm){
+    // if(ramp_from != planned.rpm){
       set_queue_item(next++, MotorQueueItemType::SET_RPM, ramp_from * 100);
       planned.rpm = ramp_from;
-    }
+    // }
     if(initial_rpm != planned.rpm){
       set_queue_item(next++, MotorQueueItemType::RAMP_TO, initial_rpm * 100);
       planned.rpm = initial_rpm;
     }
+  }else{
+    // if(initial_rpm != planned.rpm){
+      set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
+      planned.rpm = initial_rpm;
+    // }
+  }
+  if(initial_backstep_rot <= 0.0){
+    // why the fuck is this needed here?
+    // without any stepls planned, motor won't start
+    // TODO: fix this crap!
+    set_queue_item(next++, MotorQueueItemType::DO_STEPS, 1);
   }
   set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
   set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
 
   if(final_rpm > 0.0){
-    if(backstep_rot > 0.0){
+    if(final_backstep_rot > 0.0){
       // backstep again
-      if(final_rpm != planned.rpm){
-        set_queue_item(next++, MotorQueueItemType::RAMP_TO, final_rpm * 100);
-        planned.rpm = final_rpm;
+      if(ramp_from > 0.0){
+        // if(ramp_from != planned.rpm){
+          set_queue_item(next++, MotorQueueItemType::SET_RPM, ramp_from * 100);
+          planned.rpm = ramp_from;
+        // }
+        if(final_rpm != planned.rpm){
+          set_queue_item(next++, MotorQueueItemType::RAMP_TO, final_rpm * 100);
+          planned.rpm = final_rpm;
+        }
+      }else{
+        // if(final_rpm != planned.rpm){
+          set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
+          planned.rpm = final_rpm;
+        // }
       }
       if(!direction != planned.direction){
         set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
         planned.direction = !direction;
       }
-      set_queue_item(next++, MotorQueueItemType::ADD_IGNORE_STALLGUARD_STEPS, ignore_stallguard_steps);
-      set_queue_item(next++, MotorQueueItemType::DO_STEPS, backstep_usteps);
+      set_queue_item(next++, MotorQueueItemType::ADD_IGNORE_STALLGUARD_STEPS, final_backstep_usteps);
+      set_queue_item(next++, MotorQueueItemType::DO_STEPS, final_backstep_usteps);
       set_queue_item(next++, MotorQueueItemType::WAIT, wait_duration);
     }
 
     // slow forward until stallguard
-    if(final_rpm != planned.rpm){
+    // if(final_rpm != planned.rpm){
       set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
       planned.rpm = final_rpm;
-    }
+    // }
     if(direction != planned.direction){
       set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
       planned.direction = direction;
+    }
+    if(final_backstep_rot <= 0.0){
+      // why the fuck is this needed here?
+      // without any stepls planned, motor won't start
+      // TODO: fix this crap!
+      set_queue_item(next++, MotorQueueItemType::DO_STEPS, 1);
     }
     set_queue_item(next++, MotorQueueItemType::RUN_UNTIL_STALLGUARD);
     set_queue_item(next++, MotorQueueItemType::RESET_STALLGUARD_TRIGGERED);
   }
 
-  set_queue_item(next++, MotorQueueItemType::SET_IS_HOMED, 1);
-  set_queue_item(next++, MotorQueueItemType::SET_POSITION, 0);
   set_queue_item(next++, MotorQueueItemType::SET_IS_HOMING, 0);
+  set_queue_item(next++, MotorQueueItemType::SET_POSITION, 0);
+  set_queue_item(next++, MotorQueueItemType::SET_IS_HOMED, 1);
 
   planned.is_homed = true;
   planned.position_usteps = 0;
@@ -809,14 +878,14 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
 
 
 void Motor::plan_autohome(){
-  plan_home(autohome.direction, autohome.initial_rpm, autohome.final_rpm, autohome.backstep_rot, autohome.ramp_from, autohome.wait_duration);
+  plan_home(autohome.direction, autohome.initial_rpm, autohome.final_rpm, autohome.initial_backstep_rot, autohome.final_backstep_rot, autohome.ramp_from, autohome.wait_duration);
 }
 
 
-void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float accel, float decel){
+void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float accel, float decel){
   if(accel == 0.0) accel = planned.accel;
   if(decel == 0.0) decel = accel;
-  const bool rot_direction = rotations > 0.0;
+  const bool rot_direction = usteps > 0.0;
   const float delta_rpm = rpm_to - rpm_from;
   const uint32_t sps_from = rpm2sps(rpm_from);
   const uint32_t sps_to = rpm2sps(rpm_to);
@@ -825,11 +894,11 @@ void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float 
   const uint32_t decel_sps = rpm2sps(decel);
   const float accel_t = delta_rpm / accel;
   const float decel_t = delta_rpm / decel;
-  const uint32_t steps = rot2usteps(rotations);
+  const uint32_t steps = usteps < 0 ? -usteps : usteps;
   uint32_t decel_steps = (unsigned long)round(((float)delta_sps * delta_sps) / (2.0 * decel_sps));
 
   // Serial.println(F("[[motor]] plan_ramp_move:"));
-  // PRINT_VAR(rotations);
+  // PRINT_VAR(usteps);
   // PRINT_VAR(rpm_from);
   // PRINT_VAR(rpm_to);
   // PRINT_VAR(accel);
@@ -873,22 +942,28 @@ void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float 
   set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_from * 100);
   set_queue_item(next++, MotorQueueItemType::DO_STEPS, decel_steps);
 
-  planned.position_usteps += rotations < 0.0 ? -steps : steps;
+  planned.position_usteps += usteps < 0.0 ? -steps : steps;
   planned.rpm = rpm_from;
 
 }
 
 
-void Motor::plan_ramp_move_to(float rotations, float rpm_from, float rpm_to, float accel, float decel){
-  const float rot_delta = rotations - planned.position();
-  if(rot_delta != 0.0){
+void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float accel, float decel){
+  const int32_t usteps = rotations < 0.0 ? -rot2usteps(rotations) : rot2usteps(rotations);
+  plan_ramp_move(usteps, rpm_from, rpm_to, accel, decel);
+}
+
+
+void Motor::plan_ramp_move_to(int32_t usteps, float rpm_from, float rpm_to, float accel, float decel){
+  const int32_t usteps_delta = usteps - planned.position_usteps;
+  if(usteps_delta != 0){
     if(planned.is_homed){
-      plan_ramp_move(rot_delta, rpm_from, rpm_to, accel, decel);
+      plan_ramp_move(usteps_delta, rpm_from, rpm_to, accel, decel);
 
     }else{
       if(autohome.enabled){
         plan_autohome();
-        plan_ramp_move(rot_delta, rpm_from, rpm_to, accel, decel);
+        plan_ramp_move(usteps_delta, rpm_from, rpm_to, accel, decel);
         Serial.print(F("axis "));
         Serial.print(axis);
         Serial.println(F(" is autohoming first."));
@@ -901,6 +976,12 @@ void Motor::plan_ramp_move_to(float rotations, float rpm_from, float rpm_to, flo
       }
     }
   }
+}
+
+
+void Motor::plan_ramp_move_to(float rotations, float rpm_from, float rpm_to, float accel, float decel){
+  const int32_t usteps = rotations < 0.0 ? -rot2usteps(rotations) : rot2usteps(rotations);
+  plan_ramp_move_to(usteps, rpm_from, rpm_to, accel, decel);
 }
 
 

@@ -8,9 +8,11 @@
 
 
 // custom HEATBED stuff
+uint32_t last_on_time_sec_increment_at = 0;
+
 bool heating_is_on = false;
 bool is_heater_on(){ return heating_is_on; }
-void do_heater_on(){ heating_is_on = true; }
+void do_heater_on(){ last_on_time_sec_increment_at = millis(); heating_is_on = true; }
 void do_heater_off(){ digitalWriteExt(PIN_HEATER, LOW); heating_is_on = false; }
 const char pgmstr_heater_on[] PROGMEM = "Heater: on";
 const char pgmstr_heater_off[] PROGMEM = "Heater: off";
@@ -25,6 +27,7 @@ MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
 
 uint32_t last_temp_change = 0;
 uint32_t last_no_therm_beep = 0;
+uint16_t on_time_sec = 0;
 
 
 void loopCustom(){
@@ -69,6 +72,10 @@ void loopCustom(){
     last_temp_change = _millis;
   }
 
+  if(heating_is_on && _millis >= last_on_time_sec_increment_at + 1000){
+    last_on_time_sec_increment_at = _millis;
+    on_time_sec++;
+  }
 }
 
 
@@ -82,6 +89,10 @@ MenuItemDynamic<double> item_volt_pwr("Pwr voltage", voltage[0]);
 MenuItemDynamic<double> item_volt_bed("Bed voltage", voltage[1]);
 MenuItemDynamic<double> item_volt_ir("IR voltage", voltage[2]);
 
+MenuItemDynamic<uint16_t> item_on_time_sec("On duration:", on_time_sec);
+void do_reset_on_time_sec(){ on_time_sec = 0; }
+const char pgmstr_reset_on_time_sec[] PROGMEM = "Reset on duration";
+MenuItemCallable item_reset_on_time_sec(pgmstr_reset_on_time_sec, &do_reset_on_time_sec, false);
 
 
 void _delay(uint32_t ms){
@@ -106,6 +117,8 @@ MenuItem* const main_menu_items[] PROGMEM = {
   &item_volt_pwr,
   &item_volt_bed,
   &item_volt_ir,
+  &item_on_time_sec,
+  &item_reset_on_time_sec,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 

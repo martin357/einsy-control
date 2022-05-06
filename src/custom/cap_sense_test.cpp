@@ -9,6 +9,7 @@
 
 #include "../ad7150_registers.h"
 #include "../ad7150.h"
+#include "../kalmanfilter.h"
 
 uint8_t skip_samples = 64;
 bool print_full_data = false;
@@ -21,15 +22,15 @@ uint16_t samples_total = 128; // 256; // 6; // *32;
 uint16_t samples_collected = 0;
 double running_average;
 double running_average_corrected;
-double offset = 94.0;
+// double offset = 94.0; // moved to permanent_storage
 // double offset = -8.5;
 
 int32_t last_autolevel_tick = 0;
 bool autolevel_enabled = false;
 double level_tolerance = 0.5; // 0.3;
-double level_min = 1.0;
-double level_optimal = 4.5;
-double level_max = 9.0; // 7.0;
+// double level_min = 1.0;
+// double level_optimal = 4.5;
+// double level_max = 9.0; // 7.0;
 
 // double rpm_min = 20.0;
 // double rpm_optimal = 150.0;
@@ -39,6 +40,7 @@ double rpm_max = 180.0; // 160.0; // 80.0; // sucking resin out
 double new_rpm = 0.0001;
 double total_dist = 0.0;
 
+KalmanFilter filter(1, 1, 0.01);
 uint16_t samples_collected_16 = 0;
 double running_average_16;
 uint16_t samples_collected_32 = 0;
@@ -108,12 +110,14 @@ void loopCustom(){
 
     const int32_t delta = (int32_t)ch2_val - ch1_val - tare;
 
-    if(samples_collected < samples_total){
-      running_average = ((running_average * samples_collected) + (float)delta) / (samples_collected + 1);
-      samples_collected++;
-    }else{
-      running_average = ((running_average * (samples_collected - 1)) + (float)delta) / samples_collected;
-    }
+    // if(samples_collected < samples_total){
+    //   running_average = ((running_average * samples_collected) + (float)delta) / (samples_collected + 1);
+    //   samples_collected++;
+    // }else{
+    //   running_average = ((running_average * (samples_collected - 1)) + (float)delta) / samples_collected;
+    // }
+    // running_average = delta;
+    running_average = filter.updateEstimate(delta);
 
     if(samples_collected_16 < 16){
       running_average_16 = ((running_average_16 * samples_collected_16) + (float)delta) / (samples_collected_16 + 1);
@@ -164,7 +168,7 @@ void loopCustom(){
       running_average_1024 = ((running_average_1024 * (samples_collected_1024 - 1)) + (float)delta) / samples_collected_1024;
     }
 
-    running_average_corrected = running_average + offset;
+    running_average_corrected = running_average + storage.zero_offset;
 
     static double max_avg = 0.0;
     static uint32_t max_avg_last_change = 0;
@@ -180,16 +184,16 @@ void loopCustom(){
 
     static uint32_t last_announce = 0; // 655356540;
     if(_millis >= last_announce + 100){
-      // const double level_delta = running_average - level_optimal;
+      // const double level_delta = running_average - storage.level_optimal;
       last_announce = _millis;
 
-      if(abs(running_average_corrected - level_optimal) > level_tolerance){
-        if(running_average_corrected <= level_optimal){
+      if(abs(running_average_corrected - storage.level_optimal) > level_tolerance){
+        if(running_average_corrected <= storage.level_optimal){
           // need more resin
-          if(running_average_corrected <= level_min){
+          if(running_average_corrected <= storage.level_min){
             new_rpm = rpm_optimal;
           }else{
-            const double pwr = 1.0 - ((running_average_corrected - level_min) / (level_optimal - level_min));
+            const double pwr = 1.0 - ((running_average_corrected - storage.level_min) / (storage.level_optimal - storage.level_min));
             new_rpm = rpm_min + ((rpm_optimal - rpm_min) * pwr);
           }
           if(autolevel_enabled){
@@ -199,10 +203,10 @@ void loopCustom(){
 
         }else{
           // too much resin
-          if(running_average_corrected >= level_max){
+          if(running_average_corrected >= storage.level_max){
             new_rpm = rpm_max;
           }else{
-            const double pwr = 1.0 - ((running_average_corrected - level_optimal) / (level_max - level_optimal));
+            const double pwr = 1.0 - ((running_average_corrected - storage.level_optimal) / (storage.level_max - storage.level_optimal));
             new_rpm = rpm_min + ((rpm_max - rpm_min) * pwr);
           }
           if(autolevel_enabled){
@@ -230,7 +234,7 @@ void loopCustom(){
       // Serial.print(running_average_1024); Serial.print("\t");
       // Serial.print(max_avg); Serial.print("\t");
       //
-      // Serial.print(running_average - level_optimal); Serial.print("\t");
+      // Serial.print(running_average - storage.level_optimal); Serial.print("\t");
       // Serial.print(new_rpm); Serial.print("\t");
 
       // Serial.println();
@@ -309,6 +313,40 @@ MenuItemDynamic<double> item_cap_val_1024("Avg1024", running_average_1024);
 MenuItemDynamic<double> item_new_rpm("New RPM", new_rpm);
 MenuItemDynamic<double> item_distance("Dist", total_dist);
 
+
+
+
+
+void do_calibrate_zero_offset(){
+  storage.zero_offset = -running_average;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_calibrate_zero_offset[] PROGMEM = "zero offset";
+MenuItemCallable item_calibrate_zero_offset(pgmstr_calibrate_zero_offset, &do_calibrate_zero_offset, false);
+
+void do_calibrate_level_optimal(){
+  storage.level_min = 1.0;
+  storage.level_optimal = running_average; // 4.5;
+  storage.level_max = running_average + 4.5; // 9.0;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_calibrate_level_optimal[] PROGMEM = "level optimal";
+MenuItemCallable item_calibrate_level_optimal(pgmstr_calibrate_level_optimal, &do_calibrate_level_optimal, false);
+
+MenuItem* const calibrate_menu_items[] PROGMEM = {
+  &back,
+  &item_calibrate_zero_offset,
+  &item_calibrate_level_optimal,
+  &item_cap_val,
+  &item_cap_val_corrected,
+};
+Menu calibrate_menu(calibrate_menu_items, sizeof(calibrate_menu_items) / 2);
+const char pgmstr_calibrate[] PROGMEM = "calibrate";
+MenuItem item_calibrate_menu(pgmstr_calibrate, &calibrate_menu);
+
+
 MenuItem* const main_menu_items[] PROGMEM = {
   // &item_cap_val_1024,
   // &item_cap_val_512,
@@ -324,6 +362,7 @@ MenuItem* const main_menu_items[] PROGMEM = {
   &motor_x,
   &motor_y,
   &item_cap_val,
+  &item_calibrate_menu,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 
@@ -361,6 +400,7 @@ void setupCustom(){
   writeRegister(AD7150_REG_CH2_CAPDAC, 0xC0);
 
   main_menu.redraw_interval = 50;
+  calibrate_menu.redraw_interval = 50;
 }
 
 
@@ -416,7 +456,7 @@ void custom_gcode_fill_wait(){
   // Serial.println("fill with wait...");
   const bool old_autolevel_enabled = autolevel_enabled;
   custom_gcode_autofill_on();
-  // while(running_average_corrected <= (level_optimal - level_tolerance - 0.3)){
+  // while(running_average_corrected <= (storage.level_optimal - level_tolerance - 0.3)){
   //   // loopCustom();
   //   loop();
   //   delay(1);
@@ -424,7 +464,7 @@ void custom_gcode_fill_wait(){
 
   // while(1){
   //   const uint32_t _millis = millis();
-  //   const bool state = running_average_corrected <= (level_optimal - level_tolerance - 1.3 /*0.3*/);
+  //   const bool state = running_average_corrected <= (storage.level_optimal - level_tolerance - 1.3 /*0.3*/);
   //   if(state != fill_wait_last_state){
   //     fill_wait_last_state = state;
   //     // fill_wait_last_hit = state ? _millis : 0;
@@ -446,7 +486,7 @@ void custom_gcode_fill_wait(){
   //   loop();
   //   delay(1);
   // }
-  while(running_average_corrected < (level_optimal - 2.3)){
+  while(running_average_corrected < (storage.level_optimal - 2.3)){
     loop();
     delay(1);
   }

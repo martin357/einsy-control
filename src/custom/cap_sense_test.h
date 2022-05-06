@@ -42,4 +42,10 @@
     // else if(strcmp_P(rx_command, F("collect"))) custom_gcode_collect();  \
     // else if(strcmp_P(rx_command, F("hand_it_over"))) custom_gcode_hand_it_over();  \
 
+  #define CUSTOM_PERMANENT_STORAGE  \
+    float zero_offset = 94.0;  \
+    float level_min = 1.0;  \
+    float level_optimal = 4.5;  \
+    float level_max = 9.0;  \
+
 #endif

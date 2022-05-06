@@ -21,3 +21,4 @@ void strToUpper(char*);
 extern char rx_param[RX_PARAMS][RX_PARAM_LEN];
 extern uint8_t rx_params;
 extern char rx_command[RX_COMMAND_LEN];
+extern bool print_gcode_to_lcd;

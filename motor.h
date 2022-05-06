@@ -62,10 +62,14 @@ enum MotorQueueItemType: uint8_t {
   BEEP = 16,
   SET_IS_HOMED = 17,
   SET_POSITION = 18,
-  RESET_STALLGUARD_TRIGGERED = 19,
-  REPEAT_QUEUE = 20,
-  ADD_IGNORE_STALLGUARD_STEPS = 21,
-  SET_IS_HOMING = 22,
+  SET_POSITION_USTEPS = 19,
+  RESET_STALLGUARD_TRIGGERED = 20,
+  REPEAT_QUEUE = 21,
+  ADD_IGNORE_STALLGUARD_STEPS = 22,
+  SET_IS_HOMING = 23,
+  SET_STALLGUARD_THRESHOLD = 24,
+  SET_CURRENT = 25,
+  SET_MICROSTEPPING = 26,
 };
 
 
@@ -86,7 +90,7 @@ struct MotorStallguardInfo {
 
 class Motor{
 public:
-  Motor(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t*, uint8_t, uint16_t*, uint16_t*, uint8_t*, uint8_t, const char);
+  Motor(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, volatile uint8_t*, uint8_t, volatile uint16_t*, volatile uint16_t*, volatile uint8_t*, uint8_t, const char);
   void on();
   void off();
   bool is_on();
@@ -122,7 +126,7 @@ public:
   TMC2130Stepper driver;
   uint16_t usteps;
   volatile bool pause_steps;
-  bool enabled;
+  bool started;
   bool invert_direction;
   bool stop_on_stallguard;
   bool stop_on_stallguard_only_when_homing;
@@ -160,7 +164,8 @@ public:
     bool direction;
     float initial_rpm;
     float final_rpm;
-    float backstep_rot;
+    float initial_backstep_rot;
+    float final_backstep_rot;
     float ramp_from;
     uint16_t wait_duration;
   } autohome;
@@ -168,6 +173,8 @@ public:
   volatile float target_rpm;
   uint16_t accel;
   uint16_t decel;
+  float default_ramp_rpm_from;
+  float default_ramp_rpm_to;
 
   volatile uint32_t last_speed_change;
 
@@ -184,17 +191,19 @@ public:
   void plan_steps(uint32_t);
   void plan_rotations(float, float = 0.0);
   void plan_rotations_to(float, float = 0.0);
-  void plan_home(bool, float = 120.0, float = 40.0, float = 0.1, float = 0.0, uint16_t = 50);
+  void plan_home(bool, float = 120.0, float = 40.0, float = 0.1, float = 0.1, float = 0.0, uint16_t = 50);
   void plan_autohome();
+  void plan_ramp_move(int32_t, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
   void plan_ramp_move(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
+  void plan_ramp_move_to(int32_t, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
   void plan_ramp_move_to(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
 // private:
-  volatile float _rpm;
   bool _dir;
-  uint16_t* timer_compare_port;
-  uint16_t* timer_counter_port;
-  uint8_t* timer_enable_port;
-  uint8_t timer_enable_bit;
+  volatile float _rpm;
+  volatile uint16_t* timer_compare_port;
+  volatile uint16_t* timer_counter_port;
+  volatile uint8_t* timer_enable_port;
+  volatile uint8_t timer_enable_bit;
 };
 
 

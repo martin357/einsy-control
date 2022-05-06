@@ -49,14 +49,18 @@ void setupCustom(){
   motors[3].rpm(30);
   motors[3].on();
 
+  // tilt
+  motors[3].accel = 500;
+  motors[3].decel = 500;
   motors[3].autohome.enabled = true;
   motors[3].autohome.direction = false;
-  motors[3].autohome.initial_rpm = 50; // 80;
+  motors[3].autohome.initial_rpm = 220;
   motors[3].autohome.final_rpm = 10;
-  motors[3].autohome.backstep_rot = 0.15;
+  motors[3].autohome.initial_backstep_rot = 0.0;
+  motors[3].autohome.final_backstep_rot = 0.15;
   motors[3].autohome.ramp_from = 10;
   motors[3].autohome.wait_duration = 50;
-  motors[3].stop_on_stallguard = false; // since we don't want IR gate to displace
+  motors[3].stop_on_stallguard = false; // IR optogate functions as a stallguard
   motors[3].stop_on_stallguard_only_when_homing = true;
 
   unsigned long seed = analogRead(A4) + analogRead(A6) + analogRead(A8) + analogRead(A10);
@@ -326,8 +330,9 @@ void do_fine_backstep(bool wait = true){
     WAIT_FOR_TOWERS;
   }
 }
+void do_fine_backstep_wait(){ do_fine_backstep(true); }
 const char pgmstr_fine_backstep[] PROGMEM = "fine backstep";
-MenuItemCallable item_fine_backstep(pgmstr_fine_backstep, &do_fine_backstep, false);
+MenuItemCallable item_fine_backstep(pgmstr_fine_backstep, &do_fine_backstep_wait, false);
 
 
 
@@ -373,27 +378,65 @@ const char pgmstr_home_weak[] PROGMEM = "home weak....";
 MenuItemCallable item_home_weak(pgmstr_home_weak, &do_home_weak, false);
 
 
+void custom_gcode_home_tower(){
+  do_home_coarse(true);
+  delay(500);
 
-void do_home_tilt(){
-  while(!(PINB & (1 << PINB4))){
-    processCommand(F("move_rot e0.3 f50"));
-    processCommand(F("start e0"));
-    delay(10);
-    processCommand(F("wait_for_motor e"));
-  }
+  // do_coarse_backstep(true);
+  // delay(500);
 
-  processCommand(F("autohome e"));
-  // processCommand(F("move e3.8 f50"));
-  processCommand(F("move_rot e-0.1 f50"));
-  processCommand(F("set_position e0"));
+  // do_home_fine(true);
+  // delay(500);
+
+  do_tram_z_weak(true);
+  delay(500);
+
+  do_fine_backstep(true);
+
+}
+
+
+
+void _tilt_step_up(){
+  // processCommand(F("move_rot e0.3 f80"));
+  // processCommand(F("move_rot e1 f120"));
+  processCommand(F("move_rot e0.1 f20"));
   processCommand(F("start e0"));
   delay(10);
   processCommand(F("wait_for_motor e"));
+  // delay(50);
+}
+void do_home_tilt(bool do_wait = true){
+  processCommand(F("set_is_homing e1"));
+  processCommand(F("set_is_homed e0"));
+
+  if(!(PINB & (1 << PINB4))){
+    while(!(PINB & (1 << PINB4))){
+      _tilt_step_up();
+    }
+    _tilt_step_up();
+  }
+
+  processCommand(F("autohome e"));
+  processCommand(F("set_is_homing e1"));
+  processCommand(F("set_is_homed e0"));
+  // processCommand(F("move e3.8 f50"));
+
+  processCommand(F("move_rot e-0.1"));
+  processCommand(F("set_position e0"));
+  processCommand(F("set_is_homing e0"));
+  processCommand(F("start e0"));
+  if(do_wait){
+    delay(10);
+    processCommand(F("wait_for_motor e"));
+    Serial.println(F(">> wait finished"));
+  }
 
 }
-void custom_gcode_home_tilt(){ do_home_tilt(); }
+void do_home_tilt_wait(){ do_home_tilt(true); }
+void custom_gcode_home_tilt(){ do_home_tilt(false); }
 const char pgmstr_home_tilt[] PROGMEM = "home tilt";
-MenuItemCallable item_home_tilt(pgmstr_home_tilt, &do_home_tilt, false);
+MenuItemCallable item_home_tilt(pgmstr_home_tilt, &do_home_tilt_wait, false);
 
 
 void custom_gcode_is_endstop_triggered(){

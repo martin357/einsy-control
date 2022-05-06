@@ -10,6 +10,8 @@ uint8_t rx_delimiter_pos[RX_PARAMS];
 char rx_param[RX_PARAMS][RX_PARAM_LEN];
 uint8_t rx_params;
 char rx_command[RX_COMMAND_LEN];
+bool print_gcode_to_lcd = false;
+uint8_t print_gcode_to_lcd_last_row = 0;
 
 
 
@@ -63,12 +65,14 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("start"))) gcode_start();
   else if(strcmp_P(rx_command, F("stop"))) gcode_stop();
   else if(strcmp_P(rx_command, F("halt"))) gcode_halt();
+  else if(strcmp_P(rx_command, F("move_usteps"))) gcode_move_usteps();
   else if(strcmp_P(rx_command, F("move"))) gcode_move();
   else if(strcmp_P(rx_command, F("run"))) gcode_run();
   else if(strcmp_P(rx_command, F("rpm"))) gcode_rpm();
   else if(strcmp_P(rx_command, F("dir"))) gcode_dir();
   else if(strcmp_P(rx_command, F("accel"))) gcode_accel();
   else if(strcmp_P(rx_command, F("decel"))) gcode_decel();
+  else if(strcmp_P(rx_command, F("ramp_to_nq"))) gcode_ramp_to_nq();
   else if(strcmp_P(rx_command, F("ramp")) || strcmp_P(rx_command, F("ramp_to"))) gcode_ramp_to();
   else if(strcmp_P(rx_command, F("do_steps_dir"))) gcode_do_steps_dir();
   else if(strcmp_P(rx_command, F("do_steps_to"))) gcode_do_steps_to();
@@ -95,9 +99,16 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("set_invert_direction"))) gcode_set_invert_direction();
   else if(strcmp_P(rx_command, F("reset_steps_total"))) gcode_reset_steps_total();
   else if(strcmp_P(rx_command, F("sync_position"))) gcode_sync_position();
+  else if(strcmp_P(rx_command, F("stallguard_threshold"))) gcode_stallguard_threshold();
+  else if(strcmp_P(rx_command, F("current"))) gcode_current();
+  else if(strcmp_P(rx_command, F("microstepping"))) gcode_microstepping();
+  else if(strcmp_P(rx_command, F("set_is_homed"))) gcode_set_is_homed();
+  else if(strcmp_P(rx_command, F("set_is_homing"))) gcode_set_is_homing();
   else if(strcmp_P(rx_command, F("is_busy"))) gcode_is_busy();
   else if(strcmp_P(rx_command, F("is_homed"))) gcode_is_homed();
   else if(strcmp_P(rx_command, F("is_homing"))) gcode_is_homing();
+  else if(strcmp_P(rx_command, F("set_default_ramp_rpm_from"))) gcode_set_default_ramp_rpm_from();
+  else if(strcmp_P(rx_command, F("set_default_ramp_rpm_to"))) gcode_set_default_ramp_rpm_to();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   #ifdef CUSTOM_GCODE
     CUSTOM_GCODE
@@ -122,6 +133,13 @@ void processCommand(const char *cmd, size_t len){
         }
       }
     }
+  }
+
+  if(lcd_present && print_gcode_to_lcd){
+    lcd.setCursor(0, print_gcode_to_lcd_last_row++);
+    lcd.print(cmd);
+    lcd.print(" ");
+    if(print_gcode_to_lcd_last_row >= 4) print_gcode_to_lcd_last_row = 0;
   }
 
 }

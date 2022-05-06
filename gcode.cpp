@@ -70,11 +70,10 @@ void gcode_stop(){
 
 
 void gcode_halt(){
-  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  FOREACH_PARAM_AS_AXIS;
   motors[index].stop();
-  if(!value) motors[index].off();
-  motors[index].empty_queue();
-  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+  // motors[index].empty_queue();
+  FOREACH_PARAM_AS_AXIS_END;
 }
 
 
@@ -127,6 +126,14 @@ void gcode_decel(){
 void gcode_ramp_to(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   ADD_TO_QUEUE_FLOAT(RAMP_TO);
+  motors[index].planned.rpm = value;
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_ramp_to_nq(){
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  motors[index].ramp_to(value);
   motors[index].planned.rpm = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
@@ -309,19 +316,70 @@ void gcode_move(){
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  if(rpm != 0.0 && rpm_to != 0.0){
-    motors[index].plan_ramp_move_to(value, rpm, rpm_to, accel, decel);
+  const float motor_rpm = rpm == 0.0 ? motors[index].default_ramp_rpm_from : rpm;
+  const float motor_rpm_to = rpm_to == 0.0 ? motors[index].default_ramp_rpm_to : rpm_to;
+
+  if(motor_rpm != 0.0 && motor_rpm_to != 0.0){
+    motors[index].plan_ramp_move_to(value, motor_rpm, motor_rpm_to, accel, decel);
   }else{
-    motors[index].plan_rotations_to(value, rpm);
+    motors[index].plan_rotations_to(value, motor_rpm);
   }
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_move_usteps(){
+  float rpm = 0.0;
+  float rpm_to = 0.0;
+  float accel = 0.0;
+  float decel = 0.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'f': rpm = value; break;
+        case 'g': rpm_to = value; break;
+        case 'a': accel = value; break;
+        case 'd': decel = value; break;
+      }
+
+    }
+  }
+
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  const float motor_rpm = rpm == 0.0 ? motors[index].default_ramp_rpm_from : rpm;
+  const float motor_rpm_to = rpm_to == 0.0 ? motors[index].default_ramp_rpm_to : rpm_to;
+
+  if(motor_rpm != 0.0 && motor_rpm_to != 0.0){
+    motors[index].plan_ramp_move_to(value, motor_rpm, motor_rpm_to, accel, decel);
+  }else{
+    const int32_t steps_delta = value - motors[index].planned.position_usteps;
+    if(steps_delta != 0){
+      const bool direction = steps_delta > 0;
+      if(motor_rpm > 0.0 && motor_rpm != motors[index].planned.rpm){
+        ADD_TO_QUEUE(SET_RPM, motor_rpm * 100.0);
+        motors[index].planned.rpm = motor_rpm;
+      }
+      if(direction != motors[index].planned.direction){
+        ADD_TO_QUEUE(SET_DIRECTION, direction);
+        motors[index].planned.direction = direction;
+      }
+      ADD_TO_QUEUE(DO_STEPS, steps_delta < 0 ? -steps_delta : steps_delta);
+      motors[index].planned.position_usteps = value;
+    }
+  }
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
 
 void gcode_home(){
   float initial_rpm = 120.0;
   float final_rpm = 0.0; // 40.0;
-  float backstep_rot = 0.1;
+  float initial_backstep_rot = 0.1;
+  float final_backstep_rot = 0.1;
   float ramp_from = 0.0;
   uint16_t wait_duration = 50;
   for (size_t i = 0; i < rx_params; i++) {
@@ -332,7 +390,8 @@ void gcode_home(){
       switch (rx_param[i][0]) {
         case 'f': initial_rpm = value; break;
         case 'g': final_rpm = value; break;
-        case 'b': backstep_rot = value; break;
+        case 'i': initial_backstep_rot = value; break;
+        case 'b': final_backstep_rot = value; break;
         case 'r': ramp_from = value; break;
         case 'w': wait_duration = strtoul(&rx_param[i][1], nullptr, 10); break;
       }
@@ -341,7 +400,7 @@ void gcode_home(){
   }
 
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
-  motors[index].plan_home((bool)value, initial_rpm, final_rpm, backstep_rot, ramp_from, wait_duration);
+  motors[index].plan_home((bool)value, initial_rpm, final_rpm, initial_backstep_rot, final_backstep_rot, ramp_from, wait_duration);
   motors[index].start();
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
@@ -456,10 +515,9 @@ void gcode_repeat_queue(){
 
 void gcode_set_position(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
-  const bool negative = value < 0;
   ADD_TO_QUEUE(SET_POSITION, value);
   ADD_TO_QUEUE(SET_IS_HOMED, 1);
-  motors[index].planned.position_usteps = negative ? \
+  motors[index].planned.position_usteps = value < 0 ? \
     -(motors[index].rot2usteps(value)) : motors[index].rot2usteps(value);
   motors[index].planned.is_homed = true;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
@@ -469,7 +527,7 @@ void gcode_set_position(){
 void gcode_set_position_usteps(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   const bool negative = value < 0;
-  ADD_TO_QUEUE(SET_POSITION, motors[index].usteps2rot(value)); // TODO do it the correct way!!!
+  ADD_TO_QUEUE(SET_POSITION_USTEPS, value);
   ADD_TO_QUEUE(SET_IS_HOMED, 1);
   motors[index].planned.position_usteps = value;
   motors[index].planned.is_homed = true;
@@ -494,7 +552,51 @@ void gcode_reset_steps_total(){
 void gcode_sync_position(){
   FOREACH_PARAM_AS_AXIS;
   motors[index].planned.position_usteps = motors[index].position_usteps;
+  motors[index].planned.is_homed = true;
+  motors[index].is_homed = true;
   FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_stallguard_threshold(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_STALLGUARD_THRESHOLD, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_current(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_CURRENT, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_microstepping(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  const bool is_pow2 = (value & (value - 1)) == 0;
+  if(value < 0 || value > 256 || !is_pow2 || value == 1){
+    Serial.print("invalid microstepping value ");
+    Serial.println(value);
+  }else{
+    ADD_TO_QUEUE(SET_MICROSTEPPING, value);
+  }
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_set_is_homed(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_IS_HOMED, value == 0 ? 0 : 1);
+  motors[index].planned.is_homed = false;
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_set_is_homing(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_IS_HOMING, value == 0 ? 0 : 1);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
 
@@ -516,6 +618,20 @@ void gcode_is_homing(){
   FOREACH_PARAM_AS_AXIS;
   Serial.println(motors[index].is_homing);
   FOREACH_PARAM_AS_AXIS_END;
+}
+
+
+void gcode_set_default_ramp_rpm_from(){
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  motors[index].default_ramp_rpm_from = value;
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_set_default_ramp_rpm_to(){
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  motors[index].default_ramp_rpm_to = value;
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
 

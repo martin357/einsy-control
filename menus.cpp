@@ -251,44 +251,6 @@ MenuItem motor_z(pgmstr_motor_z, &menu_motor_z);
 MenuItem motor_e(pgmstr_motor_e, &menu_motor_e);
 
 
-// OCR1A
-const char pgmstr_timer1[] PROGMEM = "OCR1A";
-uint16_t* timer_ptr1 = &OCR1A;
-MenuRange<uint16_t> menu_timer1("OCR1A", *timer_ptr1, 1, 65535);
-MenuItem timer1(pgmstr_timer1, &menu_timer1);
-
-// OCR3A
-const char pgmstr_timer3[] PROGMEM = "OCR3A";
-uint16_t* timer_ptr3 = &OCR3A;
-MenuRange<uint16_t> menu_timer3("OCR3A", *timer_ptr3, 1, 65535);
-MenuItem timer3(pgmstr_timer3, &menu_timer3);
-
-// OCR4A
-const char pgmstr_timer4[] PROGMEM = "OCR4A";
-uint16_t* timer_ptr4 = &OCR4A;
-MenuRange<uint16_t> menu_timer4("OCR4A", *timer_ptr4, 1, 65535);
-MenuItem timer4(pgmstr_timer4, &menu_timer4);
-
-// OCR5A
-const char pgmstr_timer5[] PROGMEM = "OCR5A";
-uint16_t* timer_ptr5 = &OCR5A;
-MenuRange<uint16_t> menu_timer5("OCR5A", *timer_ptr5, 1, 65535);
-MenuItem timer5(pgmstr_timer5, &menu_timer5);
-
-// OCR2A
-const char pgmstr_timer2a[] PROGMEM = "OCR2A";
-uint8_t* timer_ptr2a = &OCR2A;
-MenuRange<uint8_t> menu_timer2a("OCR2A", *timer_ptr2a, 1, 255);
-MenuItem timer2a(pgmstr_timer2a, &menu_timer2a);
-
-// OCR2B
-const char pgmstr_timer2b[] PROGMEM = "OCR2B";
-uint8_t* timer_ptr2b = &OCR2B;
-MenuRange<uint8_t> menu_timer2b("OCR2B", *timer_ptr2b, 1, 255);
-MenuItem timer2b(pgmstr_timer2b, &menu_timer2b);
-
-
-
 // main menu
 #ifndef CUSTOM_MENU
   MenuItem* const main_menu_items[] PROGMEM = {
@@ -296,12 +258,6 @@ MenuItem timer2b(pgmstr_timer2b, &menu_timer2b);
     &motor_y,
     &motor_z,
     &motor_e,
-    &timer1,
-    &timer2a,
-    &timer2b,
-    &timer3,
-    &timer4,
-    &timer5,
   };
   Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 #endif
