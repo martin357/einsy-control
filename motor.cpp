@@ -125,6 +125,8 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   print_stallguard_to_serial(false),
   is_homed(false),
   is_homing(false),
+  is_homed_override(Bool_tristate::UNSET),
+  is_homing_override(Bool_tristate::UNSET),
   reset_is_homed_on_power_off(true),
   reset_is_homed_on_stall(true),
   usteps_per_unit(0),
@@ -626,6 +628,25 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       process_next = true;
       break;
     }
+    case MotorQueueItemType::SET_HOLD_MULTIPLIER: {
+      microsteps(queue[next].value / 100.0);
+      process_next = true;
+      break;
+    }
+    case MotorQueueItemType::SET_IS_HOMED_OVERRIDE: {
+      is_homed_override = Bool_tristate(*reinterpret_cast<int32_t*>(&queue[next].value));
+      process_next = true;
+      SERIAL_PRINT(F("[pnq] set is_homed_override "));
+      SERIAL_PRINTLN(is_homed_override);
+      break;
+    }
+    case MotorQueueItemType::SET_IS_HOMING_OVERRIDE: {
+      is_homing_override = Bool_tristate(*reinterpret_cast<int32_t*>(&queue[next].value));
+      process_next = true;
+      SERIAL_PRINT(F("[pnq] set is_homing_override "));
+      SERIAL_PRINTLN(is_homing_override);
+      break;
+    }
 
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
@@ -687,6 +708,9 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(position_usteps);
   PRINT_VARF(position());
   PRINT_VAR(is_homed);
+  PRINT_VAR(is_homing);
+  PRINT_VAR(is_homed_override);
+  PRINT_VAR(is_homing_override);
   PRINT_VAR(reset_is_homed_on_power_off);
   PRINT_VAR(reset_is_homed_on_stall);
   PRINT_VAR(steps_to_do);
@@ -882,18 +906,18 @@ void Motor::plan_autohome(){
 }
 
 
-void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float accel, float decel){
-  if(accel == 0.0) accel = planned.accel;
-  if(decel == 0.0) decel = accel;
+void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float acceleration, float deceleration){
+  if(acceleration == 0.0) acceleration = planned.accel;
+  if(deceleration == 0.0) deceleration = planned.decel;
   const bool rot_direction = usteps > 0.0;
   const float delta_rpm = rpm_to - rpm_from;
   const uint32_t sps_from = rpm2sps(rpm_from);
   const uint32_t sps_to = rpm2sps(rpm_to);
   const uint32_t delta_sps = sps_to - sps_from;
-  const uint32_t accel_sps = rpm2sps(accel);
-  const uint32_t decel_sps = rpm2sps(decel);
-  const float accel_t = delta_rpm / accel;
-  const float decel_t = delta_rpm / decel;
+  const uint32_t accel_sps = rpm2sps(acceleration);
+  const uint32_t decel_sps = rpm2sps(deceleration);
+  const float accel_t = delta_rpm / acceleration;
+  const float decel_t = delta_rpm / deceleration;
   const uint32_t steps = usteps < 0 ? -usteps : usteps;
   uint32_t decel_steps = (unsigned long)round(((float)delta_sps * delta_sps) / (2.0 * decel_sps));
 
@@ -901,9 +925,11 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
   // PRINT_VAR(usteps);
   // PRINT_VAR(rpm_from);
   // PRINT_VAR(rpm_to);
+  // PRINT_VAR(acceleration);
+  // PRINT_VAR(deceleration);
+  // Serial.println(F("------"));
   // PRINT_VAR(accel);
   // PRINT_VAR(decel);
-  // Serial.println(F("------"));
   // PRINT_VAR(rot_direction);
   // PRINT_VAR(delta_rpm);
   // PRINT_VAR(sps_from);
@@ -924,13 +950,13 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
     set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, rot_direction);
     planned.direction = rot_direction;
   }
-  if(accel != planned.accel){
-    set_queue_item(next++, MotorQueueItemType::SET_ACCEL, accel * 100);
-    planned.accel = accel;
+  if(acceleration != planned.accel){
+    set_queue_item(next++, MotorQueueItemType::SET_ACCEL, acceleration * 100);
+    planned.accel = acceleration;
   }
-  if(decel != planned.decel){
-    set_queue_item(next++, MotorQueueItemType::SET_DECEL, decel * 100);
-    planned.decel = decel;
+  if(deceleration != planned.decel){
+    set_queue_item(next++, MotorQueueItemType::SET_DECEL, deceleration * 100);
+    planned.decel = deceleration;
   }
   if(rpm_from != planned.rpm){
     set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm_from * 100);
@@ -948,9 +974,9 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
 }
 
 
-void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float accel, float decel){
+void Motor::plan_ramp_move(float rotations, float rpm_from, float rpm_to, float acceleration, float deceleration){
   const int32_t usteps = rotations < 0.0 ? -rot2usteps(rotations) : rot2usteps(rotations);
-  plan_ramp_move(usteps, rpm_from, rpm_to, accel, decel);
+  plan_ramp_move(usteps, rpm_from, rpm_to, acceleration, deceleration);
 }
 
 

@@ -3,15 +3,6 @@
 #include "custom.h"
 
 
-// #define DEBUG_PRINT
-#ifdef DEBUG_PRINT
-  #define SERIAL_PRINT(x) Serial.print(x);
-  #define SERIAL_PRINTLN(x) Serial.println(x);
-#else
-  #define SERIAL_PRINT(x) ;
-  #define SERIAL_PRINTLN(x) ;
-#endif
-
 #define FSTEPS_PER_REVOLUTION 200
 #define MOTOR_QUEUE_LEN 64
 #define MOTORS_PRESCALER  8
@@ -42,6 +33,13 @@ uint32_t _rot2usteps(float, uint16_t);
 float _usteps2rot(uint32_t, uint16_t);
 
 
+enum Bool_tristate: int8_t {
+  UNSET = -1,
+  FALSE = 0,
+  TRUE = 1,
+};
+
+
 enum MotorQueueItemType: uint8_t {
   NOOP = 0,
   TURN_ON = 1,
@@ -70,6 +68,9 @@ enum MotorQueueItemType: uint8_t {
   SET_STALLGUARD_THRESHOLD = 24,
   SET_CURRENT = 25,
   SET_MICROSTEPPING = 26,
+  SET_HOLD_MULTIPLIER = 27,
+  SET_IS_HOMED_OVERRIDE = 28,
+  SET_IS_HOMING_OVERRIDE = 29,
 };
 
 
@@ -133,6 +134,8 @@ public:
   bool print_stallguard_to_serial;
   bool is_homed;
   bool is_homing;
+  Bool_tristate is_homed_override;
+  Bool_tristate is_homing_override;
   bool reset_is_homed_on_power_off;
   bool reset_is_homed_on_stall;
   uint16_t usteps_per_unit;

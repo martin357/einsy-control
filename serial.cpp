@@ -109,6 +109,8 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("is_homing"))) gcode_is_homing();
   else if(strcmp_P(rx_command, F("set_default_ramp_rpm_from"))) gcode_set_default_ramp_rpm_from();
   else if(strcmp_P(rx_command, F("set_default_ramp_rpm_to"))) gcode_set_default_ramp_rpm_to();
+  else if(strcmp_P(rx_command, F("set_is_homed_override"))) gcode_set_is_homed_override();
+  else if(strcmp_P(rx_command, F("set_is_homing_override"))) gcode_set_is_homing_override();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   #ifdef CUSTOM_GCODE
     CUSTOM_GCODE

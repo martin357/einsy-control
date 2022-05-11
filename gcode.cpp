@@ -602,7 +602,7 @@ void gcode_set_is_homing(){
 
 void gcode_is_homed(){
   FOREACH_PARAM_AS_AXIS;
-  Serial.println(motors[index].is_homed);
+  Serial.println(motors[index].is_homed_override == Bool_tristate::UNSET ? motors[index].is_homed : bool(motors[index].is_homed_override));
   FOREACH_PARAM_AS_AXIS_END;
 }
 
@@ -616,7 +616,7 @@ void gcode_is_busy(){
 
 void gcode_is_homing(){
   FOREACH_PARAM_AS_AXIS;
-  Serial.println(motors[index].is_homing);
+  Serial.println(motors[index].is_homing_override == Bool_tristate::UNSET ? motors[index].is_homing : bool(motors[index].is_homing_override));
   FOREACH_PARAM_AS_AXIS_END;
 }
 
@@ -632,6 +632,27 @@ void gcode_set_default_ramp_rpm_to(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   motors[index].default_ramp_rpm_to = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_set_hold_multiplier(){
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  ADD_TO_QUEUE_FLOAT(SET_HOLD_MULTIPLIER);
+  FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
+}
+
+
+void gcode_set_is_homed_override(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_IS_HOMED_OVERRIDE, value < -1 ? -1 : (value > 1 ? 1 : value));
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_set_is_homing_override(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_IS_HOMING_OVERRIDE, value < -1 ? -1 : (value > 1 ? 1 : value));
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
 
