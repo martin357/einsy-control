@@ -552,6 +552,7 @@ void gcode_reset_steps_total(){
 void gcode_sync_position(){
   FOREACH_PARAM_AS_AXIS;
   motors[index].planned.position_usteps = motors[index].position_usteps;
+  motors[index].planned.rpm = motors[index]._rpm;
   motors[index].planned.is_homed = true;
   motors[index].is_homed = true;
   FOREACH_PARAM_AS_AXIS_END;
@@ -652,6 +653,13 @@ void gcode_set_is_homed_override(){
 void gcode_set_is_homing_override(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(SET_IS_HOMING_OVERRIDE, value < -1 ? -1 : (value > 1 ? 1 : value));
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_set_coolstep_threshold(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_COOLSTEP_THRESHOLD, value);
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 

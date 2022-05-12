@@ -23,6 +23,12 @@ public:
 };
 
 
+class MenuItemSeparator: public MenuItem{
+public:
+  MenuItemSeparator();
+};
+
+
 class MenuItemToggle: public MenuItem{
 public:
   MenuItemToggle(const bool*, const char*, const char*, bool = false);
@@ -88,6 +94,16 @@ public:
 };
 
 
+class MenuItemDynamicTime: public MenuItem{
+public:
+  MenuItemDynamicTime(const char*, const uint32_t*, bool = false);
+  const char* getTitle();
+  const uint32_t* value;
+  const char* title; // make it public
+  bool force_show_hours;
+};
+
+
 class Menu{
 public:
   Menu(MenuItem* const*, size_t);
@@ -143,6 +159,7 @@ public:
 
 
 extern MenuItemBack back;
+extern MenuItemSeparator separator;
 extern Menu* current_menu;
 extern uint8_t last_entered_motor_menu;
 extern uint32_t last_menu_redraw;

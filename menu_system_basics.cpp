@@ -47,6 +47,14 @@ Menu* MenuItemBack::on_press(uint16_t duration){
 
 
 /*
+  menu item separator
+*/
+const char pgmstr_separator[] PROGMEM = "------------------";
+MenuItemSeparator::MenuItemSeparator() : MenuItem(pgmstr_separator){}
+
+
+
+/*
   menu item toggle
 */
 MenuItemToggle::MenuItemToggle(const bool* value, const char* title_true, const char* title_false, bool update_storage_on_change):
@@ -244,6 +252,52 @@ const char* MenuItemDynamicCallable<double>::getTitle(){
 
 template class MenuItemDynamicCallable<uint16_t>;
 template class MenuItemDynamicCallable<double>;
+
+
+
+/*
+  menu item dynamic time
+*/
+MenuItemDynamicTime::MenuItemDynamicTime(const char* title, const uint32_t* value, bool force_show_hours):
+  MenuItem(nullptr, nullptr),
+  title(title),
+  value(value),
+  force_show_hours(force_show_hours){}
+
+
+const char* MenuItemDynamicTime::getTitle(){
+  static char buf[20] = {0};
+  const uint32_t sec_ = *value / 1000;
+  const uint16_t mins_ = sec_ / 60;
+  const uint16_t hrs = mins_ / 60;
+  const uint16_t mins = mins_ % 60;
+  const uint8_t sec = sec_ % 60;
+  char buf_num[10] = {0};
+  if(force_show_hours || hrs > 0){
+    itoa(hrs, buf_num, 10);
+    if(mins < 10){
+      memcpy(buf_num + strlen(buf_num), ":0", 2);
+    }else{
+      memcpy(buf_num + strlen(buf_num), ":", 1);
+    }
+  }
+  itoa(mins, buf_num + strlen(buf_num), 10);
+  if(sec < 10){
+    memcpy(buf_num + strlen(buf_num), ":0", 2);
+  }else{
+    memcpy(buf_num + strlen(buf_num), ":", 1);
+  }
+  itoa(sec, buf_num + strlen(buf_num), 10);
+
+  memset(buf, ' ', sizeof(buf));
+  buf[sizeof(buf) - 1] = 0;
+
+  memcpy(buf, title, strlen(title));
+  memcpy(buf + strlen(title), ": ", 2);
+  memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
+
+  return buf;
+}
 
 
 
@@ -458,6 +512,7 @@ template class MenuList<uint16_t>;
 
 
 MenuItemBack back;
+MenuItemSeparator separator;
 Menu* current_menu = nullptr;
 uint8_t last_entered_motor_menu = 0;
 uint32_t last_menu_redraw = 0;

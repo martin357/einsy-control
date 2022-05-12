@@ -647,6 +647,13 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       SERIAL_PRINTLN(is_homing_override);
       break;
     }
+    case MotorQueueItemType::SET_COOLSTEP_THRESHOLD: {
+      driver.TCOOLTHRS(queue[next].value);
+      process_next = true;
+      SERIAL_PRINT(F("[pnq] set coolstep threshold "));
+      SERIAL_PRINTLN(is_homing_override);
+      break;
+    }
 
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));

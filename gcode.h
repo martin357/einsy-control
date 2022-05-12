@@ -54,4 +54,5 @@ void gcode_set_default_ramp_rpm_to();
 void gcode_set_hold_multiplier();
 void gcode_set_is_homed_override();
 void gcode_set_is_homing_override();
+void gcode_set_coolstep_threshold();
 void gcode_test_sg();
