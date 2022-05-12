@@ -21,6 +21,8 @@ int32_t last_autolevel_tick = 0;
 bool autolevel_enabled = false;
 uint32_t autolevel_on_at = 0;
 double level_tolerance = 0.5; // 0.3;
+uint32_t pump_off_time_remaining = 0;
+uint32_t pump_off_time_decrease_last_tick = 0;
 
 double rpm_min = 50.0;
 double rpm_optimal = 180.0;
@@ -40,22 +42,34 @@ uint8_t readRegister(uint8_t reg);
 // uint32_t last_print_hhb = 0;
 
 
+void start_pump_auto_off_timer(){
+  pump_off_time_remaining = DEFAULT_PUMP_AUTO_OFF_TIME;
+  pump_off_time_decrease_last_tick = millis();
+}
+
+void stop_pump_auto_off_timer(){
+  pump_off_time_remaining = 0;
+}
+
+
 void pump_start(bool dir, double target_rpm = 150){
-  processCommand(F("halt y"));
-  processCommand(F("empty_queue y"));
-  processCommand(dir ? F("dir y0") : F("dir y1"));
-  // processCommand(F("accel y150"));
-  processCommand(F("rpm y0.01"));
-  processCommand(F("start y1"));
-  // processCommand(F("ramp_to y150"));
-  motors[1].ramp_to(target_rpm);
+  processCommand(F("halt x"));
+  processCommand(F("empty_queue x"));
+  processCommand(dir ? F("dir x0") : F("dir x1"));
+  // processCommand(F("accel x150"));
+  processCommand(F("rpm x0.01"));
+  processCommand(F("start x1"));
+  // processCommand(F("ramp_to x150"));
+  motors[MP].ramp_to(target_rpm);
+  start_pump_auto_off_timer();
 }
 
 void pump_stop(bool wait = true){
-  // processCommand(F("decel y150"));
-  // processCommand(F("ramp_to y0.01"));
-  processCommand(F("ramp_to y0"));
-  if(wait) processCommand(F("wait_for_motor y"));
+  stop_pump_auto_off_timer();
+  // processCommand(F("decel x150"));
+  // processCommand(F("ramp_to x0.01"));
+  processCommand(F("ramp_to x0"));
+  if(wait) processCommand(F("wait_for_motor x"));
 }
 
 #define PRINT_ANALOG(pin)  Serial.print("" # pin " = "); Serial.println(analogRead(pin));
@@ -68,6 +82,11 @@ MenuItemDynamic<double> item_storage__zero_offset("zero_offset", storage.zero_of
 MenuItemDynamic<double> item_storage__level_min("level_min", storage.level_min);
 MenuItemDynamic<double> item_storage__level_optimal("level_optimal", storage.level_optimal);
 MenuItemDynamic<double> item_storage__level_max("level_max", storage.level_max);
+
+
+MenuItemDynamicTime item_pump_off_time("Off time", &pump_off_time_remaining);
+
+
 
 void do_calibrate_zero_offset(){
   storage.zero_offset = -filtered;
@@ -115,28 +134,34 @@ void setupCustom(){
 
   for(size_t i = 1; i < MOTORS_MAX; i++){
     motors[i].inactivity_timeout = 0;
+    motors[i].rpm(30);
   }
-  motors[3].rpm(30);
-  motors[3].on();
 
   // tilt
-  motors[3].accel = 150;
-  motors[3].decel = 150;
-  // motors[3].accel = 500;
-  // motors[3].decel = 500;
-  motors[3].planned.accel = motors[3].accel;
-  motors[3].planned.decel = motors[3].decel;
-  motors[3].autohome.enabled = true;
-  motors[3].autohome.direction = false;
-  motors[3].autohome.initial_rpm = 220;
-  motors[3].autohome.final_rpm = 10;
-  motors[3].autohome.initial_backstep_rot = 0.0;
-  motors[3].autohome.final_backstep_rot = 0.15;
-  motors[3].autohome.ramp_from = 10;
-  motors[3].autohome.wait_duration = 50;
-  motors[3].stop_on_stallguard = false; // IR optogate functions as a stallguard
-  motors[3].stop_on_stallguard_only_when_homing = true;
-  // motors[3].driver.TCOOLTHRS(0xffff);
+  motors[MT].accel = 150;
+  motors[MT].decel = 150;
+  // motors[MT].accel = 500;
+  // motors[MT].decel = 500;
+  motors[MT].planned.accel = motors[MT].accel;
+  motors[MT].planned.decel = motors[MT].decel;
+  motors[MT].autohome.enabled = true;
+  motors[MT].autohome.direction = false;
+  motors[MT].autohome.initial_rpm = 220;
+  motors[MT].autohome.final_rpm = 10;
+  motors[MT].autohome.initial_backstep_rot = 0.0;
+  motors[MT].autohome.final_backstep_rot = 0.15;
+  motors[MT].autohome.ramp_from = 10;
+  motors[MT].autohome.wait_duration = 50;
+  motors[MT].stop_on_stallguard = false; // IR optogate functions as a stallguard
+  motors[MT].stop_on_stallguard_only_when_homing = true;
+  // motors[MT].driver.TCOOLTHRS(0xffff);
+
+  // pump
+  motors[MP].accel = 150;
+  motors[MP].decel = 400;
+  motors[MP].stop_on_stallguard = false;
+  motors[MP].driver.sgt(5);
+  motors[MP].inactivity_timeout = 10000;
 
   // init ad7150
   ch1_capdac.DacAuto = false;
@@ -223,8 +248,8 @@ void loopCustom(){
     // }
 
     static uint32_t last_pump_tick = 0; // 655356540;
-    // if(_millis >= last_pump_tick + 100){
-    if(true){
+    if(_millis >= last_pump_tick + 100){
+    // if(true){
       // const double level_delta = running_average - storage.level_optimal;
       last_pump_tick = _millis;
 
@@ -278,6 +303,15 @@ void loopCustom(){
   if(_millis >= last_total_dist_calculated_at + 50){
     last_total_dist_calculated_at = _millis;
     total_dist = (double)motors[MP].steps_total / 200.0 / motors[MP].usteps;
+  }
+
+  if(pump_off_time_remaining){
+    uint16_t delta = _millis - pump_off_time_decrease_last_tick;
+    pump_off_time_decrease_last_tick = _millis;
+    pump_off_time_remaining -= delta > pump_off_time_remaining ? pump_off_time_remaining : delta;
+    if(pump_off_time_remaining == 0){
+      pump_stop(false);
+    }
   }
 
 }
@@ -661,19 +695,21 @@ void custom_gcode_autofill_on_delayed(){
 void custom_gcode_autofill_on(){
   autolevel_on_at = 0;
   autolevel_enabled = true;
-  if(!motors[1].is_busy()){
-    motors[1].rpm(10.0);
-    motors[1].start(true);
+  if(!motors[MP].is_busy()){
+    motors[MP].rpm(10.0);
+    motors[MP].start(true);
   }
+  start_pump_auto_off_timer();
 }
 
 
 void custom_gcode_autofill_off(){
   autolevel_on_at = 0;
   autolevel_enabled = false;
-  if(motors[1].is_busy()){
+  if(motors[MP].is_busy()){
     pump_stop(false);
   }
+  stop_pump_auto_off_timer();
 }
 
 
@@ -683,6 +719,7 @@ void custom_gcode_fill_wait(){
   // Serial.println("fill with wait...");
   const bool old_autolevel_enabled = autolevel_enabled;
   custom_gcode_autofill_on();
+  stop_pump_auto_off_timer();
   // while(running_average_corrected <= (storage.level_optimal - level_tolerance - 0.3)){
   //   // loopCustom();
   //   loop();
@@ -724,7 +761,7 @@ void custom_gcode_fill_wait(){
 
 
 void custom_gcode_empty_tank(){
-  if(motors[1].is_busy()){
+  if(motors[MP].is_busy()){
     pump_stop(false);
     return;
   }
@@ -743,7 +780,7 @@ MenuItemCallable item_pump_stop(pgmstr_pump_stop, &do_pump_stop, false);
 
 
 void do_pump_start_fill(){
-  if(motors[1].is_busy()){
+  if(motors[MP].is_busy()){
     do_pump_stop();
     return;
   }
@@ -754,11 +791,11 @@ MenuItemCallable item_pump_start_fill(pgmstr_pump_start_fill, &do_pump_start_fil
 
 
 void do_pump_start_empty(){
-  if(motors[1].is_busy()){
+  if(motors[MP].is_busy()){
     do_pump_stop();
     return;
   }
-  pump_start(false, 60);
+  pump_start(false, 140);
 }
 const char pgmstr_pump_start_empty[] PROGMEM = "pump_start_empty";
 MenuItemCallable item_pump_start_empty(pgmstr_pump_start_empty, &do_pump_start_empty, false);
@@ -837,13 +874,13 @@ MenuItemToggleCallable item_print_stallguard_on_off(&is_print_stallguard_on, pgm
 
 
 
-MenuItem* const main_menu_items[] PROGMEM = {
-  &item__filtered_corrected,
-  &item_auto_level,
-  &item_pump_start_fill,
-  &item_pump_start_empty,
-  &item_pump_stop,
-  // &item_z_motors_off,
+MenuItem* const debug_menu_items[] PROGMEM = {
+  &back,
+  &motor_x,
+  &motor_y,
+  &motor_z,
+  &motor_e,
+  &separator,
   // &item_home_fast,
   // &item_home_coarse,
   // &item_home_sensitive,
@@ -855,15 +892,29 @@ MenuItem* const main_menu_items[] PROGMEM = {
   // &item_fine_backstep,
   // &item_home,
   // &item_home_weak,
-  // &item_home_tilt,
-  // &item_random_skew,
-  &motor_x,
-  // &motor_y,
-  // &motor_z,
-  &motor_e,
-  // &item_print_stallguard_on_off,
+  &item_home_tilt,
+  &item_random_skew,
+  &item_print_stallguard_on_off,
   // &item_invert_tower_direction_on_off,
+  &separator,
   &item_calibrate_menu,
+};
+Menu debug_menu(debug_menu_items, sizeof(debug_menu_items) / 2);
+const char pgmstr_debug[] PROGMEM = "debug";
+MenuItem item_debug_menu(pgmstr_debug, &debug_menu);
+
+
+MenuItem* const main_menu_items[] PROGMEM = {
+  &item__filtered_corrected,
+  &item_auto_level,
+  &item_pump_start_fill,
+  &item_pump_start_empty,
+  &item_pump_stop,
+  &item_pump_off_time,
+  // &item_z_motors_off,
+  &separator,
+  &item_debug_menu,
+  &separator,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
 

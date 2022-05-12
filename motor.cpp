@@ -1053,9 +1053,11 @@ ISR(TIMER0_COMPA_vect){
       motors[i].stop_at_millis = 0;
       motors[i].stop();
       motors[i].off();
-      Serial.print(F("inactivity timeout, motor "));
-      Serial.print(motors[i].axis);
-      Serial.println(F(" off"));
+      #ifndef DISABLE_MOTOR_INACTIVITY_TIMEOUT_PRINT_TO_SERIAL
+        Serial.print(F("inactivity timeout, motor "));
+        Serial.print(motors[i].axis);
+        Serial.println(F(" off"));
+      #endif
     }
 
     if(motors[i].pause_steps) continue;

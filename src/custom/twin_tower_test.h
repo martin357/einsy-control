@@ -10,12 +10,15 @@
   #define CUSTOM_SETUP
   #define CUSTOM_LOOP
   #define DISABLE_STALLGUARD_TRIGGERED_PRINT_TO_SERIAL
+  #define DISABLE_MOTOR_INACTIVITY_TIMEOUT_PRINT_TO_SERIAL
 
   #define ML  2 // motor - tower left
   #define MR  1 // motor - tower right
   #define MP  0 // motor - pump
+  #define MT  3 // motor - tilt
   #define CURRENT_MP  1
   #define WAIT_FOR_TOWERS Serial.println(F("wait_for_towers")); delay(10); processCommand(F("wait_for_motor y z"))
+  #define DEFAULT_PUMP_AUTO_OFF_TIME  1800500
   // #define WAIT_FOR_TOWERS Serial.println(F("wait_for_towers")); delay(10); processCommand(F("wait_for_motor z"))
 
   typedef enum
