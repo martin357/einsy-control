@@ -40,7 +40,7 @@ float read_float_from_uint32(uint32_t*);
 
 extern int8_t enc_diff;
 extern uint8_t enc_click; // 0=no_press, 1=short, 2=long
-extern uint32_t beeper_off_at;
+extern volatile uint32_t beeper_off_at;
 extern bool read_temperature;
 extern double temperature[THERMISTOR_CNT];
 extern double temperature_raw[THERMISTOR_CNT];

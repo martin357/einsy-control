@@ -25,7 +25,7 @@ uint8_t _mask(const uint8_t pin){
 }
 
 
-void pinModeInput(const uint8_t pin, const bool pullup = false){
+void pinModeInput(const uint8_t pin, const bool pullup){
   if(pin < 70){
     pinMode(pin, pullup ? INPUT_PULLUP : INPUT);
     return;

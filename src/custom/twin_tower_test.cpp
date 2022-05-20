@@ -13,14 +13,15 @@
 
 const uint8_t towers[] = {ML, MR};
 
-ad7150_reg_setup ch_setup;
+// ad7150_reg_setup ch_setup;
 ad7150_reg_capdac ch1_capdac, ch2_capdac;
-ad7150_reg_configuration configuration;
+// ad7150_reg_configuration configuration;
 
 int32_t last_autolevel_tick = 0;
 bool autolevel_enabled = false;
 uint32_t autolevel_on_at = 0;
-double level_tolerance = 0.5; // 0.3;
+double level_tolerance = 0.3; // 0.5; // 0.3;
+double autolevel_target = 0.0;
 uint32_t pump_off_time_remaining = 0;
 uint32_t pump_off_time_decrease_last_tick = 0;
 
@@ -81,7 +82,9 @@ MenuItemDynamic<double> item__filtered_corrected("corrected", filtered_corrected
 MenuItemDynamic<double> item_storage__zero_offset("zero_offset", storage.zero_offset);
 MenuItemDynamic<double> item_storage__level_min("level_min", storage.level_min);
 MenuItemDynamic<double> item_storage__level_optimal("level_optimal", storage.level_optimal);
+MenuItemDynamic<double> item_storage__level_fill("level_fill", storage.level_fill);
 MenuItemDynamic<double> item_storage__level_max("level_max", storage.level_max);
+MenuItemDynamic<double> item__autolevel_target("A.L. target", autolevel_target);
 
 
 MenuItemDynamicTime item_pump_off_time("Off time", &pump_off_time_remaining);
@@ -96,24 +99,78 @@ void do_calibrate_zero_offset(){
 const char pgmstr_calibrate_zero_offset[] PROGMEM = "SET zero_offset";
 MenuItemCallable item_calibrate_zero_offset(pgmstr_calibrate_zero_offset, &do_calibrate_zero_offset, false);
 
-void do_calibrate_level_optimal(){
+void do_calibrate_level_min(){
+  storage.level_min = filtered_corrected;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_calibrate_level_min[] PROGMEM = "SET level_min";
+MenuItemCallable item_calibrate_level_min(pgmstr_calibrate_level_min, &do_calibrate_level_min, false);
+
+void do_reset_level_min(){
   storage.level_min = 1.0;
-  storage.level_optimal = filtered_corrected; // 4.5;
-  storage.level_max = filtered_corrected + 4.5; // 9.0;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_reset_level_min[] PROGMEM = "RESET level_min";
+MenuItemCallable item_reset_level_min(pgmstr_reset_level_min, &do_reset_level_min, false);
+
+void do_calibrate_level_optimal(){
+  storage.level_optimal = filtered_corrected;
   storage.save();
   beep(10);
 }
 const char pgmstr_calibrate_level_optimal[] PROGMEM = "SET level_optimal";
 MenuItemCallable item_calibrate_level_optimal(pgmstr_calibrate_level_optimal, &do_calibrate_level_optimal, false);
 
+void do_calibrate_level_fill(){
+  storage.level_fill = filtered_corrected;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_calibrate_level_fill[] PROGMEM = "SET level_fill";
+MenuItemCallable item_calibrate_level_fill(pgmstr_calibrate_level_fill, &do_calibrate_level_fill, false);
+
+void do_reset_level_fill(){
+  storage.level_fill = storage.level_optimal / 2.0;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_reset_level_fill[] PROGMEM = "RESET level_fill";
+MenuItemCallable item_reset_level_fill(pgmstr_reset_level_fill, &do_reset_level_fill, false);
+
+void do_calibrate_level_max(){
+  storage.level_max = filtered_corrected;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_calibrate_level_max[] PROGMEM = "SET level_max";
+MenuItemCallable item_calibrate_level_max(pgmstr_calibrate_level_max, &do_calibrate_level_max, false);
+
+void do_reset_level_max(){
+  storage.level_max = storage.level_optimal + 4.5;
+  storage.save();
+  beep(10);
+}
+const char pgmstr_reset_level_max[] PROGMEM = "RESET level_max";
+MenuItemCallable item_reset_level_max(pgmstr_reset_level_max, &do_reset_level_max, false);
+
 MenuItem* const calibrate_menu_items[] PROGMEM = {
   &back,
   &item_calibrate_zero_offset,
+  &item_calibrate_level_min,
+  &item_reset_level_min,
   &item_calibrate_level_optimal,
+  &item_calibrate_level_fill,
+  &item_reset_level_fill,
+  &item_calibrate_level_max,
+  &item_reset_level_max,
   &item__filtered_corrected,
   &item__filtered,
+  &separator,
   &item_storage__zero_offset,
   &item_storage__level_min,
+  &item_storage__level_fill,
   &item_storage__level_optimal,
   &item_storage__level_max,
 };
@@ -145,6 +202,7 @@ void setupCustom(){
   motors[MT].planned.accel = motors[MT].accel;
   motors[MT].planned.decel = motors[MT].decel;
   motors[MT].autohome.enabled = true;
+  motors[MT].autohome.autohome_on_move = false;
   motors[MT].autohome.direction = false;
   motors[MT].autohome.initial_rpm = 220;
   motors[MT].autohome.final_rpm = 10;
@@ -186,14 +244,17 @@ void setupCustom(){
   writeRegister(AD7150_REG_CH2_SETUP, 0x0B);
   writeRegister(AD7150_REG_CONFIGURATION, 0x19);
   writeRegister(AD7150_REG_POWER_DOWN_TIMER, 0x00);
-  writeRegister(AD7150_REG_CH1_CAPDAC, 0xC0);
-  writeRegister(AD7150_REG_CH2_CAPDAC, 0xC0);
+  // writeRegister(AD7150_REG_CH1_CAPDAC, 0x80); // enable
+  // writeRegister(AD7150_REG_CH2_CAPDAC, 0xC0); // enable + auto
+  writeRegister(AD7150_REG_CH1_CAPDAC, ch1_capdac.reg); // enable
+  writeRegister(AD7150_REG_CH2_CAPDAC, ch2_capdac.reg); // enable + auto
 
   unsigned long seed = analogRead(A4) + analogRead(A6) + analogRead(A8) + analogRead(A10);
   seed += analogRead(A11) + analogRead(A14) + analogRead(A15);
 
   randomSeed(seed);
 
+  // print_gcode_to_lcd = true;
   main_menu.redraw_interval = 50;
   calibrate_menu.redraw_interval = 50;
 }
@@ -209,6 +270,25 @@ void loopCustom(){
     custom_gcode_autofill_on();
   }
 
+  // Serial.print("status=");
+  // Serial.print(status.reg);
+  // Serial.print("\t");
+  // Serial.print(status.reg, BIN);
+  // if(!status.RDY1 && !status.RDY2) Serial.print(" <---");
+  // Serial.println();
+
+  if(!status.DacStep2){
+    Serial.print("status=");
+    Serial.print(status.reg);
+    Serial.print("\t");
+    ch2_capdac.reg = readRegister(AD7150_REG_CH2_CAPDAC);
+    ch1_capdac.DacValue = ch2_capdac.DacValue;
+    writeRegister(AD7150_REG_CH1_CAPDAC, ch1_capdac.reg, false);
+
+    Serial.print("capdac change>");
+    Serial.println(ch2_capdac.DacValue);
+
+  }else
   if(!status.RDY1 && !status.RDY2){
     uint8_t data[5] = {0};
 
@@ -250,21 +330,27 @@ void loopCustom(){
     static uint32_t last_pump_tick = 0; // 655356540;
     if(_millis >= last_pump_tick + 100){
     // if(true){
-      // const double level_delta = running_average - storage.level_optimal;
+      // const double level_delta = running_average - autolevel_target;
       last_pump_tick = _millis;
 
-      if(abs(filtered_corrected - storage.level_optimal) > level_tolerance){
-        if(filtered_corrected <= storage.level_optimal){
+      if(abs(filtered_corrected - autolevel_target) > level_tolerance){
+        if(filtered_corrected <= autolevel_target){
           // need more resin
           if(filtered_corrected <= storage.level_min){
             new_rpm = rpm_optimal;
           }else{
-            const double pwr = 1.0 - ((filtered_corrected - storage.level_min) / (storage.level_optimal - storage.level_min));
+            const double pwr = 1.0 - ((filtered_corrected - storage.level_min) / (autolevel_target - storage.level_min));
             new_rpm = rpm_min + ((rpm_optimal - rpm_min) * pwr);
           }
           if(autolevel_enabled){
             if(motors[MP].dir()) motors[MP].dir(false);
             motors[MP].target_rpm = new_rpm;
+            if(!motors[MP].is_busy()){
+              motors[MP].rpm(1);
+              motors[MP].start(1);
+              // motors[MP].ramp_to(new_rpm);
+              last_pump_tick += 500;
+            }
           }
 
         }else{
@@ -272,19 +358,26 @@ void loopCustom(){
           if(filtered_corrected >= storage.level_max){
             new_rpm = rpm_max;
           }else{
-            const double pwr = 1.0 - ((filtered_corrected - storage.level_optimal) / (storage.level_max - storage.level_optimal));
+            const double pwr = ((filtered_corrected - autolevel_target) / (storage.level_max - autolevel_target));
             new_rpm = rpm_min + ((rpm_max - rpm_min) * pwr);
           }
           if(autolevel_enabled){
             if(!motors[MP].dir()) motors[MP].dir(true);
             motors[MP].target_rpm = new_rpm;
+            if(!motors[MP].is_busy()){
+              motors[MP].rpm(1);
+              motors[MP].start(1);
+              // motors[MP].ramp_to(new_rpm);
+              last_pump_tick += 500;
+            }
           }
 
         }
       }else{
         if(autolevel_enabled){
-          new_rpm = 0.0001;
+          new_rpm = 0.0;
           motors[MP].target_rpm = new_rpm;
+          // Serial.println(F("  set to 0 rpm"));
         }
 
       }
@@ -694,6 +787,7 @@ void custom_gcode_autofill_on_delayed(){
 
 void custom_gcode_autofill_on(){
   autolevel_on_at = 0;
+  autolevel_target = storage.level_optimal;
   autolevel_enabled = true;
   if(!motors[MP].is_busy()){
     motors[MP].rpm(10.0);
@@ -720,6 +814,7 @@ void custom_gcode_fill_wait(){
   const bool old_autolevel_enabled = autolevel_enabled;
   custom_gcode_autofill_on();
   stop_pump_auto_off_timer();
+  autolevel_target = storage.level_fill;
   // while(running_average_corrected <= (storage.level_optimal - level_tolerance - 0.3)){
   //   // loopCustom();
   //   loop();
@@ -750,10 +845,59 @@ void custom_gcode_fill_wait(){
   //   loop();
   //   delay(1);
   // }
-  while(filtered_corrected < (storage.level_optimal - 2.3)){
+  // while(filtered_corrected < (storage.level_optimal - 2.3)){
+  while(filtered_corrected < storage.level_fill){
     loop();
     delay(1);
   }
+
+  // if(!old_autolevel_enabled) custom_gcode_autofill_off();
+  custom_gcode_autofill_off();
+}
+
+
+void custom_gcode_fill_wait_stable(){
+  static bool fill_wait_last_state = false;
+  static uint32_t fill_wait_last_hit = 0;
+  const bool old_autolevel_enabled = autolevel_enabled;
+  custom_gcode_autofill_on();
+  stop_pump_auto_off_timer();
+  autolevel_target = storage.level_fill;
+  // while(filtered <= (storage.level_optimal - level_tolerance - 0.3)){
+  //   // loopCustom();
+  //   loop();
+  //   delay(1);
+  // }
+
+  while(1){
+    const uint32_t _millis = millis();
+    const bool state = filtered < storage.level_fill;
+    if(state != fill_wait_last_state){
+      fill_wait_last_state = state;
+      // fill_wait_last_hit = state ? _millis : 0;
+      fill_wait_last_hit = _millis;
+      // Serial.print("change to ");
+      // Serial.print(filtered);
+      // Serial.print(" at ");
+      // Serial.print(fill_wait_last_hit);
+      // Serial.println(state ? " true" : " false");
+    }
+
+    if(!state && fill_wait_last_hit > 0 && _millis > fill_wait_last_hit + 20000UL /*10000UL*/ /*30000UL*/ /*120000*/){
+      Serial.print("return at ");
+      Serial.println(_millis);
+
+      break;
+    }
+
+    loop();
+    delay(1);
+  }
+
+  // while(filtered_corrected < (storage.level_optimal - 2.3)){
+  //   loop();
+  //   delay(1);
+  // }
 
   // if(!old_autolevel_enabled) custom_gcode_autofill_off();
   custom_gcode_autofill_off();
@@ -766,6 +910,41 @@ void custom_gcode_empty_tank(){
     return;
   }
   pump_start(false, 140);
+}
+
+
+void custom_gcode_get_level_fill(){
+  Serial.println(storage.level_fill, 2);
+}
+
+
+void custom_gcode_get_level_optimal(){
+  Serial.println(storage.level_optimal, 2);
+}
+
+
+void custom_gcode_get_level_tolerance(){
+  Serial.println(level_tolerance, 2);
+}
+
+
+void custom_gcode_capsense_raw(){
+  Serial.println(filtered, 2);
+}
+
+
+void custom_gcode_capsense(){
+  Serial.println(filtered_corrected, 2);
+}
+
+
+void custom_gcode_set_target_fill(){
+  autolevel_target = storage.level_fill;
+}
+
+
+void custom_gcode_set_target_optimal(){
+  autolevel_target = storage.level_optimal;
 }
 
 
@@ -803,6 +982,7 @@ MenuItemCallable item_pump_start_empty(pgmstr_pump_start_empty, &do_pump_start_e
 
 bool is_auto_level_on(){ return autolevel_enabled; }
 void do_auto_level_on(){
+  autolevel_target = storage.level_optimal;
   autolevel_enabled = true;
   if(!motors[MP].is_busy()){
     motors[MP].rpm(10.0);
@@ -815,8 +995,8 @@ void do_auto_level_off(){
     do_pump_stop();
   }
 }
-const char pgmstr_auto_level_on[] PROGMEM = "Autolevel: on";
-const char pgmstr_auto_level_off[] PROGMEM = "Autolevel: off";
+const char pgmstr_auto_level_on[] PROGMEM = "Autolevel: on  ";
+const char pgmstr_auto_level_off[] PROGMEM = "Autolevel: off ";
 MenuItemToggleCallable item_auto_level(&is_auto_level_on, pgmstr_auto_level_on, pgmstr_auto_level_off, &do_auto_level_off, &do_auto_level_on);
 
 
@@ -881,6 +1061,7 @@ MenuItem* const debug_menu_items[] PROGMEM = {
   &motor_z,
   &motor_e,
   &separator,
+  &item__autolevel_target,
   // &item_home_fast,
   // &item_home_coarse,
   // &item_home_sensitive,
@@ -904,8 +1085,18 @@ const char pgmstr_debug[] PROGMEM = "debug";
 MenuItem item_debug_menu(pgmstr_debug, &debug_menu);
 
 
+char* get_pump_status(){
+  if(motors[MP].is_busy()){
+    if(motors[MP].dir()) return "emptying";
+    else return "filling";
+  }
+  return "idle";
+}
+MenuItemDynamicCallable<char*> item__pump_status("pump", &get_pump_status);
+
 MenuItem* const main_menu_items[] PROGMEM = {
   &item__filtered_corrected,
+  &item__pump_status,
   &item_auto_level,
   &item_pump_start_fill,
   &item_pump_start_empty,

@@ -38,7 +38,15 @@
   extern void custom_gcode_autofill_on();
   extern void custom_gcode_autofill_off();
   extern void custom_gcode_fill_wait();
+  extern void custom_gcode_fill_wait_stable();
   extern void custom_gcode_empty_tank();
+  extern void custom_gcode_get_level_optimal();
+  extern void custom_gcode_get_level_fill();
+  extern void custom_gcode_get_level_tolerance();
+  extern void custom_gcode_capsense_raw();
+  extern void custom_gcode_capsense();
+  extern void custom_gcode_set_target_fill();
+  extern void custom_gcode_set_target_optimal();
 
   #define CUSTOM_GCODE \
     else if(strcmp_P(rx_command, F("home_weak"))) custom_gcode_home_weak();  \
@@ -51,11 +59,31 @@
     else if(strcmp_P(rx_command, F("autofill_off"))) custom_gcode_autofill_off();  \
     else if(strcmp_P(rx_command, F("fill_wait"))) custom_gcode_fill_wait();  \
     else if(strcmp_P(rx_command, F("empty_tank"))) custom_gcode_empty_tank();  \
+    else if(strcmp_P(rx_command, F("get_level_fill"))) custom_gcode_get_level_fill();  \
+    else if(strcmp_P(rx_command, F("get_level_optimal"))) custom_gcode_get_level_optimal();  \
+    else if(strcmp_P(rx_command, F("get_level_tolerance"))) custom_gcode_get_level_tolerance();  \
+    else if(strcmp_P(rx_command, F("capsense_raw"))) custom_gcode_capsense_raw();  \
+    else if(strcmp_P(rx_command, F("capsense"))) custom_gcode_capsense();  \
+    else if(strcmp_P(rx_command, F("set_target_fill"))) custom_gcode_set_target_fill();  \
+    else if(strcmp_P(rx_command, F("set_target_optimal"))) custom_gcode_set_target_optimal();  \
 
   #define CUSTOM_PERMANENT_STORAGE  \
-    double zero_offset = 94.0;  \
+    double zero_offset = 32.66;  \
     double level_min = 1.0;  \
-    double level_optimal = 4.5;  \
-    double level_max = 9.0;  \
+    double level_fill = 3.47;  \
+    double level_optimal = 5.65;  \
+    double level_max = 7.03;  \
+
+    // double zero_offset = 28.37;  \
+    // double level_min = 1.0;  \
+    // double level_fill = 2.41;  \
+    // double level_optimal = 3.72;  \
+    // double level_max = 6.29;  \
+
+    // double zero_offset = 94.0;  \
+    // double level_min = 1.0;  \
+    // double level_optimal = 4.5;  \
+    // double level_fill = 4.5;  \
+    // double level_max = 9.0;  \
 
 #endif

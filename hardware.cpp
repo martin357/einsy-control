@@ -14,7 +14,7 @@ bool _is_lcd_present(){
 
 int8_t enc_diff = 0;
 uint8_t enc_click = 0;
-uint32_t beeper_off_at = 0;
+volatile uint32_t beeper_off_at = 0;
 bool read_temperature = true;
 uint8_t temperature_samples_collected = 0;
 double temperature_raw[THERMISTOR_CNT] = {0};

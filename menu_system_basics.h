@@ -31,7 +31,7 @@ public:
 
 class MenuItemToggle: public MenuItem{
 public:
-  MenuItemToggle(const bool*, const char*, const char*, bool = false);
+  MenuItemToggle(bool*, const char*, const char*, bool = false);
   Menu* on_press(uint16_t);
   const char* getTitle();
   bool* value;

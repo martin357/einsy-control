@@ -15,7 +15,7 @@ MenuItem::MenuItem(const char* title, const Menu* leads_to):
 const char* MenuItem::getTitle(){
   const uint8_t buf_len = 20;
   static char buf[buf_len];
-  char* ptr = title;
+  const char* ptr = title;
   size_t len = 0;
   while(1){
     if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
@@ -57,7 +57,7 @@ MenuItemSeparator::MenuItemSeparator() : MenuItem(pgmstr_separator){}
 /*
   menu item toggle
 */
-MenuItemToggle::MenuItemToggle(const bool* value, const char* title_true, const char* title_false, bool update_storage_on_change):
+MenuItemToggle::MenuItemToggle(bool* value, const char* title_true, const char* title_false, bool update_storage_on_change):
   MenuItem(nullptr),
   value(value),
   title_true(title_true),
@@ -102,7 +102,7 @@ Menu* MenuItemToggleCallable::on_press(uint16_t duration){
 const char* MenuItemToggleCallable::getTitle(){
   const uint8_t buf_len = 20;
   static char buf[buf_len];
-  char* ptr = value_getter() ? title_true : title_false;
+  const char* ptr = value_getter() ? title_true : title_false;
   size_t len = 0;
   while(1){
     if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
@@ -250,8 +250,25 @@ const char* MenuItemDynamicCallable<double>::getTitle(){
 }
 
 
+template <>
+const char* MenuItemDynamicCallable<char*>::getTitle(){
+  static char buf[20] = {0};
+  const char* buf_num = value_getter();
+
+  memset(buf, ' ', sizeof(buf));
+  buf[sizeof(buf) - 1] = 0;
+
+  memcpy(buf, title, strlen(title));
+  memcpy(buf + strlen(title), ": ", 2);
+  memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
+
+  return buf;
+}
+
+
 template class MenuItemDynamicCallable<uint16_t>;
 template class MenuItemDynamicCallable<double>;
+template class MenuItemDynamicCallable<char*>;
 
 
 
@@ -323,7 +340,7 @@ void Menu::on_leave(){
 
 void Menu::on_press(uint16_t duration){
   MenuItem* item = (MenuItem*)pgm_read_word(&items[current_item]);
-  Menu* new_menu = item->leads_to != nullptr ? item->leads_to : item->on_press(duration);;
+  Menu* new_menu = item->leads_to != nullptr ? item->leads_to : item->on_press(duration);
 
   if(new_menu != nullptr){
     current_menu->on_leave();
@@ -384,7 +401,7 @@ bool Menu::has_back(){
   for (size_t i = 0; i < items_count; i++) {
     // MenuItem* item = (MenuItem*)pgm_read_word(&items[i]);
     // if(item == back) return true;
-    if(pgm_read_word(&items[i]) == &back) return true;
+    if((MenuItemBack*)pgm_read_word(&items[i]) == &back) return true;
   }
   return false;
 }

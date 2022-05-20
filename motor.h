@@ -77,7 +77,7 @@ enum MotorQueueItemType: uint8_t {
 
 struct MotorQueueItem {
   volatile bool processed;
-  MotorQueueItemType type;
+  volatile MotorQueueItemType type;
   uint32_t value;
 };
 
@@ -123,25 +123,26 @@ public:
   uint8_t enable_pin;
   uint8_t cs_pin;
   uint8_t diag_pin;
-  uint8_t* step_port;
+  volatile uint8_t* step_port;
   uint8_t step_bit;
   TMC2130Stepper driver;
-  uint16_t usteps;
+  volatile uint16_t usteps;
   volatile bool pause_steps;
-  bool started;
+  volatile bool started;
   bool invert_direction;
-  bool stop_on_stallguard;
+  volatile bool stop_on_stallguard;
   bool stop_on_stallguard_only_when_homing;
-  bool print_stallguard_to_serial;
-  bool is_homed;
-  bool is_homing;
-  Bool_tristate is_homed_override;
-  Bool_tristate is_homing_override;
+  volatile bool print_stallguard_to_serial;
+  volatile bool is_homed;
+  volatile bool is_homing;
+  volatile Bool_tristate is_homed_override;
+  volatile Bool_tristate is_homing_override;
   bool reset_is_homed_on_power_off;
   bool reset_is_homed_on_stall;
+  bool sync_on_stop;
   uint16_t usteps_per_unit;
   uint32_t inactivity_timeout;
-  uint32_t stop_at_millis;
+  volatile uint32_t stop_at_millis;
   volatile int32_t position_usteps;
   volatile bool running;
   volatile bool stallguard_triggered;
@@ -150,12 +151,12 @@ public:
   volatile uint32_t ignore_stallguard_steps;
   volatile uint32_t last_movement;
   struct {
-    float rpm;
-    bool direction;
-    bool is_homed;
-    int32_t position_usteps;
-    float accel;
-    float decel;
+    volatile float rpm;
+    volatile bool direction;
+    volatile bool is_homed;
+    volatile int32_t position_usteps;
+    volatile float accel;
+    volatile float decel;
     Motor* _parent;
     float position(){
       const bool negative = position_usteps < 0;
@@ -165,6 +166,7 @@ public:
   } planned;
   struct {
     bool enabled;
+    bool autohome_on_move;
     bool direction;
     float initial_rpm;
     float final_rpm;
@@ -175,13 +177,11 @@ public:
   } autohome;
 
   volatile float target_rpm;
-  uint16_t accel;
-  uint16_t decel;
+  volatile uint16_t accel;
+  volatile uint16_t decel;
   float default_ramp_rpm_from;
   float default_ramp_rpm_to;
-
   volatile uint32_t last_speed_change;
-
   volatile uint8_t queue_index;
   MotorQueueItem queue[MOTOR_QUEUE_LEN];
   uint8_t next_queue_index();
@@ -189,6 +189,7 @@ public:
   void set_queue_item(uint8_t, MotorQueueItemType, uint32_t = 0);
   bool set_next_empty_queue_item(MotorQueueItemType, uint32_t = 0);
   void empty_queue();
+  void sync(/*bool = false*/);
   bool process_next_queue_item(bool = false);
   void debugPrintQueue();
   void debugPrintInfo();
@@ -202,7 +203,7 @@ public:
   void plan_ramp_move_to(int32_t, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
   void plan_ramp_move_to(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
 // private:
-  bool _dir;
+  volatile bool _dir;
   volatile float _rpm;
   volatile uint16_t* timer_compare_port;
   volatile uint16_t* timer_counter_port;

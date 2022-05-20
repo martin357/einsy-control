@@ -129,6 +129,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   is_homing_override(Bool_tristate::UNSET),
   reset_is_homed_on_power_off(true),
   reset_is_homed_on_stall(true),
+  sync_on_stop(true),
   usteps_per_unit(0),
   inactivity_timeout(120000),
   stop_at_millis(0),
@@ -140,7 +141,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   ignore_stallguard_steps(0),
   last_movement(0),
   planned({0.0, false, false, 0, 120.0, 120.0, nullptr}),
-  autohome({false, false, 120.0, 40.0, 0.1, 0.1, 0.0, 50}),
+  autohome({false, true, false, 120.0, 40.0, 0.1, 0.1, 0.0, 50}),
   target_rpm(-1.0),
   accel(120.0),
   decel(120.0),
@@ -203,6 +204,7 @@ void Motor::stop(){
   running = false;
   steps_to_do = 0;
   ramp_off();
+  if(sync_on_stop) sync();
   // Serial.println(F("[motor] stop"));
 }
 
@@ -412,9 +414,19 @@ void Motor::empty_queue(){
 }
 
 
+void Motor::sync(/*bool set_is_homed*/){
+  planned.position_usteps = position_usteps;
+  planned.rpm = _rpm;
+  // TODO: sync direction?
+  /*if(set_is_homed){
+    planned.is_homed = true;
+    is_homed = true;
+  }*/
+}
+
 
 bool Motor::process_next_queue_item(bool force_ignore_wait){
-  if(queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed && !force_ignore_wait) return;
+  if(queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed && !force_ignore_wait) return true;
 
   SERIAL_PRINT(F("PNQ="));
   uint8_t next = next_queue_index();
@@ -428,6 +440,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
     }else{
       stop();
       // SERIAL_PRINTLN(F("[pnq] empty queue, stopping!"));
+      // Serial.println(F("[pnq] empty queue, stopping!"));
 
     }
     return false;
@@ -720,6 +733,7 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(is_homing_override);
   PRINT_VAR(reset_is_homed_on_power_off);
   PRINT_VAR(reset_is_homed_on_stall);
+  PRINT_VAR(sync_on_stop);
   PRINT_VAR(steps_to_do);
   PRINT_VAR(steps_total);
   PRINT_VAR(target_rpm);
@@ -736,6 +750,7 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(last_speed_change);
   PRINT_VAR(last_movement);
   PRINT_VAR(autohome.enabled);
+  PRINT_VAR(autohome.autohome_on_move);
   PRINT_VAR(autohome.direction);
   PRINT_VAR(autohome.initial_rpm);
   PRINT_VAR(autohome.final_rpm);
@@ -783,7 +798,7 @@ void Motor::plan_rotations_to(float rotations, float rpm){
       plan_rotations(rot_delta, rpm);
 
     }else{
-      if(autohome.enabled){
+      if(autohome.enabled && autohome.autohome_on_move){
         plan_autohome();
         plan_rotations(rot_delta, rpm);
         Serial.print(F("axis "));
@@ -994,7 +1009,7 @@ void Motor::plan_ramp_move_to(int32_t usteps, float rpm_from, float rpm_to, floa
       plan_ramp_move(usteps_delta, rpm_from, rpm_to, accel, decel);
 
     }else{
-      if(autohome.enabled){
+      if(autohome.enabled && autohome.autohome_on_move){
         plan_autohome();
         plan_ramp_move(usteps_delta, rpm_from, rpm_to, accel, decel);
         Serial.print(F("axis "));

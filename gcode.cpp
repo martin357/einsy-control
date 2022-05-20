@@ -551,10 +551,7 @@ void gcode_reset_steps_total(){
 
 void gcode_sync_position(){
   FOREACH_PARAM_AS_AXIS;
-  motors[index].planned.position_usteps = motors[index].position_usteps;
-  motors[index].planned.rpm = motors[index]._rpm;
-  motors[index].planned.is_homed = true;
-  motors[index].is_homed = true;
+  motors[index].sync();
   FOREACH_PARAM_AS_AXIS_END;
 }
 
