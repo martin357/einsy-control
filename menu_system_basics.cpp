@@ -181,7 +181,7 @@ const char* MenuItemDynamic<T>::getTitle(){
 
 
 template <>
-const char* MenuItemDynamic<double>::getTitle(){
+const char* MenuItemDynamic<float>::getTitle(){
   static char buf[20] = {0};
   char buf_num[10] = {0};
   dtostrf(value, -8, 2, buf_num);
@@ -198,8 +198,21 @@ const char* MenuItemDynamic<double>::getTitle(){
 }
 
 
-template class MenuItemDynamic<double>;
+template class MenuItemDynamic<float>;
 template class MenuItemDynamic<uint16_t>;
+
+
+
+/*
+  menu item dynamic range
+*/
+template <typename T>
+MenuItemDynamicRange<T>::MenuItemDynamicRange(const char* title, T& value):
+  MenuItemDynamic<T>(title, value){}
+
+
+template class MenuItemDynamicRange<float>;
+template class MenuItemDynamicRange<uint16_t>;
 
 
 
@@ -251,7 +264,7 @@ const char* MenuItemDynamicCallable<double>::getTitle(){
 
 
 template <>
-const char* MenuItemDynamicCallable<char*>::getTitle(){
+const char* MenuItemDynamicCallable<const char*>::getTitle(){
   static char buf[20] = {0};
   const char* buf_num = value_getter();
 
@@ -268,7 +281,7 @@ const char* MenuItemDynamicCallable<char*>::getTitle(){
 
 template class MenuItemDynamicCallable<uint16_t>;
 template class MenuItemDynamicCallable<double>;
-template class MenuItemDynamicCallable<char*>;
+template class MenuItemDynamicCallable<const char*>;
 
 
 
@@ -412,12 +425,13 @@ bool Menu::has_back(){
   menu range
 */
 template <typename T>
-MenuRange<T>::MenuRange(const char* title, T& value, T min_value, T max_value, bool update_storage_on_leave):
+MenuRange<T>::MenuRange(const char* title, T& value, T min_value, T max_value, T step, bool update_storage_on_leave):
   Menu(nullptr, 0),
   title(title),
   value(value),
   min_value(min_value),
   max_value(max_value),
+  step(step),
   update_storage_on_leave(update_storage_on_leave){}
 
 
@@ -449,10 +463,11 @@ void MenuRange<T>::draw(bool clear){
 
 template <typename T>
 void MenuRange<T>::move(int8_t amount){
-  if(value + amount > max_value) value = max_value;
-  else if(value + amount < min_value) value = min_value;
-  else value += amount;
-
+  if(value + (amount * step) > max_value) value = max_value;
+  else if(value + (amount * step) < min_value) value = min_value;
+  else value += (amount * step);
+  // Serial.print(">");
+  // Serial.println(value);
   draw();
 }
 
@@ -460,6 +475,7 @@ void MenuRange<T>::move(int8_t amount){
 template class MenuRange<int8_t>;
 template class MenuRange<uint8_t>;
 template class MenuRange<uint16_t>;
+template class MenuRange<float>;
 
 
 

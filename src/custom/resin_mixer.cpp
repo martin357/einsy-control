@@ -53,12 +53,12 @@ MenuItemToggleCallable item_mixing_on_off(&is_mixing_on, pgmstr_mixing_on, pgmst
 
 
 const char pgmstr_temperature[] PROGMEM = "Cilova teplota";
-MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 45, true);
+MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 45, 1, true);
 MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
 
 
 const char pgmstr_mixing_duration[] PROGMEM = "Delka cyklu";
-MenuRange<uint8_t> menu_mixing_duration("Celka cyklu: [min]", storage.mixing_duration, 1, 240, true);
+MenuRange<uint8_t> menu_mixing_duration("Celka cyklu: [min]", storage.mixing_duration, 1, 240, 1, true);
 MenuItem item_mixing_duration(pgmstr_mixing_duration, &menu_mixing_duration);
 
 

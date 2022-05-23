@@ -85,6 +85,13 @@ public:
 
 
 template <typename T>
+class MenuItemDynamicRange: public MenuItemDynamic<T>{
+public:
+  MenuItemDynamicRange(const char*, T&);
+};
+
+
+template <typename T>
 class MenuItemDynamicCallable: public MenuItem{
 public:
   MenuItemDynamicCallable(const char*, T (*)());
@@ -127,7 +134,7 @@ public:
 template <typename T>
 class MenuRange: public Menu{
 public:
-  MenuRange(const char*, T&, T, T, bool = false);
+  MenuRange(const char*, T&, T, T, T = 1, bool = false);
   void on_enter();
   void on_press(uint16_t);
   void draw(bool = true);
@@ -136,6 +143,7 @@ public:
   T& value;
   T min_value;
   T max_value;
+  T step;
   bool update_storage_on_leave;
 };
 

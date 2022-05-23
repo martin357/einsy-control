@@ -31,17 +31,17 @@ MenuItemToggleCallable item_heater_on_off(&is_heater_on, pgmstr_heater_on, pgmst
 
 
 const char pgmstr_temperature[] PROGMEM = "Cilova teplota";
-MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 65, true);
+MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 65, 1, true);
 MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
 
 
 const char pgmstr_washing_duration[] PROGMEM = "Delka myciho cyklu";
-MenuRange<uint8_t> menu_washing_duration("Doba myti: [min]", storage.washing_duration, 1, 240, true);
+MenuRange<uint8_t> menu_washing_duration("Doba myti: [min]", storage.washing_duration, 1, 240, 1, true);
 MenuItem item_washing_duration(pgmstr_washing_duration, &menu_washing_duration);
 
 
 const char pgmstr_water_pump_intensity[] PROGMEM = "Vykon cerpadla";
-MenuRange<uint8_t> menu_water_pump_intensity("Vykon cerpadla", storage.water_pump_intensity, 100, 255, true);
+MenuRange<uint8_t> menu_water_pump_intensity("Vykon cerpadla", storage.water_pump_intensity, 100, 255, 1, true);
 MenuItem item_water_pump_intensity(pgmstr_water_pump_intensity, &menu_water_pump_intensity);
 
 

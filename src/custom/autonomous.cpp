@@ -332,7 +332,7 @@ MenuItemToggleCallable item_heater_on_off(&is_heater_on, pgmstr_heater_on, pgmst
 
 
 const char pgmstr_temperature[] PROGMEM = "Cilova teplota";
-MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 45, true);
+MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 45, 1, true);
 MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
 
 
@@ -766,19 +766,19 @@ MenuItem item_debug_menu(pgmstr_debug_menu, &debug_menu);
 
 ///////// WASHING CONFIG MENU
 const char pgmstr_wash_config__valve_in_on_time[] PROGMEM = "Valve-IN ON time";
-MenuRange<uint8_t> menu_wash_config__valve_in_on_time("Duration: [sec]", storage.wash__valve_in_on_time, 1, 60, true);
+MenuRange<uint8_t> menu_wash_config__valve_in_on_time("Duration: [sec]", storage.wash__valve_in_on_time, 1, 60, 1, true);
 MenuItem item_wash_config__valve_in_on_time(pgmstr_wash_config__valve_in_on_time, &menu_wash_config__valve_in_on_time);
 
 const char pgmstr_wash_config__pump_on_valve_in_off_delay[] PROGMEM = "Valve-IN OFF delay";
-MenuRange<uint8_t> menu_wash_config__pump_on_valve_in_off_delay("Duration: [sec]", storage.wash__pump_on_valve_in_off_delay, 1, 60, true);
+MenuRange<uint8_t> menu_wash_config__pump_on_valve_in_off_delay("Duration: [sec]", storage.wash__pump_on_valve_in_off_delay, 1, 60, 1, true);
 MenuItem item_wash_config__pump_on_valve_in_off_delay(pgmstr_wash_config__pump_on_valve_in_off_delay, &menu_wash_config__pump_on_valve_in_off_delay);
 
 const char pgmstr_wash_config__washing_duration[] PROGMEM = "Washing duration";
-MenuRange<uint16_t> menu_wash_config__washing_duration("Duration: [sec]", storage.wash__washing_duration, 1, 1200, true);
+MenuRange<uint16_t> menu_wash_config__washing_duration("Duration: [sec]", storage.wash__washing_duration, 1, 1200, 1, true);
 MenuItem item_wash_config__washing_duration(pgmstr_wash_config__washing_duration, &menu_wash_config__washing_duration);
 
 const char pgmstr_wash_config__empty_pump_duration[] PROGMEM = "Empty pump dur.";
-MenuRange<uint8_t> menu_wash_config__empty_pump_duration("Duration: [sec]", storage.wash__empty_pump_duration, 1, 60, true);
+MenuRange<uint8_t> menu_wash_config__empty_pump_duration("Duration: [sec]", storage.wash__empty_pump_duration, 1, 60, 1, true);
 MenuItem item_wash_config__empty_pump_duration(pgmstr_wash_config__empty_pump_duration, &menu_wash_config__empty_pump_duration);
 
 MenuItem* const washing_config_menu_items[] PROGMEM = {
@@ -796,23 +796,23 @@ MenuItem item_washing_config_menu(pgmstr_washing_config_menu, &washing_config_me
 
 ///////// AFTER-PRINT CONFIG MENU
 const char pgmstr_after_print_config__do_collect[] PROGMEM = "1/5 collect";
-MenuRange<uint8_t> menu_after_print_config__do_collect("1/5 collect:", storage.cycle__do_collect, 0, 1, true);
+MenuRange<uint8_t> menu_after_print_config__do_collect("1/5 collect:", storage.cycle__do_collect, 0, 1, 1, true);
 MenuItem item_after_print_config__do_collect(pgmstr_after_print_config__do_collect, &menu_after_print_config__do_collect);
 
 const char pgmstr_after_print_config__do_wash[] PROGMEM = "2/5 wash";
-MenuRange<uint8_t> menu_after_print_config__do_wash("2/5 wash:", storage.cycle__do_wash, 0, 1, true);
+MenuRange<uint8_t> menu_after_print_config__do_wash("2/5 wash:", storage.cycle__do_wash, 0, 1, 1, true);
 MenuItem item_after_print_config__do_wash(pgmstr_after_print_config__do_wash, &menu_after_print_config__do_wash);
 
 const char pgmstr_after_print_config__do_dry[] PROGMEM = "3/5 dry";
-MenuRange<uint8_t> menu_after_print_config__do_dry("3/5 dry:", storage.cycle__do_dry, 0, 1, true);
+MenuRange<uint8_t> menu_after_print_config__do_dry("3/5 dry:", storage.cycle__do_dry, 0, 1, 1, true);
 MenuItem item_after_print_config__do_dry(pgmstr_after_print_config__do_dry, &menu_after_print_config__do_dry);
 
 const char pgmstr_after_print_config__do_cure[] PROGMEM = "4/5 cure";
-MenuRange<uint8_t> menu_after_print_config__do_cure("4/5 cure:", storage.cycle__do_cure, 0, 1, true);
+MenuRange<uint8_t> menu_after_print_config__do_cure("4/5 cure:", storage.cycle__do_cure, 0, 1, 1, true);
 MenuItem item_after_print_config__do_cure(pgmstr_after_print_config__do_cure, &menu_after_print_config__do_cure);
 
 const char pgmstr_after_print_config__do_hand_it_over[] PROGMEM = "5/5 hand out";
-MenuRange<uint8_t> menu_after_print_config__do_hand_it_over("5/5 hand out:", storage.cycle__do_hand_it_over, 0, 1, true);
+MenuRange<uint8_t> menu_after_print_config__do_hand_it_over("5/5 hand out:", storage.cycle__do_hand_it_over, 0, 1, 1, true);
 MenuItem item_after_print_config__do_hand_it_over(pgmstr_after_print_config__do_hand_it_over, &menu_after_print_config__do_hand_it_over);
 
 
@@ -833,17 +833,17 @@ MenuItem item_after_print_menu(pgmstr_after_print_menu, &after_print_menu);
 
 //////// CONFIG MENU
 const char pgmstr_config_drying_cycles[] PROGMEM = "Drying cycles";
-MenuRange<uint8_t> menu_config_drying_cycles("drying cycles:", storage.drying_cycles, 1, 30, true);
+MenuRange<uint8_t> menu_config_drying_cycles("drying cycles:", storage.drying_cycles, 1, 30, 1, true);
 MenuItem item_config_drying_cycles(pgmstr_config_drying_cycles, &menu_config_drying_cycles);
 
 
 const char pgmstr_config_curing_cycles[] PROGMEM = "Curing cycles";
-MenuRange<uint8_t> menu_config_curing_cycles("curing cycles:", storage.curing_cycles, 1, 30, true);
+MenuRange<uint8_t> menu_config_curing_cycles("curing cycles:", storage.curing_cycles, 1, 30, 1, true);
 MenuItem item_config_curing_cycles(pgmstr_config_curing_cycles, &menu_config_curing_cycles);
 
 
 const char pgmstr_config_drying_preheat[] PROGMEM = "Drying preheat";
-MenuRange<uint16_t> menu_config_drying_preheat("drying preheat: [s]", storage.drying_preheat, 0, 1200, true);
+MenuRange<uint16_t> menu_config_drying_preheat("drying preheat: [s]", storage.drying_preheat, 0, 1200, 1, true);
 MenuItem item_config_drying_preheat(pgmstr_config_drying_preheat, &menu_config_drying_preheat);
 
 

@@ -165,19 +165,19 @@ MenuItemToggleCallable item_watch_water_level_on_off(&is_watch_water_level_on, p
 
 
 
-MenuRange<uint8_t> menu_washing_duration("Washing time [min]", storage.washing_duration, 1, 255, true);
+MenuRange<uint8_t> menu_washing_duration("Washing time [min]", storage.washing_duration, 1, 255, 1, true);
 const char pgmstr_washing_time[] PROGMEM = "Washing time";
 MenuItem item_washing_duration(pgmstr_washing_time, &menu_washing_duration);
 
-MenuRange<uint8_t> menu_drying_duration("Drying time [min]", storage.drying_duration, 1, 255, true);
+MenuRange<uint8_t> menu_drying_duration("Drying time [min]", storage.drying_duration, 1, 255, 1, true);
 const char pgmstr_drying_time[] PROGMEM = "Drying time";
 MenuItem item_drying_duration(pgmstr_drying_time, &menu_drying_duration);
 
-MenuRange<uint8_t> menu_curing_duration("Curing time [min]", storage.curing_duration, 1, 255, true);
+MenuRange<uint8_t> menu_curing_duration("Curing time [min]", storage.curing_duration, 1, 255, 1, true);
 const char pgmstr_curing_time[] PROGMEM = "Curing time";
 MenuItem item_curing_duration(pgmstr_curing_time, &menu_curing_duration);
 
-MenuRange<uint8_t> menu_stabilization_duration("Stabil. time [s]", storage.stabilization_duration, 0, 60, true);
+MenuRange<uint8_t> menu_stabilization_duration("Stabil. time [s]", storage.stabilization_duration, 0, 60, 1, true);
 const char pgmstr_stabilization_duration[] PROGMEM = "Stabilization time";
 MenuItem item_stabilization_duration(pgmstr_stabilization_duration, &menu_stabilization_duration);
 

@@ -61,12 +61,12 @@ MenuItemCallable item_do_move_positive_negative(pgmstr_do_move_positive_negative
 
 
 const char pgmstr_steps[] PROGMEM = "Pocet 'kroku'";
-MenuRange<uint8_t> menu_steps("Pocet 'kroku'", storage.steps, 1, 255, true);
+MenuRange<uint8_t> menu_steps("Pocet 'kroku'", storage.steps, 1, 255, 1, true);
 MenuItem item_steps(pgmstr_steps, &menu_steps);
 
 
 const char pgmstr_speed[] PROGMEM = "Rychlost";
-MenuRange<uint8_t> menu_speed("Rychlost [RPM]", storage.speed, 1, 255, true);
+MenuRange<uint8_t> menu_speed("Rychlost [RPM]", storage.speed, 1, 255, 1, true);
 MenuItem item_speed(pgmstr_speed, &menu_speed);
 
 

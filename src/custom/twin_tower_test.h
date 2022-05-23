@@ -68,11 +68,11 @@
     else if(strcmp_P(rx_command, F("set_target_optimal"))) custom_gcode_set_target_optimal();  \
 
   #define CUSTOM_PERMANENT_STORAGE  \
-    double zero_offset = 32.66;  \
-    double level_min = 1.0;  \
-    double level_fill = 3.47;  \
-    double level_optimal = 5.65;  \
-    double level_max = 7.03;  \
+    float zero_offset = 32.66;  \
+    float level_min = 1.0;  \
+    float level_fill = 3.47;  \
+    float level_optimal = 5.65;  \
+    float level_max = 7.03;  \
 
     // double zero_offset = 28.37;  \
     // double level_min = 1.0;  \

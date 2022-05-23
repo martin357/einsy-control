@@ -21,7 +21,7 @@ int32_t last_autolevel_tick = 0;
 bool autolevel_enabled = false;
 uint32_t autolevel_on_at = 0;
 double level_tolerance = 0.3; // 0.5; // 0.3;
-double autolevel_target = 0.0;
+float autolevel_target = 0.0;
 uint32_t pump_off_time_remaining = 0;
 uint32_t pump_off_time_decrease_last_tick = 0;
 
@@ -32,8 +32,8 @@ double new_rpm = 0.0001;
 double total_dist = 0.0;
 
 KalmanFilter filter(10, 1, 0.01);
-double filtered = 0.0;
-double filtered_corrected = 0.0;
+float filtered = 0.0;
+float filtered_corrected = 0.0;
 
 
 void writeRegister(uint8_t reg, uint16_t value, bool wait = true);
@@ -77,17 +77,51 @@ void pump_stop(bool wait = true){
 
 
 
-MenuItemDynamic<double> item__filtered("filtered", filtered);
-MenuItemDynamic<double> item__filtered_corrected("corrected", filtered_corrected);
-MenuItemDynamic<double> item_storage__zero_offset("zero_offset", storage.zero_offset);
-MenuItemDynamic<double> item_storage__level_min("level_min", storage.level_min);
-MenuItemDynamic<double> item_storage__level_optimal("level_optimal", storage.level_optimal);
-MenuItemDynamic<double> item_storage__level_fill("level_fill", storage.level_fill);
-MenuItemDynamic<double> item_storage__level_max("level_max", storage.level_max);
-MenuItemDynamic<double> item__autolevel_target("A.L. target", autolevel_target);
+MenuItemDynamic<float> item__filtered("filtered", filtered);
+MenuItemDynamic<float> item__filtered_corrected("corrected", filtered_corrected);
+MenuItemDynamic<float> item_storage__zero_offset("zero_offset", storage.zero_offset);
+MenuItemDynamic<float> item_storage__level_min("level_min", storage.level_min);
+MenuItemDynamic<float> item_storage__level_optimal("level_optimal", storage.level_optimal);
+MenuItemDynamic<float> item_storage__level_fill("level_fill", storage.level_fill);
+MenuItemDynamic<float> item_storage__level_max("level_max", storage.level_max);
+MenuItemDynamic<float> item__autolevel_target("A.L. target", autolevel_target);
 
 
 MenuItemDynamicTime item_pump_off_time("Off time", &pump_off_time_remaining);
+
+
+
+const char pgmstr__manual_edit_zero_offset[] PROGMEM = "zero_offset";
+MenuRange<float> menu__manual_edit_zero_offset("zero_offset", storage.zero_offset, -1000, 1000, 0.01f, true);
+MenuItem manual_edit_item_zero_offset(pgmstr__manual_edit_zero_offset, &menu__manual_edit_zero_offset);
+
+const char pgmstr__manual_edit_level_min[] PROGMEM = "level_min";
+MenuRange<float> menu__manual_edit_level_min("level_min", storage.level_min, -1000, 1000, 0.01f, true);
+MenuItem manual_edit_item_level_min(pgmstr__manual_edit_level_min, &menu__manual_edit_level_min);
+
+const char pgmstr__manual_edit_level_fill[] PROGMEM = "level_fill";
+MenuRange<float> menu__manual_edit_level_fill("level_fill", storage.level_fill, -1000, 1000, 0.01f, true);
+MenuItem manual_edit_item_level_fill(pgmstr__manual_edit_level_fill, &menu__manual_edit_level_fill);
+
+const char pgmstr__manual_edit_level_optimal[] PROGMEM = "level_optimal";
+MenuRange<float> menu__manual_edit_level_optimal("level_optimal", storage.level_optimal, -1000, 1000, 0.01f, true);
+MenuItem manual_edit_item_level_optimal(pgmstr__manual_edit_level_optimal, &menu__manual_edit_level_optimal);
+
+const char pgmstr__manual_edit_level_max[] PROGMEM = "level_max";
+MenuRange<float> menu__manual_edit_level_max("level_max", storage.level_max, -1000, 1000, 0.01f, true);
+MenuItem manual_edit_item_level_max(pgmstr__manual_edit_level_max, &menu__manual_edit_level_max);
+
+MenuItem* const manual_edit_menu_items[] PROGMEM = {
+  &back,
+  &manual_edit_item_zero_offset,
+  &manual_edit_item_level_min,
+  &manual_edit_item_level_fill,
+  &manual_edit_item_level_optimal,
+  &manual_edit_item_level_max,
+};
+Menu manual_edit_menu(manual_edit_menu_items, sizeof(manual_edit_menu_items) / 2);
+const char pgmstr_manual_edit[] PROGMEM = "manual edit";
+MenuItem item_manual_edit_menu(pgmstr_manual_edit, &manual_edit_menu);
 
 
 
@@ -167,6 +201,7 @@ MenuItem* const calibrate_menu_items[] PROGMEM = {
   &item_reset_level_max,
   &item__filtered_corrected,
   &item__filtered,
+  &item_manual_edit_menu,
   &separator,
   &item_storage__zero_offset,
   &item_storage__level_min,
@@ -1085,16 +1120,26 @@ const char pgmstr_debug[] PROGMEM = "debug";
 MenuItem item_debug_menu(pgmstr_debug, &debug_menu);
 
 
-char* get_pump_status(){
+const char* get_pump_status(){
   if(motors[MP].is_busy()){
     if(motors[MP].dir()) return "emptying";
     else return "filling";
   }
   return "idle";
 }
-MenuItemDynamicCallable<char*> item__pump_status("pump", &get_pump_status);
+MenuItemDynamicCallable<const char*> item__pump_status("pump", &get_pump_status);
+
+const char pgmstr_foobar_range[] PROGMEM = "foobar";
+float foobar_range = 1.0;
+MenuRange<float> menu_foobar_range("foobaz", foobar_range, -1000, 1000, 0.01);
+MenuItem foobar_range_item(pgmstr_foobar_range, &menu_foobar_range);
+
+MenuItemDynamicRange<float> item_dyn_range_test("dyn.range", filtered_corrected);
+
 
 MenuItem* const main_menu_items[] PROGMEM = {
+  &item_dyn_range_test,
+  &foobar_range_item,
   &item__filtered_corrected,
   &item__pump_status,
   &item_auto_level,
