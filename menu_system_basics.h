@@ -77,17 +77,10 @@ public:
 template <typename T>
 class MenuItemDynamic: public MenuItem{
 public:
-  MenuItemDynamic(const char*, T&);
+  MenuItemDynamic(const char*, T&, const Menu* = nullptr);
   const char* getTitle();
   T& value;
   const char* title; // make it public
-};
-
-
-template <typename T>
-class MenuItemDynamicRange: public MenuItemDynamic<T>{
-public:
-  MenuItemDynamicRange(const char*, T&);
 };
 
 
@@ -149,6 +142,14 @@ public:
 
 
 template <typename T>
+class MenuItemRange: public MenuItemDynamic<T>{
+public:
+  MenuItemRange(const char*, T&, T, T, T = 1, bool = false);
+  MenuRange<T> menu_range;
+};
+
+
+template <typename T>
 class MenuList: public Menu{
 public:
   MenuList(const char*, T* ,T[], size_t, bool = false);
@@ -171,3 +172,7 @@ extern MenuItemSeparator separator;
 extern Menu* current_menu;
 extern uint8_t last_entered_motor_menu;
 extern uint32_t last_menu_redraw;
+
+
+extern const char pgmstr_back[]; // "Back \1"
+extern const char pgmstr_separator[]; // "------------------"

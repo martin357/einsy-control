@@ -157,23 +157,30 @@ Menu* MenuItemCallableArg<T>::on_press(uint16_t duration){
   menu item dynamic
 */
 template <typename T>
-MenuItemDynamic<T>::MenuItemDynamic(const char* title, T& value):
-  MenuItem(nullptr, nullptr),
+MenuItemDynamic<T>::MenuItemDynamic(const char* title, T& value, const Menu* leads_to):
+  MenuItem(nullptr, leads_to),
   title(title),
   value(value){}
 
 
 template <typename T>
 const char* MenuItemDynamic<T>::getTitle(){
-  static char buf[20] = {0};
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  const char* ptr = title;
   char buf_num[10] = {0};
+  size_t len = 0;
   itoa(value, buf_num, 10);
 
   memset(buf, ' ', sizeof(buf));
   buf[sizeof(buf) - 1] = 0;
 
-  memcpy(buf, title, strlen(title));
-  memcpy(buf + strlen(title), ": ", 2);
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  memcpy(buf + len - 1, ": ", 2);
   memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
 
   return buf;
@@ -182,16 +189,23 @@ const char* MenuItemDynamic<T>::getTitle(){
 
 template <>
 const char* MenuItemDynamic<float>::getTitle(){
-  static char buf[20] = {0};
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  const char* ptr = title;
   char buf_num[10] = {0};
+  size_t len = 0;
   dtostrf(value, -8, 2, buf_num);
   for (size_t i = 0; i < sizeof(buf_num); i++) if(buf_num[i] == ' '){ buf_num[i] = 0; break; }
 
   memset(buf, ' ', sizeof(buf));
   buf[sizeof(buf) - 1] = 0;
 
-  memcpy(buf, title, strlen(title));
-  memcpy(buf + strlen(title), ": ", 2);
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  memcpy(buf + len - 1, ": ", 2);
   memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
 
   return buf;
@@ -200,19 +214,6 @@ const char* MenuItemDynamic<float>::getTitle(){
 
 template class MenuItemDynamic<float>;
 template class MenuItemDynamic<uint16_t>;
-
-
-
-/*
-  menu item dynamic range
-*/
-template <typename T>
-MenuItemDynamicRange<T>::MenuItemDynamicRange(const char* title, T& value):
-  MenuItemDynamic<T>(title, value){}
-
-
-template class MenuItemDynamicRange<float>;
-template class MenuItemDynamicRange<uint16_t>;
 
 
 
@@ -228,16 +229,23 @@ MenuItemDynamicCallable<T>::MenuItemDynamicCallable(const char* title, T (*value
 
 template <typename T>
 const char* MenuItemDynamicCallable<T>::getTitle(){
-  static char buf[20] = {0};
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  const char* ptr = title;
   char buf_num[10] = {0};
+  size_t len = 0;
   T value = value_getter();
   itoa(value, buf_num, 10);
 
   memset(buf, ' ', sizeof(buf));
   buf[sizeof(buf) - 1] = 0;
 
-  memcpy(buf, title, strlen(title));
-  memcpy(buf + strlen(title), ": ", 2);
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  memcpy(buf + len - 1, ": ", 2);
   memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
 
   return buf;
@@ -246,8 +254,11 @@ const char* MenuItemDynamicCallable<T>::getTitle(){
 
 template <>
 const char* MenuItemDynamicCallable<double>::getTitle(){
-  static char buf[20] = {0};
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  const char* ptr = title;
   char buf_num[10] = {0};
+  size_t len = 0;
   double value = value_getter();
   dtostrf(value, -8, 2, buf_num);
   for (size_t i = 0; i < sizeof(buf_num); i++) if(buf_num[i] == ' '){ buf_num[i] = 0; break; }
@@ -255,8 +266,12 @@ const char* MenuItemDynamicCallable<double>::getTitle(){
   memset(buf, ' ', sizeof(buf));
   buf[sizeof(buf) - 1] = 0;
 
-  memcpy(buf, title, strlen(title));
-  memcpy(buf + strlen(title), ": ", 2);
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  memcpy(buf + len - 1, ": ", 2);
   memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
 
   return buf;
@@ -265,15 +280,22 @@ const char* MenuItemDynamicCallable<double>::getTitle(){
 
 template <>
 const char* MenuItemDynamicCallable<const char*>::getTitle(){
-  static char buf[20] = {0};
-  const char* buf_num = value_getter();
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  const char* ptr = title;
+  const char* buf_value = value_getter();
+  size_t len = 0;
 
   memset(buf, ' ', sizeof(buf));
   buf[sizeof(buf) - 1] = 0;
 
-  memcpy(buf, title, strlen(title));
-  memcpy(buf + strlen(title), ": ", 2);
-  memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  memcpy(buf + len - 1, ": ", 2);
+  memcpy(buf + 18 - strlen(buf_value), buf_value, strlen(buf_value));
 
   return buf;
 }
@@ -296,13 +318,16 @@ MenuItemDynamicTime::MenuItemDynamicTime(const char* title, const uint32_t* valu
 
 
 const char* MenuItemDynamicTime::getTitle(){
-  static char buf[20] = {0};
+  const uint8_t buf_len = 20;
+  static char buf[buf_len];
+  const char* ptr = title;
   const uint32_t sec_ = *value / 1000;
   const uint16_t mins_ = sec_ / 60;
   const uint16_t hrs = mins_ / 60;
   const uint16_t mins = mins_ % 60;
   const uint8_t sec = sec_ % 60;
   char buf_num[10] = {0};
+  size_t len = 0;
   if(force_show_hours || hrs > 0){
     itoa(hrs, buf_num, 10);
     if(mins < 10){
@@ -322,8 +347,12 @@ const char* MenuItemDynamicTime::getTitle(){
   memset(buf, ' ', sizeof(buf));
   buf[sizeof(buf) - 1] = 0;
 
-  memcpy(buf, title, strlen(title));
-  memcpy(buf + strlen(title), ": ", 2);
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
+  memcpy(buf + len - 1, ": ", 2);
   memcpy(buf + 18 - strlen(buf_num), buf_num, strlen(buf_num));
 
   return buf;
@@ -450,8 +479,18 @@ void MenuRange<T>::on_press(uint16_t duration){
 
 template <typename T>
 void MenuRange<T>::draw(bool clear){
+  const uint8_t buf_len = 18;
+  const char* ptr = title;
+  char buf[buf_len] = {0};
+  size_t len = 0;
+
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
   lcd.print("\3", 0, 0);
-  lcd.print(title);
+  lcd.print(buf);
   lcd.print(" \1");
 
   lcd.print(value > min_value ? "<" : " ", 0, 2);
@@ -477,6 +516,19 @@ template class MenuRange<uint8_t>;
 template class MenuRange<uint16_t>;
 template class MenuRange<float>;
 
+
+
+/*
+  menu item range
+*/
+template <typename T>
+MenuItemRange<T>::MenuItemRange(const char* title, T& value, T min_value, T max_value, T step, bool update_storage_on_leave):
+  MenuItemDynamic<T>(title, value, &menu_range),
+  menu_range(title, value, min_value, max_value, step, update_storage_on_leave){}
+
+
+template class MenuItemRange<float>;
+template class MenuItemRange<uint16_t>;
 
 
 /*
@@ -516,8 +568,18 @@ void MenuList<T>::on_press(uint16_t duration){
 
 template <typename T>
 void MenuList<T>::draw(bool clear){
+  const uint8_t buf_len = 18;
+  const char* ptr = title;
+  char buf[buf_len] = {0};
+  size_t len = 0;
+
+  while(1){
+    if((buf[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len) break;
+  }
+
   lcd.print("\3", 0, 0);
-  lcd.print(title);
+  lcd.print(buf);
   lcd.print(" \1");
 
   lcd.print(index > 0 ? "<" : " ", 0, 2);

@@ -371,3 +371,31 @@ float read_float_from_uint32(uint32_t *source){
   float* view = reinterpret_cast<float*>(*&source);
   return *view;
 }
+
+
+
+const char* read_pgm_string(const char* ptr){
+  const uint8_t buf_len = 21;
+  static char buffer[buf_len];
+  size_t len = 0;
+
+  memset(buffer, 0, buf_len);
+  while(1){
+    if((buffer[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len - 1) break;
+  }
+  return buffer;
+}
+
+
+
+uint8_t read_pgm_string(const char* ptr, char* buffer, uint8_t buf_len){
+  size_t len = 0;
+
+  memset(buffer, 0, buf_len);
+  while(1){
+    if((buffer[len++] = pgm_read_byte(ptr++)) == 0) break;
+    else if(len >= buf_len - 1) break;
+  }
+  return len;
+}

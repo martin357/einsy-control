@@ -109,3 +109,16 @@ public:
   void draw(bool = true);
   void move(int8_t);
 };
+
+
+
+extern const char pgmstr_microstepping[]; // "Microstepping"
+extern const char pgmstr_blank_time[]; // "Blank time"
+extern const char pgmstr_current[]; // "Current"
+extern const char pgmstr_off_time[]; // "Off time"
+extern const char pgmstr_speed[]; // "Speed [RPM]"
+extern const char pgmstr_sg_thres[]; // "Sg thres"
+extern const char pgmstr_accel[]; // "Accel [RPMS]"
+extern const char pgmstr_decel[]; // "Decel [RPMS]"
+extern const char pgmstr_smartenergy_min[]; // "SmartEnergy Min"
+extern const char pgmstr_smartenergy_max[]; // "SmartEnergy Max"

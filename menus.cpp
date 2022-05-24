@@ -32,17 +32,14 @@ MenuItem motor_manual_steps(pgmstr_manual_steps, &menu_motor_manual_steps);
 
 
 // motor speed
-const char pgmstr_speed[] PROGMEM = "Speed [RPM]";
 MenuRangeMotorRPM menu_motor_speed;
 MenuItem motor_speed(pgmstr_speed, &menu_motor_speed);
 
 // motor accel
-const char pgmstr_accel[] PROGMEM = "Accel [RPM2]";
 MenuRangeMotorAccel menu_motor_accel;
 MenuItem motor_accel(pgmstr_accel, &menu_motor_accel);
 
 // motor decel
-const char pgmstr_decel[] PROGMEM = "Decel [RPM2]";
 MenuRangeMotorDecel menu_motor_decel;
 MenuItem motor_decel(pgmstr_decel, &menu_motor_decel);
 
@@ -117,42 +114,37 @@ MenuItemToggleCallable motor_invert_direction_on_off(&is_motor_invert_direction_
 
 
 // motor current
-const char pgmstr_current[] PROGMEM = "Current";
 MenuListMotorCurrent menu_motor_current;
 MenuItem motor_current(pgmstr_current, &menu_motor_current);
 
 
 // motor microstepping
-const char pgmstr_microstepping[] PROGMEM = "Microstepping";
 MenuListMotorMicrostepping menu_motor_msteps;
 MenuItem motor_msteps(pgmstr_microstepping, &menu_motor_msteps);
 
 
 // motor blank time
-const char pgmstr_blank_time[] PROGMEM = "Blank time";
 MenuListMotorBlankTime menu_motor_blank_time;
 MenuItem motor_blank_time(pgmstr_blank_time, &menu_motor_blank_time);
 
 
 // motor off time
-const char pgmstr_off_time[] PROGMEM = "Off time";
 MenuRangeMotorOffTime menu_motor_off_time;
 MenuItem motor_off_time(pgmstr_off_time, &menu_motor_off_time);
 
 
 // motor semin
-const char pgmstr_semin[] PROGMEM = "SmartEnergy Min";
 MenuRangeMotorSEMIN menu_motor_semin;
-MenuItem motor_semin(pgmstr_semin, &menu_motor_semin);
+MenuItem motor_semin(pgmstr_smartenergy_min, &menu_motor_semin);
 
 
 // motor semax
-const char pgmstr_semax[] PROGMEM = "SmartEnergy Max";
 MenuRangeMotorSEMAX menu_motor_semax;
-MenuItem motor_semax(pgmstr_semax, &menu_motor_semax);
+MenuItem motor_semax(pgmstr_smartenergy_max, &menu_motor_semax);
 
 
 // motor show stallguard
+const char pgmstr_stallguard[] PROGMEM = "stallGuard";
 const char pgmstr_show_stallguard[] PROGMEM = "Show stallGuard";
 static TMC2130_n::DRV_STATUS_t mot_drv_status{0};
 uint16_t get_motor_stallguard_value(){
@@ -162,8 +154,8 @@ uint16_t get_motor_stallguard_value(){
 uint16_t get_motor_actual_current(){
   return motors[last_entered_motor_menu].driver.cs2rms(mot_drv_status.cs_actual);
 }
-MenuItemDynamicCallable<uint16_t> motor_stallguard_value_item("stallGuard", &get_motor_stallguard_value);
-MenuItemDynamicCallable<uint16_t> motor_actual_current_item("current", &get_motor_actual_current);
+MenuItemDynamicCallable<uint16_t> motor_stallguard_value_item(pgmstr_stallguard, &get_motor_stallguard_value);
+MenuItemDynamicCallable<uint16_t> motor_actual_current_item(pgmstr_current, &get_motor_actual_current);
 MenuItem* const motor_stallguard_value_items[] PROGMEM = {
   &back,
   &motor_stallguard_value_item,
@@ -174,9 +166,8 @@ MenuItem motor_stallguard_value(pgmstr_show_stallguard, &menu_motor_stallguard_v
 
 
 // motor stallguard sensitivity
-const char pgmstr_stallguard_sensitivity[] PROGMEM = "Sensitivity";
 MenuRangeMotorSgThreshold menu_motor_sg_threshold;
-MenuItem motor_sg_threshold(pgmstr_stallguard_sensitivity, &menu_motor_sg_threshold);
+MenuItem motor_sg_threshold(pgmstr_sg_thres, &menu_motor_sg_threshold);
 
 
 // motor stop on stallguard
@@ -201,7 +192,6 @@ MenuItemToggleCallable motor_stallguard_to_serial_on_off(&is_motor_stallguard_to
 
 
 // motor stallguard
-const char pgmstr_stallguard[] PROGMEM = "stallGuard";
 MenuItem* const motor_stallguard_items[] PROGMEM = {
   &back,
   &motor_stallguard_value,

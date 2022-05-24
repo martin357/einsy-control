@@ -25,7 +25,7 @@ void MenuMotor::on_enter(){
 const char pgmstr_microstepping[] PROGMEM = "Microstepping";
 uint16_t motor_microstepping_items[] = {0, 2, 4, 8, 16, 32, 64, 128, 256};
 MenuListMotorMicrostepping::MenuListMotorMicrostepping():
-  MenuList("Microstepping", &value, motor_microstepping_items, sizeof(motor_microstepping_items) / sizeof(motor_microstepping_items[0])),
+  MenuList(pgmstr_microstepping, &value, motor_microstepping_items, sizeof(motor_microstepping_items) / sizeof(motor_microstepping_items[0])),
   value(64){}
 
 
@@ -52,7 +52,7 @@ void MenuListMotorMicrostepping::loop(){
 const char pgmstr_blank_time[] PROGMEM = "Blank time";
 uint8_t motor_blank_time_items[] = {16, 24, 36, 54};
 MenuListMotorBlankTime::MenuListMotorBlankTime():
-  MenuList("Blank time", &value, motor_blank_time_items, sizeof(motor_blank_time_items) / sizeof(motor_blank_time_items[0])),
+  MenuList(pgmstr_blank_time, &value, motor_blank_time_items, sizeof(motor_blank_time_items) / sizeof(motor_blank_time_items[0])),
   value(24){}
 
 
@@ -79,7 +79,7 @@ void MenuListMotorBlankTime::loop(){
 const char pgmstr_current[] PROGMEM = "Current";
 uint16_t motor_current_items[32] = {0};
 MenuListMotorCurrent::MenuListMotorCurrent():
-  MenuList("Current", &value, motor_current_items, sizeof(motor_current_items) / sizeof(motor_current_items[0])),
+  MenuList(pgmstr_current, &value, motor_current_items, sizeof(motor_current_items) / sizeof(motor_current_items[0])),
   value(1){}
 
 
@@ -110,7 +110,7 @@ void MenuListMotorCurrent::loop(){
 */
 const char pgmstr_off_time[] PROGMEM = "Off time";
 MenuRangeMotorOffTime::MenuRangeMotorOffTime():
-  MenuRange("Off time", value, 1, 15),
+  MenuRange(pgmstr_off_time, value, 1, 15),
   value(1){}
 
 
@@ -138,9 +138,9 @@ void MenuRangeMotorOffTime::loop(){
 /*
   menu range motor rpm
 */
-const char pgmstr_speed[] PROGMEM = "";
+const char pgmstr_speed[] PROGMEM = "Speed [RPM]";
 MenuRangeMotorRPM::MenuRangeMotorRPM():
-  MenuRange("Speed [RPM]", value, 1, 460),
+  MenuRange(pgmstr_speed, value, 1, 460),
   value(1){}
 
 
@@ -173,8 +173,9 @@ void MenuRangeMotorRPM::loop(){
 /*
   menu range motor sg threshold
 */
+const char pgmstr_sg_thres[] PROGMEM = "Sg thres";
 MenuRangeMotorSgThreshold::MenuRangeMotorSgThreshold():
-  MenuRange("Sg thres", value, -63, 63),
+  MenuRange(pgmstr_sg_thres, value, -63, 63),
   value(2){}
 
 
@@ -201,8 +202,9 @@ void MenuRangeMotorSgThreshold::loop(){
 /*
   menu range motor accel
 */
+const char pgmstr_accel[] PROGMEM = "Accel [RPMS]";
 MenuRangeMotorAccel::MenuRangeMotorAccel():
-  MenuRange("Accel [RPMS]", value, 1, 1200),
+  MenuRange(pgmstr_accel, value, 1, 1200),
   value(1){}
 
 
@@ -226,8 +228,9 @@ void MenuRangeMotorAccel::loop(){
 /*
   menu range motor decel
 */
+const char pgmstr_decel[] PROGMEM = "Decel [RPMS]";
 MenuRangeMotorDecel::MenuRangeMotorDecel():
-  MenuRange("Decel [RPMS]", value, 1, 1200),
+  MenuRange(pgmstr_decel, value, 1, 1200),
   value(1){}
 
 
@@ -251,8 +254,9 @@ void MenuRangeMotorDecel::loop(){
 /*
   menu range motor semin
 */
+const char pgmstr_smartenergy_min[] PROGMEM = "SmartEnergy Min";
 MenuRangeMotorSEMIN::MenuRangeMotorSEMIN():
-  MenuRange("SmartEnergy Min", value, 0, 15),
+  MenuRange(pgmstr_smartenergy_min, value, 0, 15),
   value(1){}
 
 
@@ -276,8 +280,9 @@ void MenuRangeMotorSEMIN::loop(){
 /*
   menu range motor semax
 */
+const char pgmstr_smartenergy_max[] PROGMEM = "SmartEnergy Max";
 MenuRangeMotorSEMAX::MenuRangeMotorSEMAX():
-  MenuRange("SmartEnergy Max", value, 0, 15),
+  MenuRange(pgmstr_smartenergy_max, value, 0, 15),
   value(1){}
 
 
