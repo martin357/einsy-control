@@ -109,6 +109,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("is_homing"))) gcode_is_homing();
   else if(strcmp_P(rx_command, F("set_default_ramp_rpm_from"))) gcode_set_default_ramp_rpm_from();
   else if(strcmp_P(rx_command, F("set_default_ramp_rpm_to"))) gcode_set_default_ramp_rpm_to();
+  else if(strcmp_P(rx_command, F("set_hold_multiplier"))) gcode_set_hold_multiplier();
   else if(strcmp_P(rx_command, F("set_is_homed_override"))) gcode_set_is_homed_override();
   else if(strcmp_P(rx_command, F("set_is_homing_override"))) gcode_set_is_homing_override();
   else if(strcmp_P(rx_command, F("set_coolstep_threshold"))) gcode_set_coolstep_threshold();
@@ -132,6 +133,22 @@ void processCommand(const char *cmd, size_t len){
       const int index = axis2motor(rx_param[i][0]);
       if(index > -1){
         if(!motors[index].running && motors[index].steps_to_do < 1){
+          // const uint8_t next = motors[index].next_queue_index();
+          // // if(motors[index].queue[next].processed || motors[index].queue[next].type == MotorQueueItemType::NOOP){
+          // //   if(motors[index].running || motors[index].steps_to_do > 0){
+          // //     // [pnq] empty queue but motor running
+          // //   }else{
+          // //     motors[index].stop();
+          // //     // SERIAL_PRINTLN(F("[pnq] empty queue, stopping!"));
+          // //     // Serial.println(F("[pnq] empty queue, stopping!"));
+          // //
+          // //   }
+          // //   return false;
+          // // }
+          // if(!(motors[index].queue[next].processed || motors[index].queue[next].type == MotorQueueItemType::NOOP)){
+          // // if(motors[index].running || motors[index].steps_to_do > 0){
+          //   motors[index].start(false);
+          // }
           motors[index].start(false);
         }
       }

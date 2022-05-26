@@ -34,9 +34,6 @@
 
 void gcode_on(){
   FOREACH_PARAM_AS_AXIS;
-  Serial.print("axis ");
-  Serial.print(index);
-  Serial.println(" on");
   ADD_TO_QUEUE(TURN_ON, 0);
   FOREACH_PARAM_AS_AXIS_END;
 }
@@ -45,7 +42,7 @@ void gcode_on(){
 void gcode_off(){
   FOREACH_PARAM_AS_AXIS;
   ADD_TO_QUEUE(TURN_OFF, 0);
-  motors[index].planned.is_homed = false;
+  if(motors[index].reset_is_homed_on_power_off) motors[index].planned.is_homed = false;
   FOREACH_PARAM_AS_AXIS_END;
 }
 
@@ -183,7 +180,7 @@ void gcode_do_steps_to(){
   const int32_t steps_delta = value - motors[index].planned.position_usteps;
   if(steps_delta != 0){
     const bool direction = steps_delta > 0;
-    if(rpm > 0.0 && rpm != motors[index].planned.rpm){
+    if(rpm > 0.0){
       ADD_TO_QUEUE(SET_RPM, rpm * 100.0);
       motors[index].planned.rpm = value;
     }
@@ -359,7 +356,7 @@ void gcode_move_usteps(){
     const int32_t steps_delta = value - motors[index].planned.position_usteps;
     if(steps_delta != 0){
       const bool direction = steps_delta > 0;
-      if(motor_rpm > 0.0 && motor_rpm != motors[index].planned.rpm){
+      if(motor_rpm > 0.0){
         ADD_TO_QUEUE(SET_RPM, motor_rpm * 100.0);
         motors[index].planned.rpm = motor_rpm;
       }
@@ -550,9 +547,15 @@ void gcode_reset_steps_total(){
 
 
 void gcode_sync_position(){
+  uint8_t j = 0;
   FOREACH_PARAM_AS_AXIS;
   motors[index].sync();
+  if(j++ > 0) Serial.print(' ');
+  Serial.print(motors[index].axis);
+  Serial.print("=");
+  Serial.print(motors[index].planned.position_usteps);
   FOREACH_PARAM_AS_AXIS_END;
+  if(j > 0) Serial.println();
 }
 
 

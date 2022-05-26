@@ -642,7 +642,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       break;
     }
     case MotorQueueItemType::SET_HOLD_MULTIPLIER: {
-      microsteps(queue[next].value / 100.0);
+      driver.hold_multiplier(queue[next].value / 100.0);
       process_next = true;
       break;
     }
@@ -782,7 +782,7 @@ void Motor::plan_rotations(float rotations, float rpm){
     set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, rot_direction);
     planned.direction = rot_direction;
   }
-  if(rpm > 0.0 && rpm != planned.rpm){
+  if(rpm > 0.0){
     set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm * 100);
     planned.rpm = rpm;
   }
@@ -825,10 +825,8 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
 
   if(initial_backstep_rot > 0.0){
     // backstep
-    // if(initial_rpm != planned.rpm){
-      set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
-      planned.rpm = initial_rpm;
-    // }
+    set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
+    planned.rpm = initial_rpm;
     if(!direction != planned.direction){
       set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
       planned.direction = !direction;
@@ -844,23 +842,19 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
     planned.direction = direction;
   }
   if(ramp_from > 0.0){
-    // if(ramp_from != planned.rpm){
-      set_queue_item(next++, MotorQueueItemType::SET_RPM, ramp_from * 100);
-      planned.rpm = ramp_from;
-    // }
+    set_queue_item(next++, MotorQueueItemType::SET_RPM, ramp_from * 100);
+    planned.rpm = ramp_from;
     if(initial_rpm != planned.rpm){
       set_queue_item(next++, MotorQueueItemType::RAMP_TO, initial_rpm * 100);
       planned.rpm = initial_rpm;
     }
   }else{
-    // if(initial_rpm != planned.rpm){
-      set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
-      planned.rpm = initial_rpm;
-    // }
+    set_queue_item(next++, MotorQueueItemType::SET_RPM, initial_rpm * 100);
+    planned.rpm = initial_rpm;
   }
   if(initial_backstep_rot <= 0.0){
     // why the fuck is this needed here?
-    // without any stepls planned, motor won't start
+    // without any steps planned, motor won't start
     // TODO: fix this crap!
     set_queue_item(next++, MotorQueueItemType::DO_STEPS, 1);
   }
@@ -871,19 +865,15 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
     if(final_backstep_rot > 0.0){
       // backstep again
       if(ramp_from > 0.0){
-        // if(ramp_from != planned.rpm){
-          set_queue_item(next++, MotorQueueItemType::SET_RPM, ramp_from * 100);
-          planned.rpm = ramp_from;
-        // }
+        set_queue_item(next++, MotorQueueItemType::SET_RPM, ramp_from * 100);
+        planned.rpm = ramp_from;
         if(final_rpm != planned.rpm){
           set_queue_item(next++, MotorQueueItemType::RAMP_TO, final_rpm * 100);
           planned.rpm = final_rpm;
         }
       }else{
-        // if(final_rpm != planned.rpm){
-          set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
-          planned.rpm = final_rpm;
-        // }
+        set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
+        planned.rpm = final_rpm;
       }
       if(!direction != planned.direction){
         set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, !direction);
@@ -895,10 +885,8 @@ void Motor::plan_home(bool direction, float initial_rpm, float final_rpm, float 
     }
 
     // slow forward until stallguard
-    // if(final_rpm != planned.rpm){
-      set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
-      planned.rpm = final_rpm;
-    // }
+    set_queue_item(next++, MotorQueueItemType::SET_RPM, final_rpm * 100);
+    planned.rpm = final_rpm;
     if(direction != planned.direction){
       set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, direction);
       planned.direction = direction;
@@ -980,12 +968,8 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
     set_queue_item(next++, MotorQueueItemType::SET_DECEL, deceleration * 100);
     planned.decel = deceleration;
   }
-  if(rpm_from != planned.rpm){
-    set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm_from * 100);
-    // planned.rpm = rpm_from;
-  }
+  set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm_from * 100);
   set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_to * 100);
-
   set_queue_item(next++, MotorQueueItemType::DO_STEPS, steps - decel_steps);
   set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_from * 100);
   set_queue_item(next++, MotorQueueItemType::DO_STEPS, decel_steps);

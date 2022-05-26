@@ -34,6 +34,7 @@
   extern void custom_gcode_home_tower();
   extern void custom_gcode_is_endstop_triggered();
 
+  extern void custom_gcode_autofill_on_delayed_short();
   extern void custom_gcode_autofill_on_delayed();
   extern void custom_gcode_autofill_on();
   extern void custom_gcode_autofill_off();
@@ -54,6 +55,7 @@
     else if(strcmp_P(rx_command, F("home_tower"))) custom_gcode_home_tower();  \
     else if(strcmp_P(rx_command, F("is_endstop_triggered"))) custom_gcode_is_endstop_triggered();  \
       \
+    else if(strcmp_P(rx_command, F("autofill_on_delayed_short"))) custom_gcode_autofill_on_delayed_short();  \
     else if(strcmp_P(rx_command, F("autofill_on_delayed"))) custom_gcode_autofill_on_delayed();  \
     else if(strcmp_P(rx_command, F("autofill_on"))) custom_gcode_autofill_on();  \
     else if(strcmp_P(rx_command, F("autofill_off"))) custom_gcode_autofill_off();  \
@@ -68,12 +70,25 @@
     else if(strcmp_P(rx_command, F("set_target_optimal"))) custom_gcode_set_target_optimal();  \
 
   #define CUSTOM_PERMANENT_STORAGE  \
-    float zero_offset = 32.66;  \
+    float zero_offset = -3.32;  \
     float level_min = 1.0;  \
-    float level_fill = 3.47;  \
-    float level_optimal = 5.65;  \
-    float level_max = 7.03;  \
+    float level_fill = 1.9;  \
+    float level_optimal = 3.5;  \
+    float level_max = 6.0;  \
 
+    // float zero_offset = -3.32;  \
+    // float level_min = 1.0;  \
+    // float level_fill = 2.5;  \
+    // float level_optimal = 4.5;  \
+    // float level_max = 6.0;  \
+
+    // float zero_offset = -3.32;  \
+    // float level_min = 1.0;  \
+    // float level_fill = 3.47;  \
+    // float level_optimal = 5.65;  \
+    // float level_max = 7.03;  \
+
+    // float zero_offset = 32.66;  \
     // double zero_offset = 28.37;  \
     // double level_min = 1.0;  \
     // double level_fill = 2.41;  \
