@@ -9,7 +9,7 @@
 #include "../kalmanfilter.h"
 
 KalmanFilter filter(1, 1, 0.01);
-double filtered = 0.0;
+float filtered = 0.0;
 
 
 

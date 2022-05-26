@@ -89,16 +89,16 @@
     // float level_max = 7.03;  \
 
     // float zero_offset = 32.66;  \
-    // double zero_offset = 28.37;  \
-    // double level_min = 1.0;  \
-    // double level_fill = 2.41;  \
-    // double level_optimal = 3.72;  \
-    // double level_max = 6.29;  \
+    // float zero_offset = 28.37;  \
+    // float level_min = 1.0;  \
+    // float level_fill = 2.41;  \
+    // float level_optimal = 3.72;  \
+    // float level_max = 6.29;  \
 
-    // double zero_offset = 94.0;  \
-    // double level_min = 1.0;  \
-    // double level_optimal = 4.5;  \
-    // double level_fill = 4.5;  \
-    // double level_max = 9.0;  \
+    // float zero_offset = 94.0;  \
+    // float level_min = 1.0;  \
+    // float level_optimal = 4.5;  \
+    // float level_fill = 4.5;  \
+    // float level_max = 9.0;  \
 
 #endif

@@ -253,13 +253,13 @@ const char* MenuItemDynamicCallable<T>::getTitle(){
 
 
 template <>
-const char* MenuItemDynamicCallable<double>::getTitle(){
+const char* MenuItemDynamicCallable<float>::getTitle(){
   const uint8_t buf_len = 20;
   static char buf[buf_len];
   const char* ptr = title;
   char buf_num[10] = {0};
   size_t len = 0;
-  double value = value_getter();
+  float value = value_getter();
   dtostrf(value, -8, 2, buf_num);
   for (size_t i = 0; i < sizeof(buf_num); i++) if(buf_num[i] == ' '){ buf_num[i] = 0; break; }
 
@@ -302,7 +302,7 @@ const char* MenuItemDynamicCallable<const char*>::getTitle(){
 
 
 template class MenuItemDynamicCallable<uint16_t>;
-template class MenuItemDynamicCallable<double>;
+template class MenuItemDynamicCallable<float>;
 template class MenuItemDynamicCallable<const char*>;
 
 

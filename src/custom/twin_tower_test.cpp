@@ -21,16 +21,16 @@ ad7150_reg_capdac ch1_capdac, ch2_capdac;
 int32_t last_autolevel_tick = 0;
 bool autolevel_enabled = false;
 uint32_t autolevel_on_at = 0;
-double level_tolerance = 0.3; // 0.5; // 0.3;
+float level_tolerance = 0.3; // 0.5; // 0.3;
 float autolevel_target = 0.0;
 uint32_t pump_off_time_remaining = 0;
 uint32_t pump_off_time_decrease_last_tick = 0;
 
-double rpm_min = 50.0;
-double rpm_optimal = 180.0;
-double rpm_max = 180.0;
-double new_rpm = 0.0001;
-double total_dist = 0.0;
+float rpm_min = 50.0;
+float rpm_optimal = 180.0;
+float rpm_max = 180.0;
+float new_rpm = 0.0001;
+float total_dist = 0.0;
 
 KalmanFilter filter(10, 1, 0.01);
 float filtered = 0.0;
@@ -54,7 +54,7 @@ void stop_pump_auto_off_timer(){
 }
 
 
-void pump_start(bool dir, double target_rpm = 150){
+void pump_start(bool dir, float target_rpm = 150){
   processCommand(F("halt x"));
   processCommand(F("empty_queue x"));
   processCommand(dir ? F("dir x0") : F("dir x1"));
@@ -345,7 +345,7 @@ void loopCustom(){
     // // Serial.print(filtered_corrected);
     // Serial.println();
 
-    // static double max_avg = 0.0;
+    // static float max_avg = 0.0;
     // static uint32_t max_avg_last_change = 0;
     // if(_millis >= max_avg_last_change + 3000){
     //   max_avg_last_change = _millis;
@@ -359,7 +359,7 @@ void loopCustom(){
     static uint32_t last_pump_tick = 0; // 655356540;
     if(_millis >= last_pump_tick + 100){
     // if(true){
-      // const double level_delta = running_average - autolevel_target;
+      // const float level_delta = running_average - autolevel_target;
       last_pump_tick = _millis;
 
       if(abs(filtered_corrected - autolevel_target) > level_tolerance){
@@ -368,7 +368,7 @@ void loopCustom(){
           if(filtered_corrected <= storage.level_min){
             new_rpm = rpm_optimal;
           }else{
-            const double pwr = 1.0 - ((filtered_corrected - storage.level_min) / (autolevel_target - storage.level_min));
+            const float pwr = 1.0 - ((filtered_corrected - storage.level_min) / (autolevel_target - storage.level_min));
             new_rpm = rpm_min + ((rpm_optimal - rpm_min) * pwr);
           }
           if(autolevel_enabled){
@@ -387,7 +387,7 @@ void loopCustom(){
           if(filtered_corrected >= storage.level_max){
             new_rpm = rpm_max;
           }else{
-            const double pwr = ((filtered_corrected - autolevel_target) / (storage.level_max - autolevel_target));
+            const float pwr = ((filtered_corrected - autolevel_target) / (storage.level_max - autolevel_target));
             new_rpm = rpm_min + ((rpm_max - rpm_min) * pwr);
           }
           if(autolevel_enabled){
@@ -424,7 +424,7 @@ void loopCustom(){
   static uint32_t last_total_dist_calculated_at = 0;
   if(_millis >= last_total_dist_calculated_at + 50){
     last_total_dist_calculated_at = _millis;
-    total_dist = (double)motors[MP].steps_total / 200.0 / motors[MP].usteps;
+    total_dist = (float)motors[MP].steps_total / 200.0 / motors[MP].usteps;
   }
 
   if(pump_off_time_remaining){
@@ -1133,25 +1133,14 @@ const char* get_pump_status(){
 }
 MenuItemDynamicCallable<const char*> item__pump_status(pgmstr_pump, &get_pump_status);
 
-// const char pgmstr_foobar_range[] PROGMEM = "foobar";
-// float foobar_range = 1.0;
-// MenuRange<float> menu_foobar_range("foobaz", foobar_range, -1000, 1000, 0.01);
-// MenuItem foobar_range_item(pgmstr_foobar_range, &menu_foobar_range);
-float foobar_range = 1.0;
-const char pgmstr_foobar_range[] PROGMEM = "foobar";
-MenuItemRange<float> foobar_range_item(pgmstr_foobar_range, foobar_range, -1000, 1000, 0.01);
 
+const char pgmstr_tilt_temp[] PROGMEM = "Tilt temp";
+MenuItemDynamic<float> item_tilt_temp(pgmstr_tilt_temp, temperature[2]);
 
-
-uint16_t foobaz_u16 = 123;
-const char pgmstr_foobaz_u16[] PROGMEM = "foobaz_u16";
-MenuItemDynamic<uint16_t> item__foobaz_u16(pgmstr_foobaz_u16, foobaz_u16);
 
 
 MenuItem* const main_menu_items[] PROGMEM = {
-  // &item__foobaz_u16,
-  // &item_dyn_range_test,
-  // &foobar_range_item,
+  &item_tilt_temp,
   &item__filtered_corrected,
   &item__pump_status,
   &item_auto_level,

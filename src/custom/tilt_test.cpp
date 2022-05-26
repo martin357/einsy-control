@@ -13,7 +13,7 @@
 
 void do_move_positive(){
   const uint32_t _millis = millis();
-  motors[0].plan_rotations((double)storage.steps / STEP_MP, storage.speed);
+  motors[0].plan_rotations((float)storage.steps / STEP_MP, storage.speed);
   last_menu_redraw = _millis;
   last_lcd_reinit = _millis;
   lcd.clear();
@@ -27,7 +27,7 @@ MenuItemCallable item_do_move_positive(pgmstr_do_move_positive, &do_move_positiv
 
 void do_move_negative(){
   const uint32_t _millis = millis();
-  motors[0].plan_rotations((double)storage.steps / -STEP_MP, storage.speed);
+  motors[0].plan_rotations((float)storage.steps / -STEP_MP, storage.speed);
   last_menu_redraw = _millis;
   last_lcd_reinit = _millis;
   lcd.clear();
@@ -41,13 +41,13 @@ MenuItemCallable item_do_move_negative(pgmstr_do_move_negative, &do_move_negativ
 
 void do_move_positive_negative(){
   const uint32_t _millis = millis();
-  motors[0].plan_rotations((double)storage.steps / STEP_MP, storage.speed);
+  motors[0].plan_rotations((float)storage.steps / STEP_MP, storage.speed);
   lcd.clear();
 	lcd.print("Moving up...");
   processCommand(F("start x"));
   processCommand(F("wait_for_motor x"));
 
-  motors[0].plan_rotations((double)storage.steps / -STEP_MP, storage.speed);
+  motors[0].plan_rotations((float)storage.steps / -STEP_MP, storage.speed);
   last_menu_redraw = _millis;
   last_lcd_reinit = _millis;
   lcd.clear();

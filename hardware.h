@@ -44,10 +44,10 @@ extern int8_t enc_diff;
 extern uint8_t enc_click; // 0=no_press, 1=short, 2=long
 extern volatile uint32_t beeper_off_at;
 extern bool read_temperature;
-extern double temperature[THERMISTOR_CNT];
-extern double temperature_raw[THERMISTOR_CNT];
+extern float temperature[THERMISTOR_CNT];
+extern float temperature_raw[THERMISTOR_CNT];
 extern bool read_voltage;
-extern double voltage[VOLTAGE_ADC_CNT];
+extern float voltage[VOLTAGE_ADC_CNT];
 extern uint32_t last_lcd_reinit;
-extern double voltage_raw[VOLTAGE_ADC_CNT];
+extern float voltage_raw[VOLTAGE_ADC_CNT];
 extern const bool lcd_present;

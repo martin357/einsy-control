@@ -71,9 +71,9 @@ void loopCustom(){
 }
 
 
-MenuItemDynamic<double> item_temp0("Temp0", temperature[0]);
-MenuItemDynamic<double> item_temp1("T. zasobnik", temperature[1]);
-MenuItemDynamic<double> item_temp2("T. trubka", temperature[2]);
+MenuItemDynamic<float> item_temp0("Temp0", temperature[0]);
+MenuItemDynamic<float> item_temp1("T. zasobnik", temperature[1]);
+MenuItemDynamic<float> item_temp2("T. trubka", temperature[2]);
 
 
 // OCR3C
@@ -114,10 +114,10 @@ void do_preheat(bool do_beep = true){
   do_heater_on();
 
   const uint32_t preheat_start = millis();
-  const double start_temp = temperature[2];
+  const float start_temp = temperature[2];
 
   while(1){
-    const double temp_delta = storage.target_temperature - temperature[2];
+    const float temp_delta = storage.target_temperature - temperature[2];
     lcd.setCursor(0, 2);
     lcd.print((float)temperature[2]);
     lcd.print(" /");

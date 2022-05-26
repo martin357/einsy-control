@@ -131,7 +131,7 @@ void gcode_ramp_to(){
 void gcode_ramp_to_nq(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   motors[index].ramp_to(value);
-  motors[index].planned.rpm = value;
+  // motors[index].planned.rpm = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 

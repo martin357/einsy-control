@@ -79,15 +79,15 @@ void loopCustom(){
 }
 
 
-MenuItemDynamic<double> item_temp0("Temp0", temperature[0]);
-MenuItemDynamic<double> item_temp1("Temp1", temperature[1]);
-MenuItemDynamic<double> item_temp2("Temp2", temperature[2]);
-MenuItemDynamic<double> item_temp_pinda("Pinda temp", temperature[3]);
-MenuItemDynamic<double> item_temp_ambient("Ambient t.", temperature[4]);
+MenuItemDynamic<float> item_temp0("Temp0", temperature[0]);
+MenuItemDynamic<float> item_temp1("Temp1", temperature[1]);
+MenuItemDynamic<float> item_temp2("Temp2", temperature[2]);
+MenuItemDynamic<float> item_temp_pinda("Pinda temp", temperature[3]);
+MenuItemDynamic<float> item_temp_ambient("Ambient t.", temperature[4]);
 
-MenuItemDynamic<double> item_volt_pwr("Pwr voltage", voltage[0]);
-MenuItemDynamic<double> item_volt_bed("Bed voltage", voltage[1]);
-MenuItemDynamic<double> item_volt_ir("IR voltage", voltage[2]);
+MenuItemDynamic<float> item_volt_pwr("Pwr voltage", voltage[0]);
+MenuItemDynamic<float> item_volt_bed("Bed voltage", voltage[1]);
+MenuItemDynamic<float> item_volt_ir("IR voltage", voltage[2]);
 
 MenuItemDynamic<uint16_t> item_on_time_sec("On duration:", on_time_sec);
 void do_reset_on_time_sec(){ on_time_sec = 0; }

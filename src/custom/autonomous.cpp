@@ -337,9 +337,9 @@ MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
 
 
 
-MenuItemDynamic<double> item_temp0("Temp0", temperature[0]);
-MenuItemDynamic<double> item_temp1("T. zasobnik", temperature[1]);
-MenuItemDynamic<double> item_temp2("T. trubka <-", temperature[2]);
+MenuItemDynamic<float> item_temp0("Temp0", temperature[0]);
+MenuItemDynamic<float> item_temp1("T. zasobnik", temperature[1]);
+MenuItemDynamic<float> item_temp2("T. trubka <-", temperature[2]);
 
 
 

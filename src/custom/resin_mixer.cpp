@@ -114,9 +114,9 @@ void beep_cycle_finished(bool show_on_lcd = true){
 MenuItemDynamic<uint16_t> item_mixing_remaining("Zbyvajici cas", mixing_remaining);
 
 
-MenuItemDynamic<double> item_temp0("Temp0", temperature[0]);
-MenuItemDynamic<double> item_temp1("Temp1", temperature[1]);
-MenuItemDynamic<double> item_temp2("T. heater", temperature[2]);
+MenuItemDynamic<float> item_temp0("Temp0", temperature[0]);
+MenuItemDynamic<float> item_temp1("Temp1", temperature[1]);
+MenuItemDynamic<float> item_temp2("T. heater", temperature[2]);
 
 
 
@@ -152,10 +152,10 @@ void do_preheat(bool do_beep = true){
   do_heater_on();
 
   const uint32_t preheat_start = millis();
-  const double start_temp = temperature[2];
+  const float start_temp = temperature[2];
 
   while(1){
-    const double temp_delta = storage.target_temperature - temperature[2];
+    const float temp_delta = storage.target_temperature - temperature[2];
     lcd.setCursor(0, 2);
     lcd.print((float)temperature[2]);
     lcd.print(" /");
