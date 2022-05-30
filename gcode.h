@@ -43,6 +43,7 @@ void gcode_reset_steps_total();
 void gcode_sync_position();
 void gcode_stallguard_threshold();
 void gcode_current();
+void gcode_current_hold();
 void gcode_microstepping();
 void gcode_set_is_homed();
 void gcode_set_is_homing();

@@ -37,6 +37,15 @@ void TMCStepper::rms_current(uint16_t mA) {
   ihold(CS*holdMultiplier);
   //val_mA = mA;
 }
+void TMCStepper::rms_current_hold(uint16_t mA) {
+  int8_t CS = 32.0*1.41421*mA/1000.0*(Rsense+0.02)/(vsense() ? 0.180 : 0.325) - 1;
+  if (CS < 0)
+    CS = 0;
+  if (CS > 31)
+    CS = 31;
+
+  ihold(CS);
+}
 void TMCStepper::rms_current(uint16_t mA, float mult) {
   holdMultiplier = mult;
   rms_current(mA);

@@ -20,6 +20,7 @@
   #define WAIT_FOR_TOWERS Serial.println(F("wait_for_towers")); delay(10); processCommand(F("wait_for_motor y z"))
   #define DEFAULT_PUMP_AUTO_OFF_TIME  1800500
   // #define WAIT_FOR_TOWERS Serial.println(F("wait_for_towers")); delay(10); processCommand(F("wait_for_motor z"))
+  #define TILT_TEMPERATURE  temperature[2]
 
   typedef enum
   {
@@ -48,6 +49,7 @@
   extern void custom_gcode_capsense();
   extern void custom_gcode_set_target_fill();
   extern void custom_gcode_set_target_optimal();
+  extern void custom_gcode_tilt_temp();
 
   #define CUSTOM_GCODE \
     else if(strcmp_P(rx_command, F("home_weak"))) custom_gcode_home_weak();  \
@@ -68,13 +70,15 @@
     else if(strcmp_P(rx_command, F("capsense"))) custom_gcode_capsense();  \
     else if(strcmp_P(rx_command, F("set_target_fill"))) custom_gcode_set_target_fill();  \
     else if(strcmp_P(rx_command, F("set_target_optimal"))) custom_gcode_set_target_optimal();  \
+    else if(strcmp_P(rx_command, F("tilt_temp"))) custom_gcode_tilt_temp();  \
 
   #define CUSTOM_PERMANENT_STORAGE  \
     float zero_offset = -3.32;  \
     float level_min = 1.0;  \
     float level_fill = 1.9;  \
-    float level_optimal = 3.5;  \
+    float level_optimal = 3.0;  \
     float level_max = 6.0;  \
+    float tilt_max_temperature = 50.0;  \
 
     // float zero_offset = -3.32;  \
     // float level_min = 1.0;  \

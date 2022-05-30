@@ -33,15 +33,15 @@ MenuItem motor_manual_steps(pgmstr_manual_steps, &menu_motor_manual_steps);
 
 // motor speed
 MenuRangeMotorRPM menu_motor_speed;
-MenuItem motor_speed(pgmstr_speed, &menu_motor_speed);
+MenuItem motor_speed(pgmstr_speed_rpm, &menu_motor_speed);
 
 // motor accel
 MenuRangeMotorAccel menu_motor_accel;
-MenuItem motor_accel(pgmstr_accel, &menu_motor_accel);
+MenuItem motor_accel(pgmstr_accel_rpms, &menu_motor_accel);
 
 // motor decel
 MenuRangeMotorDecel menu_motor_decel;
-MenuItem motor_decel(pgmstr_decel, &menu_motor_decel);
+MenuItem motor_decel(pgmstr_decel_rpms, &menu_motor_decel);
 
 // motor direction
 const char pgmstr_direction_true[] PROGMEM = "Direction: " MOTOR_DIR_1;
@@ -203,6 +203,36 @@ Menu menu_motor_stallguard(motor_stallguard_items, sizeof(motor_stallguard_items
 MenuItem motor_stallguard(pgmstr_stallguard, &menu_motor_stallguard);
 
 
+// motor show position
+const char pgmstr_pos[] PROGMEM = "Pos";
+// const char pgmstr_pos_r[] PROGMEM = "Pos r.";
+// const char pgmstr_pos_us[] PROGMEM = "Pos us.";
+const char pgmstr_speed[] PROGMEM = "Speed";
+const char pgmstr_plan_speed[] PROGMEM = "Plan. speed";
+const char pgmstr_show_pos_speed[] PROGMEM = "Show pos. & speed";
+int32_t get_motor_actual_position(){
+  return motors[last_entered_motor_menu].position_usteps;
+}
+float get_motor_actual_speed(){
+  return motors[last_entered_motor_menu]._rpm;
+}
+float get_motor_planned_speed(){
+  return motors[last_entered_motor_menu].planned.rpm;
+}
+MenuItemDynamicCallable<int32_t> motor_actual_position_item(pgmstr_pos, &get_motor_actual_position);
+MenuItemDynamicCallable<float> motor_actual_speed_item(pgmstr_speed, &get_motor_actual_speed);
+MenuItemDynamicCallable<float> motor_planned_speed_item(pgmstr_plan_speed, &get_motor_planned_speed);
+MenuItem* const motor_position_items[] PROGMEM = {
+  &back,
+  &motor_actual_position_item,
+  &motor_actual_speed_item,
+  &motor_planned_speed_item,
+};
+Menu menu_motor_position(motor_position_items, sizeof(motor_position_items) / 2);
+MenuItem motor_position(pgmstr_show_pos_speed, &menu_motor_position);
+
+
+
 // motor
 const char pgmstr_motor_x[] PROGMEM = "Motor X";
 const char pgmstr_motor_y[] PROGMEM = "Motor Y";
@@ -215,6 +245,7 @@ MenuItem* const motor_items[] PROGMEM = {
   &motor_direction,
   &motor_start_stop,
   &motor_manual_steps,
+  &motor_position,
   &motor_accel,
   &motor_decel,
   &motor_stallguard,

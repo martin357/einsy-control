@@ -33,6 +33,7 @@ void setup() {
   current_menu = &main_menu;
   current_menu->draw();
   menu_motor_stallguard_value.redraw_interval = 50;
+  menu_motor_position.redraw_interval = 50;
 
   #ifdef CUSTOM_SETUP
     setupCustom();

@@ -573,6 +573,13 @@ void gcode_current(){
 }
 
 
+void gcode_current_hold(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_CURRENT_HOLD, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
 void gcode_microstepping(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   const bool is_pow2 = (value & (value - 1)) == 0;

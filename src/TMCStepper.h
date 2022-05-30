@@ -49,6 +49,7 @@ class TMCStepper {
 	public:
 		uint16_t cs2rms(uint8_t CS);
 		void rms_current(uint16_t mA);
+		void rms_current_hold(uint16_t mA);
 		void rms_current(uint16_t mA, float mult);
 		uint16_t rms_current();
 		void hold_multiplier(float val) { holdMultiplier = val; }

@@ -302,6 +302,7 @@ const char* MenuItemDynamicCallable<const char*>::getTitle(){
 
 
 template class MenuItemDynamicCallable<uint16_t>;
+template class MenuItemDynamicCallable<int32_t>;
 template class MenuItemDynamicCallable<float>;
 template class MenuItemDynamicCallable<const char*>;
 

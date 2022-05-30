@@ -25,6 +25,7 @@ float level_tolerance = 0.3; // 0.5; // 0.3;
 float autolevel_target = 0.0;
 uint32_t pump_off_time_remaining = 0;
 uint32_t pump_off_time_decrease_last_tick = 0;
+uint32_t pump_slowdown_at = 0;
 
 float rpm_min = 50.0;
 float rpm_optimal = 180.0;
@@ -53,6 +54,14 @@ void stop_pump_auto_off_timer(){
   pump_off_time_remaining = 0;
 }
 
+void enable_pump_slowdown(){
+  pump_slowdown_at = millis() + 90000;
+}
+
+void disable_pump_slowdown(){
+  pump_slowdown_at = 0;
+}
+
 
 void pump_start(bool dir, float target_rpm = 150){
   processCommand(F("halt x"));
@@ -64,10 +73,13 @@ void pump_start(bool dir, float target_rpm = 150){
   // processCommand(F("ramp_to x150"));
   motors[MP].ramp_to(target_rpm);
   start_pump_auto_off_timer();
+  // if(dir) disable_pump_slowdown();
+  // else enable_pump_slowdown();
 }
 
 void pump_stop(bool wait = true){
   stop_pump_auto_off_timer();
+  disable_pump_slowdown();
   // processCommand(F("decel x150"));
   // processCommand(F("ramp_to x0.01"));
   processCommand(F("ramp_to x0"));
@@ -92,6 +104,8 @@ const char pgmstr_level_fill[] PROGMEM = "level_fill";
 MenuItemDynamic<float> item_storage__level_fill(pgmstr_level_fill, storage.level_fill);
 const char pgmstr_level_max[] PROGMEM = "level_max";
 MenuItemDynamic<float> item_storage__level_max(pgmstr_level_max, storage.level_max);
+const char pgmstr_tilt_max_tmp[] PROGMEM = "tilt max tmp";
+MenuItemDynamic<float> item_storage__tilt_max_temperature(pgmstr_tilt_max_tmp, storage.tilt_max_temperature);
 
 const char pgmstr_A_L_target[] PROGMEM = "A.L. target";
 MenuItemRange<float> item__autolevel_target(pgmstr_A_L_target, autolevel_target, -1000, 1000, 0.01f, false);
@@ -202,6 +216,7 @@ MenuItem* const calibrate_menu_items[] PROGMEM = {
   &manual_edit_item_level_fill,
   &manual_edit_item_level_optimal,
   &manual_edit_item_level_max,
+  &item_storage__tilt_max_temperature,
 };
 Menu calibrate_menu(calibrate_menu_items, sizeof(calibrate_menu_items) / 2);
 const char pgmstr_calibrate[] PROGMEM = "calibrate";
@@ -434,6 +449,19 @@ void loopCustom(){
     if(pump_off_time_remaining == 0){
       pump_stop(false);
     }
+  }
+
+  static uint32_t last_tilt_overtemperature_check = 0;
+  if(_millis >= last_tilt_overtemperature_check + 3000){
+    last_tilt_overtemperature_check = _millis;
+    if(TILT_TEMPERATURE > storage.tilt_max_temperature){
+      beep(50);
+    }
+  }
+
+  if(pump_slowdown_at > 0 && _millis >= pump_slowdown_at){
+    pump_slowdown_at = 0;
+    motors[MP].ramp_to(40);
   }
 
   uptime = _millis;
@@ -947,6 +975,7 @@ void custom_gcode_empty_tank(){
     return;
   }
   pump_start(false, 140);
+  enable_pump_slowdown();
 }
 
 
@@ -985,6 +1014,11 @@ void custom_gcode_set_target_optimal(){
 }
 
 
+void custom_gcode_tilt_temp(){
+  Serial.println(TILT_TEMPERATURE, 2);
+}
+
+
 
 void do_pump_stop(){
   lcd.clear();
@@ -1012,6 +1046,7 @@ void do_pump_start_empty(){
     return;
   }
   pump_start(false, 140);
+  enable_pump_slowdown();
 }
 const char pgmstr_pump_start_empty[] PROGMEM = "pump_start_empty";
 MenuItemCallable item_pump_start_empty(pgmstr_pump_start_empty, &do_pump_start_empty, false);
@@ -1135,7 +1170,7 @@ MenuItemDynamicCallable<const char*> item__pump_status(pgmstr_pump, &get_pump_st
 
 
 const char pgmstr_tilt_temp[] PROGMEM = "Tilt temp";
-MenuItemDynamic<float> item_tilt_temp(pgmstr_tilt_temp, temperature[2]);
+MenuItemDynamic<float> item_tilt_temp(pgmstr_tilt_temp, TILT_TEMPERATURE);
 
 
 

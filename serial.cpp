@@ -100,6 +100,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("reset_steps_total"))) gcode_reset_steps_total();
   else if(strcmp_P(rx_command, F("sync_position"))) gcode_sync_position();
   else if(strcmp_P(rx_command, F("stallguard_threshold"))) gcode_stallguard_threshold();
+  else if(strcmp_P(rx_command, F("current_hold"))) gcode_current_hold();
   else if(strcmp_P(rx_command, F("current"))) gcode_current();
   else if(strcmp_P(rx_command, F("microstepping"))) gcode_microstepping();
   else if(strcmp_P(rx_command, F("set_is_homed"))) gcode_set_is_homed();

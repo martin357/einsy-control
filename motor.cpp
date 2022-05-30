@@ -636,6 +636,11 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       process_next = true;
       break;
     }
+    case MotorQueueItemType::SET_CURRENT_HOLD: {
+      driver.rms_current_hold(queue[next].value);
+      process_next = true;
+      break;
+    }
     case MotorQueueItemType::SET_MICROSTEPPING: {
       microsteps(queue[next].value);
       process_next = true;

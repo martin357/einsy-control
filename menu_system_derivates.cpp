@@ -138,9 +138,9 @@ void MenuRangeMotorOffTime::loop(){
 /*
   menu range motor rpm
 */
-const char pgmstr_speed[] PROGMEM = "Speed [RPM]";
+const char pgmstr_speed_rpm[] PROGMEM = "Speed [RPM]";
 MenuRangeMotorRPM::MenuRangeMotorRPM():
-  MenuRange(pgmstr_speed, value, 1, 460),
+  MenuRange(pgmstr_speed_rpm, value, 1, 460),
   value(1){}
 
 
@@ -202,9 +202,9 @@ void MenuRangeMotorSgThreshold::loop(){
 /*
   menu range motor accel
 */
-const char pgmstr_accel[] PROGMEM = "Accel [RPMS]";
+const char pgmstr_accel_rpms[] PROGMEM = "Accel [RPMS]";
 MenuRangeMotorAccel::MenuRangeMotorAccel():
-  MenuRange(pgmstr_accel, value, 1, 1200),
+  MenuRange(pgmstr_accel_rpms, value, 1, 1200),
   value(1){}
 
 
@@ -228,9 +228,9 @@ void MenuRangeMotorAccel::loop(){
 /*
   menu range motor decel
 */
-const char pgmstr_decel[] PROGMEM = "Decel [RPMS]";
+const char pgmstr_decel_rpms[] PROGMEM = "Decel [RPMS]";
 MenuRangeMotorDecel::MenuRangeMotorDecel():
-  MenuRange(pgmstr_decel, value, 1, 1200),
+  MenuRange(pgmstr_decel_rpms, value, 1, 1200),
   value(1){}
 
 
