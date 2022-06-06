@@ -21,6 +21,7 @@
   #define DEFAULT_PUMP_AUTO_OFF_TIME  1800500
   // #define WAIT_FOR_TOWERS Serial.println(F("wait_for_towers")); delay(10); processCommand(F("wait_for_motor z"))
   #define TILT_TEMPERATURE  temperature[2]
+  #define FEP_TEMPERATURE  temperature[1]
 
   typedef enum
   {

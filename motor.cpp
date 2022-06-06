@@ -216,6 +216,7 @@ void Motor::step(){
   steps_total++;
   position_usteps += (invert_direction ? !(_dir) : _dir) ? 1 : -1;
   if(ignore_stallguard_steps > 0) ignore_stallguard_steps--;
+  last_movement = millis();
 }
 
 
@@ -925,40 +926,45 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
   if(acceleration == 0.0) acceleration = planned.accel;
   if(deceleration == 0.0) deceleration = planned.decel;
   const bool rot_direction = usteps > 0.0;
-  const float delta_rpm = rpm_to - rpm_from;
   const uint32_t sps_from = rpm2sps(rpm_from);
   const uint32_t sps_to = rpm2sps(rpm_to);
-  const uint32_t delta_sps = sps_to - sps_from;
+  const uint32_t sps_pow2_diff = (sps_to * sps_to) - (sps_from * sps_from);
   const uint32_t accel_sps = rpm2sps(acceleration);
   const uint32_t decel_sps = rpm2sps(deceleration);
-  const float accel_t = delta_rpm / acceleration;
-  const float decel_t = delta_rpm / deceleration;
   const uint32_t steps = usteps < 0 ? -usteps : usteps;
-  uint32_t decel_steps = (unsigned long)round(((float)delta_sps * delta_sps) / (2.0 * decel_sps));
 
-  // Serial.println(F("[[motor]] plan_ramp_move:"));
-  // PRINT_VAR(usteps);
-  // PRINT_VAR(rpm_from);
-  // PRINT_VAR(rpm_to);
-  // PRINT_VAR(acceleration);
-  // PRINT_VAR(deceleration);
-  // Serial.println(F("------"));
-  // PRINT_VAR(accel);
-  // PRINT_VAR(decel);
-  // PRINT_VAR(rot_direction);
-  // PRINT_VAR(delta_rpm);
-  // PRINT_VAR(sps_from);
-  // PRINT_VAR(sps_to);
-  // PRINT_VAR(delta_sps);
-  // PRINT_VAR(accel_sps);
-  // PRINT_VAR(decel_sps);
-  // PRINT_VAR(accel_t);
-  // PRINT_VAR(decel_t);
-  // PRINT_VAR(steps);
-  // PRINT_VAR(decel_steps);
+  const uint32_t accel_steps = round(sps_pow2_diff / (2 * accel_sps));
+  uint32_t decel_steps = round(sps_pow2_diff / (2 * decel_sps));
 
-  if(steps <= (decel_steps * 2UL)) decel_steps = steps / 2;
-  // PRINT_VAR(decel_steps);
+  // move f30 g130 a100 d100 e4
+
+  Serial.println(F("[[motor]] plan_ramp_move:"));
+  PRINT_VAR(usteps);
+  PRINT_VAR(rpm_from);
+  PRINT_VAR(rpm_to);
+  PRINT_VAR(acceleration);
+  PRINT_VAR(deceleration);
+  Serial.println(F("------"));
+  PRINT_VAR(accel);
+  PRINT_VAR(decel);
+  PRINT_VAR(rot_direction);
+  PRINT_VAR(sps_from);
+  PRINT_VAR(sps_to);
+  PRINT_VAR(sps_pow2_diff);
+  PRINT_VAR(accel_sps);
+  PRINT_VAR(decel_sps);
+  PRINT_VAR(steps);
+  PRINT_VAR(accel_steps);
+  PRINT_VAR(decel_steps);
+  PRINT_VAR(steps - decel_steps);
+
+  if(steps >= accel_steps + decel_steps){
+    Serial.println("[prm] ramp ok");
+  }else{
+    Serial.println("[prm] can not fit whole ramp to move!");
+    decel_steps = ceil(steps / ((accel_sps + decel_sps) / (float)decel_sps));
+    PRINT_VAR(decel_steps);
+  }
 
   uint8_t next = next_empty_queue_index();
   if(rot_direction != planned.direction){
@@ -1121,30 +1127,32 @@ ISR(TIMER0_COMPA_vect){
 
 // acceleration handling
 ISR(TIMER2_COMPA_vect){
-  static uint32_t last_tick = 0;
-  uint32_t _millis = millis();
+  // const uint32_t _millis = millis();
+  const uint32_t _micros = micros();
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
-    if(!motors[i].pause_steps && (motors[i].running || motors[i].steps_to_do > 0)){
-      motors[i].last_movement = _millis;
+    if(motors[i].started && !motors[i].pause_steps && (motors[i].running || motors[i].steps_to_do > 0)){
+      // motors[i].last_movement = _millis;
       if(motors[i].target_rpm >= 0.0){
-        float rpm = motors[i].rpm();
+        float rpm = motors[i]._rpm;
         float rpm_delta = motors[i].target_rpm - rpm;
-        uint16_t delta_t = _millis - motors[i].last_speed_change;
+        uint16_t delta_t = _micros - motors[i].last_speed_change;
         float change_fraction;
 
         if(rpm_delta > 0.0){
           // accelerating
-          change_fraction = motors[i].accel / 1000.0 * delta_t;
+          change_fraction = motors[i].accel / 1000000.0 * delta_t;
           rpm += change_fraction;
           if(rpm >= motors[i].target_rpm){
             rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
+            Serial.print("[TIM2] accel done at ");
+            Serial.println(motors[i].position_usteps);
           }
 
         }else{
           // decelerating
-          change_fraction = motors[i].decel / 1000.0 * delta_t;
+          change_fraction = motors[i].decel / 1000000.0 * delta_t;
           rpm -= change_fraction;
           if(rpm <= motors[i].target_rpm){
             rpm = motors[i].target_rpm;
@@ -1165,12 +1173,10 @@ ISR(TIMER2_COMPA_vect){
         *motors[i].timer_compare_port = ocr;
         sei();
 
-        motors[i].last_speed_change = _millis;
+        motors[i].last_speed_change = _micros;
       }
     }
   }
-
-  last_tick = _millis;
 }
 
 

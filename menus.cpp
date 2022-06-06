@@ -209,6 +209,7 @@ const char pgmstr_pos[] PROGMEM = "Pos";
 // const char pgmstr_pos_us[] PROGMEM = "Pos us.";
 const char pgmstr_speed[] PROGMEM = "Speed";
 const char pgmstr_plan_speed[] PROGMEM = "Plan. speed";
+const char pgmstr_target[] PROGMEM = "Target";
 const char pgmstr_show_pos_speed[] PROGMEM = "Show pos. & speed";
 int32_t get_motor_actual_position(){
   return motors[last_entered_motor_menu].position_usteps;
@@ -219,14 +220,19 @@ float get_motor_actual_speed(){
 float get_motor_planned_speed(){
   return motors[last_entered_motor_menu].planned.rpm;
 }
+float get_motor_target_speed(){
+  return motors[last_entered_motor_menu].target_rpm;
+}
 MenuItemDynamicCallable<int32_t> motor_actual_position_item(pgmstr_pos, &get_motor_actual_position);
 MenuItemDynamicCallable<float> motor_actual_speed_item(pgmstr_speed, &get_motor_actual_speed);
 MenuItemDynamicCallable<float> motor_planned_speed_item(pgmstr_plan_speed, &get_motor_planned_speed);
+MenuItemDynamicCallable<float> motor_target_speed_item(pgmstr_target, &get_motor_target_speed);
 MenuItem* const motor_position_items[] PROGMEM = {
   &back,
   &motor_actual_position_item,
   &motor_actual_speed_item,
   &motor_planned_speed_item,
+  &motor_target_speed_item,
 };
 Menu menu_motor_position(motor_position_items, sizeof(motor_position_items) / 2);
 MenuItem motor_position(pgmstr_show_pos_speed, &menu_motor_position);

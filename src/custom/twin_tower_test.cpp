@@ -105,7 +105,7 @@ MenuItemDynamic<float> item_storage__level_fill(pgmstr_level_fill, storage.level
 const char pgmstr_level_max[] PROGMEM = "level_max";
 MenuItemDynamic<float> item_storage__level_max(pgmstr_level_max, storage.level_max);
 const char pgmstr_tilt_max_tmp[] PROGMEM = "tilt max tmp";
-MenuItemDynamic<float> item_storage__tilt_max_temperature(pgmstr_tilt_max_tmp, storage.tilt_max_temperature);
+MenuItemRange<float> item_storage__tilt_max_temperature(pgmstr_tilt_max_tmp, storage.tilt_max_temperature, 40, 100, 1, true);
 
 const char pgmstr_A_L_target[] PROGMEM = "A.L. target";
 MenuItemRange<float> item__autolevel_target(pgmstr_A_L_target, autolevel_target, -1000, 1000, 0.01f, false);
@@ -301,6 +301,11 @@ void setupCustom(){
   // print_gcode_to_lcd = true;
   main_menu.redraw_interval = 50;
   calibrate_menu.redraw_interval = 50;
+
+  last_entered_motor_menu = 3;
+  current_menu = &menu_motor_position;
+  menu_motor_position.came_from = &main_menu;
+  processCommand(F("set_position e0"));
 }
 
 
@@ -1172,9 +1177,13 @@ MenuItemDynamicCallable<const char*> item__pump_status(pgmstr_pump, &get_pump_st
 const char pgmstr_tilt_temp[] PROGMEM = "Tilt temp";
 MenuItemDynamic<float> item_tilt_temp(pgmstr_tilt_temp, TILT_TEMPERATURE);
 
+const char pgmstr_fep_temp[] PROGMEM = "FEP temp";
+MenuItemDynamic<float> item_fep_temp(pgmstr_fep_temp, FEP_TEMPERATURE);
+
 
 
 MenuItem* const main_menu_items[] PROGMEM = {
+  &item_fep_temp,
   &item_tilt_temp,
   &item__filtered_corrected,
   &item__pump_status,
