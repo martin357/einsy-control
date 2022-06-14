@@ -178,11 +178,12 @@ public:
   } autohome;
 
   volatile float target_rpm;
+  volatile float ramp_start_rpm;
+  volatile uint32_t target_rpm_changed_at;
   volatile uint16_t accel;
   volatile uint16_t decel;
   float default_ramp_rpm_from;
   float default_ramp_rpm_to;
-  volatile uint32_t last_speed_change;
   volatile uint8_t queue_index;
   MotorQueueItem queue[MOTOR_QUEUE_LEN];
   uint8_t next_queue_index();

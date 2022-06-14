@@ -12,6 +12,7 @@
 // #define CUSTOM_TILT_TEST
 #define CUSTOM_TWIN_TOWER_TEST
 // #define CUSTOM_FAN_CONTROL
+// #define CUSTOM_CW2
 
 
 #ifdef CUSTOM_AUTONOMOUS
@@ -52,6 +53,10 @@
 
 #ifdef CUSTOM_FAN_CONTROL
   #include "src/custom/fan_control.h"
+#endif
+
+#ifdef CUSTOM_CW2
+  #include "src/custom/cw2.h"
 #endif
 
 

@@ -304,6 +304,32 @@ void MenuRangeMotorSEMAX::loop(){
 
 
 /*
+  menu range motor hold current multiplier
+*/
+const char pgmstr_hold_multiplier[] PROGMEM = "Hold multiplier";
+MenuRangeMotorHoldMultiplier::MenuRangeMotorHoldMultiplier():
+  MenuRange(pgmstr_hold_multiplier, value, 0.1, 1.0, 0.1),
+  value(0.5){}
+
+
+void MenuRangeMotorHoldMultiplier::on_enter(){
+  MenuRange::on_enter();
+  value = motors[last_entered_motor_menu].driver.hold_multiplier();
+}
+
+
+void MenuRangeMotorHoldMultiplier::loop(){
+  static uint32_t last_loop = 0;
+  uint32_t _millis = millis();
+  if(_millis > last_loop + 50){
+    if(value != motors[last_entered_motor_menu].driver.hold_multiplier()) motors[last_entered_motor_menu].driver.hold_multiplier(value);
+    last_loop = _millis;
+  }
+}
+
+
+
+/*
   menu motor manual steps
 */
 MenuMotorManualSteps::MenuMotorManualSteps():

@@ -118,6 +118,11 @@ MenuListMotorCurrent menu_motor_current;
 MenuItem motor_current(pgmstr_current, &menu_motor_current);
 
 
+// motor hold current multiplier
+MenuRangeMotorHoldMultiplier menu_motor_hold_current_multiplier;
+MenuItem motor_hold_current_multiplier(pgmstr_hold_multiplier, &menu_motor_hold_current_multiplier);
+
+
 // motor microstepping
 MenuListMotorMicrostepping menu_motor_msteps;
 MenuItem motor_msteps(pgmstr_microstepping, &menu_motor_msteps);
@@ -141,6 +146,19 @@ MenuItem motor_semin(pgmstr_smartenergy_min, &menu_motor_semin);
 // motor semax
 MenuRangeMotorSEMAX menu_motor_semax;
 MenuItem motor_semax(pgmstr_smartenergy_max, &menu_motor_semax);
+
+
+// motor maximum power
+void do_motor_maximum_power(){
+  motors[last_entered_motor_menu].driver.semin(0);
+  motors[last_entered_motor_menu].driver.vsense(false);
+  motors[last_entered_motor_menu].driver.hold_multiplier(1);
+  motors[last_entered_motor_menu].driver.irun(31);
+  motors[last_entered_motor_menu].driver.ihold(31);
+  motors[last_entered_motor_menu].driver.TCOOLTHRS(0);
+}
+const char pgmstr_maximum_power[] PROGMEM = "Maximum power";
+MenuItemCallable motor_maximum_power(pgmstr_maximum_power, do_motor_maximum_power, false);
 
 
 // motor show stallguard
@@ -256,6 +274,7 @@ MenuItem* const motor_items[] PROGMEM = {
   &motor_decel,
   &motor_stallguard,
   &motor_current,
+  &motor_hold_current_multiplier,
   &motor_vsense_on_off,
   &motor_msteps,
   &motor_blank_time,
@@ -267,6 +286,7 @@ MenuItem* const motor_items[] PROGMEM = {
   &motor_pwm_autoscale_on_off,
   &motor_intpol_on_off,
   &motor_invert_direction_on_off,
+  &motor_maximum_power,
 };
 MenuMotor menu_motor_x(MOTOR_X, motor_items, sizeof(motor_items) / 2);
 MenuMotor menu_motor_y(MOTOR_Y, motor_items, sizeof(motor_items) / 2);

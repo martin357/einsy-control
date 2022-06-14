@@ -26,7 +26,9 @@ void setupMotorTimers(){
   TCNT2  = 0;
   OCR2A = 0xFF;
   TCCR2A |= (1 << WGM21);
-  TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);
+  // TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);
+  // TCCR2B |= (1 << CS22) | (1 << CS20);
+  TCCR2B |= (1 << CS22) | (1 << CS21);
   TIMSK2 |= (1 << OCIE2A);
 
   SETUP_TIMER(1);
@@ -143,11 +145,12 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   planned({0.0, false, false, 0, 120.0, 120.0, nullptr}),
   autohome({false, true, false, 120.0, 40.0, 0.1, 0.1, 0.0, 50}),
   target_rpm(-1.0),
+  ramp_start_rpm(0.0),
+  target_rpm_changed_at(0),
   accel(120.0),
   decel(120.0),
   default_ramp_rpm_from(0.0),
   default_ramp_rpm_to(0.0),
-  last_speed_change(last_speed_change),
   queue_index(0),
   _rpm(0.0),
   _dir(false),
@@ -288,14 +291,14 @@ float Motor::rpm(){
 
 
 void Motor::ramp_to(float value, bool keep_running){
-  last_speed_change = millis();
   target_rpm = value;
+  ramp_start_rpm = _rpm;
+  target_rpm_changed_at = millis();
 }
 
 
 void Motor::ramp_off(){
   target_rpm = -1.0;
-  last_speed_change = millis();
 }
 
 // TODO count total_steps according to direction/invert_direction
@@ -743,6 +746,8 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(steps_to_do);
   PRINT_VAR(steps_total);
   PRINT_VAR(target_rpm);
+  PRINT_VAR(ramp_start_rpm);
+  PRINT_VAR(target_rpm_changed_at);
   PRINT_VAR(accel);
   PRINT_VAR(decel);
   PRINT_VAR(default_ramp_rpm_from);
@@ -753,7 +758,6 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(stallguard_triggered);
   PRINT_VAR(inactivity_timeout);
   PRINT_VAR(stop_at_millis);
-  PRINT_VAR(last_speed_change);
   PRINT_VAR(last_movement);
   PRINT_VAR(autohome.enabled);
   PRINT_VAR(autohome.autohome_on_move);
@@ -1127,24 +1131,20 @@ ISR(TIMER0_COMPA_vect){
 
 // acceleration handling
 ISR(TIMER2_COMPA_vect){
-  // const uint32_t _millis = millis();
-  const uint32_t _micros = micros();
+  const uint32_t _millis = millis();
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(motors[i].started && !motors[i].pause_steps && (motors[i].running || motors[i].steps_to_do > 0)){
-      // motors[i].last_movement = _millis;
       if(motors[i].target_rpm >= 0.0){
-        float rpm = motors[i]._rpm;
-        float rpm_delta = motors[i].target_rpm - rpm;
-        uint16_t delta_t = _micros - motors[i].last_speed_change;
-        float change_fraction;
+        const uint16_t delta_t = _millis - motors[i].target_rpm_changed_at;
+        float new_rpm;
+        // ramp_start_rpm
 
-        if(rpm_delta > 0.0){
+        if(motors[i].target_rpm - motors[i].ramp_start_rpm > 0.0){
           // accelerating
-          change_fraction = motors[i].accel / 1000000.0 * delta_t;
-          rpm += change_fraction;
-          if(rpm >= motors[i].target_rpm){
-            rpm = motors[i].target_rpm;
+          new_rpm = motors[i].ramp_start_rpm + (motors[i].accel / 1000.0 * delta_t);
+          if(new_rpm >= motors[i].target_rpm){
+            new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
             Serial.print("[TIM2] accel done at ");
             Serial.println(motors[i].position_usteps);
@@ -1152,28 +1152,27 @@ ISR(TIMER2_COMPA_vect){
 
         }else{
           // decelerating
-          change_fraction = motors[i].decel / 1000000.0 * delta_t;
-          rpm -= change_fraction;
-          if(rpm <= motors[i].target_rpm){
-            rpm = motors[i].target_rpm;
+          new_rpm = motors[i].ramp_start_rpm - (motors[i].decel / 1000.0 * delta_t);
+          if(new_rpm <= motors[i].target_rpm){
+            new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
+            Serial.print("[TIM2] decel done at ");
+            Serial.println(motors[i].position_usteps);
           }
 
         }
 
-        motors[i]._rpm = rpm;
-        uint32_t ocr = motors[i].rpm2ocr(rpm);
+        motors[i]._rpm = new_rpm;
+        uint32_t ocr = motors[i].rpm2ocr(new_rpm);
         if(ocr < 70) ocr = 70;
         if(ocr > 65535) ocr = 65535;
 
-        if(rpm <= 0.0) motors[i].stop();
+        if(new_rpm <= 0.0) motors[i].stop();
 
         cli();
-        *motors[i].timer_counter_port = 0;
+        // *motors[i].timer_counter_port = 0;
         *motors[i].timer_compare_port = ocr;
         sei();
-
-        motors[i].last_speed_change = _micros;
       }
     }
   }

@@ -101,6 +101,15 @@ public:
 };
 
 
+class MenuRangeMotorHoldMultiplier: public MenuRange<float>{
+public:
+  MenuRangeMotorHoldMultiplier();
+  void on_enter();
+  void loop();
+  float value;
+};
+
+
 class MenuMotorManualSteps: public Menu{
 public:
   MenuMotorManualSteps();
@@ -122,3 +131,4 @@ extern const char pgmstr_accel_rpms[]; // "Accel [RPMS]"
 extern const char pgmstr_decel_rpms[]; // "Decel [RPMS]"
 extern const char pgmstr_smartenergy_min[]; // "SmartEnergy Min"
 extern const char pgmstr_smartenergy_max[]; // "SmartEnergy Max"
+extern const char pgmstr_hold_multiplier[]; // "Hold multiplier"

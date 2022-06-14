@@ -162,7 +162,7 @@ void digitalWriteExt(const uint8_t, const bool);
 #define X_TMC2130_DIAG         64 // !!! changed from 40 (EINY03)
 #define X_STEP_PIN             37
 #define X_DIR_PIN              49
-// #define X_MIN_PIN            0 // 12
+#define X_MIN_PIN              12
 // //#define X_MAX_PIN            30
 // //#define X_MIN_PIN              X_TMC2130_DIAG
 // #define X_MAX_PIN              X_TMC2130_DIAG
@@ -174,7 +174,7 @@ void digitalWriteExt(const uint8_t, const bool);
 #define Y_TMC2130_DIAG      69
 #define Y_STEP_PIN          36
 #define Y_DIR_PIN           48
-// #define Y_MIN_PIN           0 // 11
+#define Y_MIN_PIN           11
 // //#define Y_MAX_PIN           24
 // //#define Y_MIN_PIN           Y_TMC2130_DIAG
 // #define Y_MAX_PIN           Y_TMC2130_DIAG
@@ -186,7 +186,7 @@ void digitalWriteExt(const uint8_t, const bool);
 #define Z_TMC2130_DIAG      68
 #define Z_STEP_PIN          35
 #define Z_DIR_PIN           47
-// #define Z_MIN_PIN           0 // 10
+#define Z_MIN_PIN           10
 // #define Z_MAX_PIN           23
 // //#define Z_MAX_PIN           Z_TMC2130_DIAG
 #define Z_ENABLE_PIN        27
