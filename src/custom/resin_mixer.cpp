@@ -22,14 +22,15 @@ const char pgmstr_heater_off[] PROGMEM = "Heater: off";
 MenuItemToggleCallable item_heater_on_off(&is_heater_on, pgmstr_heater_on, pgmstr_heater_off, &do_heater_off, &do_heater_on);
 
 
-uint16_t mixing_remaining = 0;
+uint32_t uptime = 0;
+uint32_t mixing_remaining = 0;
 uint32_t last_deduction = 0;
 bool cycle_running = false;
 bool is_mixing_on(){ return cycle_running; }
 void do_mixing_on(){
   cycle_running = true;
   heating_is_on = true;
-  mixing_remaining = storage.mixing_duration * 60;
+  mixing_remaining = storage.mixing_duration * 60000UL;
   motors[0].rpm(1);
   motors[0].start(true);
   motors[0].ramp_to(storage.mixing_speed);
@@ -53,14 +54,17 @@ MenuItemToggleCallable item_mixing_on_off(&is_mixing_on, pgmstr_mixing_on, pgmst
 
 
 const char pgmstr_temperature[] PROGMEM = "Cilova teplota";
-MenuRange<uint8_t> menu_target_temperature("Teplota: [C]", storage.target_temperature, 20, 45, 1, true);
+MenuRange<uint8_t> menu_target_temperature(pgmstr_temperature, storage.target_temperature, 20, 45, 1, true);
 MenuItem item_target_temperature(pgmstr_temperature, &menu_target_temperature);
 
 
 const char pgmstr_mixing_duration[] PROGMEM = "Delka cyklu";
-MenuRange<uint8_t> menu_mixing_duration("Celka cyklu: [min]", storage.mixing_duration, 1, 240, 1, true);
+MenuRange<uint8_t> menu_mixing_duration(pgmstr_mixing_duration, storage.mixing_duration, 1, 240, 1, true);
 MenuItem item_mixing_duration(pgmstr_mixing_duration, &menu_mixing_duration);
 
+
+const char pgmstr_uptime[] PROGMEM = "Uptime";
+MenuItemDynamicTime item_uptime(pgmstr_uptime, &uptime);
 
 uint32_t last_temp_change = 0;
 
@@ -82,12 +86,18 @@ void loopCustom(){
 
   if(mixing_remaining > 0 && _millis >= last_deduction + 1000){
     last_deduction = _millis;
-    if(--mixing_remaining == 0){
+    if(mixing_remaining > 1000){
+      mixing_remaining -= 1000;
+    }else{
+      mixing_remaining = 0;
+    }
+    if(mixing_remaining == 0){
       do_mixing_off();
       beep_cycle_finished();
     }
   }
 
+  uptime = _millis;
 }
 
 void _delay(uint32_t ms){
@@ -111,12 +121,16 @@ void beep_cycle_finished(bool show_on_lcd = true){
   // beep(40);
 }
 
-MenuItemDynamic<uint16_t> item_mixing_remaining("Zbyvajici cas", mixing_remaining);
+const char pgmstr_time_remaining[] PROGMEM = "Remaining";
+MenuItemDynamicTime item_mixing_remaining(pgmstr_time_remaining, &mixing_remaining);
 
 
-MenuItemDynamic<float> item_temp0("Temp0", temperature[0]);
-MenuItemDynamic<float> item_temp1("Temp1", temperature[1]);
-MenuItemDynamic<float> item_temp2("T. heater", temperature[2]);
+const char pgmstr_temp0[] PROGMEM = "Temp0";
+const char pgmstr_temp1[] PROGMEM = "Temp1";
+const char pgmstr_temp2[] PROGMEM = "T. heater";
+MenuItemDynamic<float> item_temp0(pgmstr_temp0, temperature[0]);
+MenuItemDynamic<float> item_temp1(pgmstr_temp1, temperature[1]);
+MenuItemDynamic<float> item_temp2(pgmstr_temp2, temperature[2]);
 
 
 
@@ -217,6 +231,7 @@ MenuItem* const main_menu_items[] PROGMEM = {
   &item_target_temperature,
   &item_mixing_speed,
   &item_temp2,
+  &item_uptime,
   &item_debug_menu,
 };
 Menu main_menu(main_menu_items, sizeof(main_menu_items) / 2);
@@ -244,7 +259,7 @@ void setupCustom(){
   pinModeInput(A1);
   pinModeInput(A2);
 
-  main_menu.redraw_interval = 50;
+  main_menu.redraw_interval = 250;
 
 }
 

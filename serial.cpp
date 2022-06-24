@@ -28,6 +28,14 @@ void processCommand(const __FlashStringHelper *cmd){
 
 
 void processCommand(const char *cmd, size_t len){
+  if(len > 0 && cmd[0] == '#'){ // it is a comment
+    SERIAL_PRINT("----- ");
+    SERIAL_PRINT(cmd);
+    SERIAL_PRINTLN(" -----");
+    Serial1.println(cmd);
+    return;
+  }
+
   #ifdef DEBUG_PRINT
     SERIAL_PRINT("CMD: '");
     SERIAL_PRINT(cmd);
@@ -42,11 +50,6 @@ void processCommand(const char *cmd, size_t len){
     has_hash = true;
     cmd += 2;
     len -= 2;
-  }
-
-  if(len > 0 && cmd[0] == '#'){ // it is a comment
-    Serial1.println(cmd);
-    return;
   }
 
   Serial1.print("cmd> '");
@@ -161,6 +164,7 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("set_is_homing_override"))) gcode_set_is_homing_override();
   else if(strcmp_P(rx_command, F("set_coolstep_threshold"))) gcode_set_coolstep_threshold();
   else if(strcmp_P(rx_command, F("set_ignore_stallguard"))) gcode_set_ignore_stallguard();
+  else if(strcmp_P(rx_command, F("reset_mcu"))) gcode_reset_mcu();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   #ifdef CUSTOM_GCODE
     CUSTOM_GCODE

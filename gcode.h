@@ -57,4 +57,5 @@ void gcode_set_is_homed_override();
 void gcode_set_is_homing_override();
 void gcode_set_coolstep_threshold();
 void gcode_set_ignore_stallguard();
+void gcode_reset_mcu();
 void gcode_test_sg();

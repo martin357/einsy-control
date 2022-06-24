@@ -221,7 +221,7 @@ Menu menu_motor_stallguard(motor_stallguard_items, sizeof(motor_stallguard_items
 MenuItem motor_stallguard(pgmstr_stallguard, &menu_motor_stallguard);
 
 
-// motor show position
+// motor show position & speed
 const char pgmstr_pos[] PROGMEM = "Pos";
 // const char pgmstr_pos_r[] PROGMEM = "Pos r.";
 // const char pgmstr_pos_us[] PROGMEM = "Pos us.";
@@ -245,15 +245,43 @@ MenuItemDynamicCallable<int32_t> motor_actual_position_item(pgmstr_pos, &get_mot
 MenuItemDynamicCallable<float> motor_actual_speed_item(pgmstr_speed, &get_motor_actual_speed);
 MenuItemDynamicCallable<float> motor_planned_speed_item(pgmstr_plan_speed, &get_motor_planned_speed);
 MenuItemDynamicCallable<float> motor_target_speed_item(pgmstr_target, &get_motor_target_speed);
-MenuItem* const motor_position_items[] PROGMEM = {
+MenuItem* const motor_position_speed_items[] PROGMEM = {
   &back,
   &motor_actual_position_item,
   &motor_actual_speed_item,
   &motor_planned_speed_item,
   &motor_target_speed_item,
 };
-Menu menu_motor_position(motor_position_items, sizeof(motor_position_items) / 2);
-MenuItem motor_position(pgmstr_show_pos_speed, &menu_motor_position);
+Menu menu_motor_position_speed(motor_position_speed_items, sizeof(motor_position_speed_items) / 2);
+MenuItem motor_position_speed(pgmstr_show_pos_speed, &menu_motor_position_speed);
+
+
+// motor show position & direction
+const char pgmstr_plan_pos[] PROGMEM = "Plan. pos";
+const char pgmstr_direction[] PROGMEM = "Direction";
+const char pgmstr_plan_dir[] PROGMEM = "Plan. dir";
+const char pgmstr_show_pos_dir[] PROGMEM = "Show pos. & dir";
+int32_t get_motor_planned_position(){
+  return motors[last_entered_motor_menu].planned.position_usteps;
+}
+uint16_t get_motor_actual_direction(){
+  return motors[last_entered_motor_menu].dir();
+}
+uint16_t get_motor_planned_direction(){
+  return motors[last_entered_motor_menu].planned.direction;
+}
+MenuItemDynamicCallable<int32_t> motor_planned_position_item(pgmstr_plan_pos, &get_motor_planned_position);
+MenuItemDynamicCallable<uint16_t> motor_actual_direction_item(pgmstr_direction, &get_motor_actual_direction);
+MenuItemDynamicCallable<uint16_t> motor_planned_direction_item(pgmstr_plan_dir, &get_motor_planned_direction);
+MenuItem* const motor_position_direction_items[] PROGMEM = {
+  &back,
+  &motor_actual_position_item,
+  &motor_planned_position_item,
+  &motor_actual_direction_item,
+  &motor_planned_direction_item,
+};
+Menu menu_motor_position_direction(motor_position_direction_items, sizeof(motor_position_direction_items) / 2);
+MenuItem motor_position_direction(pgmstr_show_pos_dir, &menu_motor_position_direction);
 
 
 
@@ -269,7 +297,8 @@ MenuItem* const motor_items[] PROGMEM = {
   &motor_direction,
   &motor_start_stop,
   &motor_manual_steps,
-  &motor_position,
+  &motor_position_speed,
+  &motor_position_direction,
   &motor_accel,
   &motor_decel,
   &motor_stallguard,

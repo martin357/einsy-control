@@ -51,6 +51,7 @@
   extern void custom_gcode_set_target_fill();
   extern void custom_gcode_set_target_optimal();
   extern void custom_gcode_tilt_temp();
+  extern void custom_gcode_level_ir_gate();
 
   #define CUSTOM_GCODE \
     else if(strcmp_P(rx_command, F("home_weak"))) custom_gcode_home_weak();  \
@@ -72,14 +73,17 @@
     else if(strcmp_P(rx_command, F("set_target_fill"))) custom_gcode_set_target_fill();  \
     else if(strcmp_P(rx_command, F("set_target_optimal"))) custom_gcode_set_target_optimal();  \
     else if(strcmp_P(rx_command, F("tilt_temp"))) custom_gcode_tilt_temp();  \
+    else if(strcmp_P(rx_command, F("level_ir_gate"))) custom_gcode_level_ir_gate();  \
 
   #define CUSTOM_PERMANENT_STORAGE  \
     float zero_offset = -3.32;  \
     float level_min = 1.0;  \
-    float level_fill = 1.9;  \
-    float level_optimal = 3.0;  \
+    float level_fill = 1.0;  \
+    float level_optimal = 2.5;  \
     float level_max = 6.0;  \
-    float tilt_max_temperature = 50.0;  \
+    float tilt_max_temperature = 60.0;  \
+    float valid_min = -1.2;  \
+    float valid_max = 50.0;  \
 
     // float zero_offset = -3.32;  \
     // float level_min = 1.0;  \
@@ -105,5 +109,33 @@
     // float level_optimal = 4.5;  \
     // float level_fill = 4.5;  \
     // float level_max = 9.0;  \
+
+
+    // #define SET_PIN(n)   PIN_##n##_PORT |= PIN_##n##_BIT
+    // #define RESET_PIN(n) PIN_##n##_PORT ^= PIN_##n##_BIT
+    // #define SETUP_PIN(n) \
+    //   pinModeOutput(PIN_OUT_##n); \
+    //   digitalWriteExt(PIN_OUT_##n, LOW); \
+    //
+    // #define PIN_OUT_1  X_MIN_PIN
+    // #define PIN_OUT_2  Y_MIN_PIN
+    // #define PIN_OUT_3  53 // PB0
+    // #define PIN_OUT_4  73 // PJ3
+    // #define PIN_OUT_5  76 // PJ5
+    // #define PIN_OUT_6  A8 // PK0
+    //
+    // #define PIN_1_PORT  PORTB // PB6 .. X_MIN_PIN
+    // #define PIN_2_PORT  PORTB // PB5 .. Y_MIN_PIN
+    // #define PIN_3_PORT  PORTB // PB0 .. PROC_nCS
+    // #define PIN_4_PORT  PORTJ // PJ3
+    // #define PIN_5_PORT  PORTJ // PJ5
+    // #define PIN_6_PORT  PORTK // PK0 .. A8
+    //
+    // #define PIN_1_BIT  _BV(6)
+    // #define PIN_2_BIT  _BV(5)
+    // #define PIN_3_BIT  _BV(0)
+    // #define PIN_4_BIT  _BV(3)
+    // #define PIN_5_BIT  _BV(5)
+    // #define PIN_6_BIT  _BV(0)
 
 #endif

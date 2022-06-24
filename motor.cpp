@@ -445,6 +445,7 @@ void Motor::empty_queue(){
 void Motor::sync(/*bool set_is_homed*/){
   planned.position_usteps = position_usteps;
   planned.rpm = _rpm;
+  planned.direction = dir();
   // TODO: sync direction?
   /*if(set_is_homed){
     planned.is_homed = true;
@@ -461,6 +462,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
   if(queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed && !force_ignore_wait) return true;
 
   SERIAL_PRINT(F(">>> enter PNQ "));
+  SERIAL_PRINT(axis);
   SERIAL_PRINTLN(level);
   SERIAL_PRINT(F("PNQ="));
   uint8_t next = next_queue_index();

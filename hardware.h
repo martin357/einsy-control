@@ -14,7 +14,7 @@
 #define _PRINT_VARF(v) #v
 #define PRINT_VARF(v) Serial.print(F(_PRINT_VARF(v) "=")); Serial.println(v, FLOAT_DECIMALS);
 
-// #define DEBUG_PRINT
+#define DEBUG_PRINT
 #ifdef DEBUG_PRINT
   #define SERIAL_PRINT(x) Serial2.print(x);
   #define SERIAL_PRINTLN(x) Serial2.println(x);

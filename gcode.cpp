@@ -689,6 +689,15 @@ void gcode_set_ignore_stallguard(){
 }
 
 
+void gcode_reset_mcu(){
+  cli();
+  MCUSR &= ~(_BV(WDRF));
+  WDTCSR |= _BV(WDCE) | _BV(WDE);
+  sei();
+  while(1);
+}
+
+
 void gcode_test_sg(){
   const uint8_t wait_duration = 50;
   float rpm = 120;

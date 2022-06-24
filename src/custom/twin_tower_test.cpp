@@ -36,6 +36,8 @@ float total_dist = 0.0;
 KalmanFilter filter(10, 1, 0.01);
 float filtered = 0.0;
 float filtered_corrected = 0.0;
+int8_t capsense_reading_range = 0;
+uint32_t last_capsense_reading_error_beep = 0;
 
 
 void writeRegister(uint8_t reg, uint16_t value, bool wait = true);
@@ -44,6 +46,10 @@ uint8_t readRegister(uint8_t reg);
 // bool print_homing_homed_busy = false;
 // uint32_t last_print_hhb = 0;
 
+
+bool get_level_ir_gate_status(){
+  return !digitalReadExt(X_MIN_PIN);
+}
 
 void start_pump_auto_off_timer(){
   pump_off_time_remaining = DEFAULT_PUMP_AUTO_OFF_TIME;
@@ -55,7 +61,7 @@ void stop_pump_auto_off_timer(){
 }
 
 void enable_pump_slowdown(){
-  pump_slowdown_at = millis() + 90000;
+  pump_slowdown_at = millis() + 180000L;
 }
 
 void disable_pump_slowdown(){
@@ -132,6 +138,12 @@ MenuItemRange<float> manual_edit_item_level_optimal(pgmstr__manual_edit_level_op
 const char pgmstr__manual_edit_level_max[] PROGMEM = "level_max";
 MenuItemRange<float> manual_edit_item_level_max(pgmstr__manual_edit_level_max, storage.level_max, -1000, 1000, 0.01f, true);
 
+const char pgmstr__manual_edit_valid_min[] PROGMEM = "valid_min";
+MenuItemRange<float> manual_edit_item_valid_min(pgmstr__manual_edit_valid_min, storage.valid_min, -1000, 1000, 0.1f, true);
+
+const char pgmstr__manual_edit_valid_max[] PROGMEM = "valid_max";
+MenuItemRange<float> manual_edit_item_valid_max(pgmstr__manual_edit_valid_max, storage.valid_max, -1000, 1000, 0.1f, true);
+
 
 
 void do_calibrate_zero_offset(){
@@ -198,6 +210,12 @@ void do_reset_level_max(){
 const char pgmstr_reset_level_max[] PROGMEM = "RESET level_max";
 MenuItemCallable item_reset_level_max(pgmstr_reset_level_max, &do_reset_level_max, false);
 
+const char pgmstr_level_ir_gate[] PROGMEM = "Level IR gate";
+uint16_t get_level_ir_gate(){
+  return get_level_ir_gate_status();
+}
+MenuItemDynamicCallable<uint16_t> item__level_ir_gate(pgmstr_level_ir_gate, &get_level_ir_gate);
+
 MenuItem* const calibrate_menu_items[] PROGMEM = {
   &back,
   &item_calibrate_zero_offset,
@@ -217,6 +235,9 @@ MenuItem* const calibrate_menu_items[] PROGMEM = {
   &manual_edit_item_level_optimal,
   &manual_edit_item_level_max,
   &item_storage__tilt_max_temperature,
+  &manual_edit_item_valid_min,
+  &manual_edit_item_valid_max,
+  &item__level_ir_gate,
 };
 Menu calibrate_menu(calibrate_menu_items, sizeof(calibrate_menu_items) / 2);
 const char pgmstr_calibrate[] PROGMEM = "calibrate";
@@ -264,6 +285,7 @@ void setupCustom(){
   motors[MP].stop_on_stallguard = false;
   motors[MP].driver.sgt(5);
   motors[MP].inactivity_timeout = 10000;
+  motors[MP].ignore_stallguard = true;
 
   // init ad7150
   ch1_capdac.DacAuto = false;
@@ -297,15 +319,27 @@ void setupCustom(){
   seed += analogRead(A11) + analogRead(A14) + analogRead(A15);
 
   randomSeed(seed);
+  pinModeInput(X_MIN_PIN);
 
   // print_gcode_to_lcd = true;
   main_menu.redraw_interval = 50;
   calibrate_menu.redraw_interval = 50;
 
-  last_entered_motor_menu = 3;
-  current_menu = &menu_motor_position;
-  menu_motor_position.came_from = &main_menu;
-  processCommand(F("set_position e0"));
+  // last_entered_motor_menu = 3;
+  // current_menu = &menu_motor_position;
+  // menu_motor_position.came_from = &main_menu;
+  // processCommand(F("set_position e0"));
+  // print_gcode_to_lcd = true;
+
+  // Serial.println();
+  // Serial.println(F("ready!"));
+
+  // SETUP_PIN(1);
+  // SETUP_PIN(2);
+  // SETUP_PIN(3);
+  // SETUP_PIN(4);
+  // SETUP_PIN(5);
+  // SETUP_PIN(6);
 }
 
 
@@ -382,6 +416,19 @@ void loopCustom(){
       // const float level_delta = running_average - autolevel_target;
       last_pump_tick = _millis;
 
+      if(filtered_corrected <= storage.valid_min){
+        capsense_reading_range = -1;
+      }else if(filtered_corrected >= storage.valid_max){
+        capsense_reading_range = 1;
+      }else{
+        capsense_reading_range = 0;
+      }
+
+      if(capsense_reading_range != 0){
+        if(motors[MP].is_busy() && !motors[MP].dir()) pump_stop(true);
+        return;
+      }
+
       if(abs(filtered_corrected - autolevel_target) > level_tolerance){
         if(filtered_corrected <= autolevel_target){
           // need more resin
@@ -439,6 +486,11 @@ void loopCustom(){
       // Serial.println();
 
     }
+
+    if(capsense_reading_range != 0 && (autolevel_enabled || (motors[MP].is_busy() && !motors[MP].dir())) && _millis >= last_capsense_reading_error_beep + 2000){
+      last_capsense_reading_error_beep = _millis;
+      beep(200);
+    }
   }
 
   static uint32_t last_total_dist_calculated_at = 0;
@@ -466,10 +518,21 @@ void loopCustom(){
 
   if(pump_slowdown_at > 0 && _millis >= pump_slowdown_at){
     pump_slowdown_at = 0;
+    // motors[MP].decel = 1;
+    // motors[MP].planned.decel = 1;
     motors[MP].ramp_to(40);
   }
 
   uptime = _millis;
+
+  static bool last_level_ir_gate_status = false;
+  bool level_ir_gate_status = get_level_ir_gate_status();
+  if(last_level_ir_gate_status != level_ir_gate_status){
+    last_level_ir_gate_status = level_ir_gate_status;
+    // Serial.print(F("level_ir_gate_status = "));
+    // Serial.println(level_ir_gate_status);
+    // beep(level_ir_gate_status ? 100 : 10);
+  }
 }
 
 
@@ -1024,6 +1087,11 @@ void custom_gcode_tilt_temp(){
 }
 
 
+void custom_gcode_level_ir_gate(){
+  Serial.println(get_level_ir_gate_status());
+}
+
+
 
 void do_pump_stop(){
   lcd.clear();
@@ -1183,8 +1251,7 @@ MenuItemDynamic<float> item_fep_temp(pgmstr_fep_temp, FEP_TEMPERATURE);
 
 
 MenuItem* const main_menu_items[] PROGMEM = {
-  &item_fep_temp,
-  &item_tilt_temp,
+  // &item_fep_temp,
   &item__filtered_corrected,
   &item__pump_status,
   &item_auto_level,
@@ -1193,6 +1260,7 @@ MenuItem* const main_menu_items[] PROGMEM = {
   &item_pump_stop,
   &item_pump_off_time,
   // &item_z_motors_off,
+  &item_tilt_temp,
   &separator,
   &item_debug_menu,
   &separator,
