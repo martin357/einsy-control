@@ -26,9 +26,9 @@ void setupMotorTimers(){
   TCNT2  = 0;
   OCR2A = 0xFF;
   TCCR2A |= (1 << WGM21);
-  // TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);
+  TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);
   // TCCR2B |= (1 << CS22) | (1 << CS20);
-  TCCR2B |= (1 << CS22) | (1 << CS21);
+  // TCCR2B |= (1 << CS22) | (1 << CS21);
   TIMSK2 |= (1 << OCIE2A);
 
   SETUP_TIMER(1);
@@ -138,6 +138,7 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   position_usteps(0),
   running(false),
   stallguard_triggered(false),
+  ignore_stallguard(false),
   steps_to_do(0),
   steps_total(0),
   ignore_stallguard_steps(0),
@@ -195,14 +196,18 @@ void Motor::start(bool start_running){
   if(!is_on()) on();
   running = start_running;
   started = true;
+  cli();
   *timer_counter_port = 0;
   *timer_enable_port |= (1 << timer_enable_bit);
+  sei();
   // Serial.println(F("[motor] start"));
 }
 
 
 void Motor::stop(){
+  cli();
   *timer_enable_port = 0;
+  sei();
   started = false;
   running = false;
   steps_to_do = 0;
@@ -265,10 +270,10 @@ void Motor::rpm(float value){
   }
 
   if(*timer_compare_port != ocr ){
-    // cli();
+    cli();
     // *timer_counter_port = 0;
     *timer_compare_port = ocr;
-    // sei();
+    sei();
 
     // static uint32_t last_millis = 0;
     // uint32_t _millis = millis();
@@ -291,26 +296,45 @@ float Motor::rpm(){
 
 
 void Motor::ramp_to(float value, bool keep_running){
+  cli();
   target_rpm = value;
   ramp_start_rpm = _rpm;
   target_rpm_changed_at = millis();
+  SERIAL_PRINT(F("[ramp_to] "));
+  SERIAL_PRINT(axis);
+  SERIAL_PRINT(" to ");
+  SERIAL_PRINTLN(value);
+  sei();
 }
 
 
 void Motor::ramp_off(){
+  cli();
   target_rpm = -1.0;
+  sei();
 }
 
 // TODO count total_steps according to direction/invert_direction
 bool Motor::is_busy(){
   const uint8_t next = next_queue_index();
-  // Serial.print("is_busy");
-  // Serial.print(" ps "); Serial.print(pause_steps ? "1" : "0");
-  // Serial.print(", r "); Serial.print(running ? "1" : "0");
-  // Serial.print(", std "); Serial.print(steps_to_do > 0 ? "1" : "0"); Serial.print(" ("); Serial.print(steps_to_do); Serial.print(")");
-  // Serial.print(", wip "); Serial.print((queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed) ? "1" : "0");
-  // Serial.print(", noop "); Serial.print((queue[next].type != MotorQueueItemType::NOOP && !queue[next].processed) ? "1" : "0");
-  // Serial.println();
+  if(axis != 'x'){
+    SERIAL_PRINT("is_busy "); SERIAL_PRINT(axis);
+    SERIAL_PRINT(" ps "); SERIAL_PRINT(pause_steps ? "1" : "0");
+    SERIAL_PRINT(", r "); SERIAL_PRINT(running ? "1" : "0");
+    SERIAL_PRINT(", std "); SERIAL_PRINT(steps_to_do > 0 ? "1" : "0"); SERIAL_PRINT(" ("); SERIAL_PRINT(steps_to_do); SERIAL_PRINT(")");
+    SERIAL_PRINT(", wip "); SERIAL_PRINT((queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed) ? "1" : "0");
+    SERIAL_PRINT(", noop "); SERIAL_PRINT((queue[next].type != MotorQueueItemType::NOOP && !queue[next].processed) ? "1" : "0");
+    SERIAL_PRINTLN();
+  }
+  if(axis == 'e'){
+    Serial.print("is_busy "); Serial.print(axis);
+    Serial.print(" ps "); Serial.print(pause_steps ? "1" : "0");
+    Serial.print(", r "); Serial.print(running ? "1" : "0");
+    Serial.print(", std "); Serial.print(steps_to_do > 0 ? "1" : "0"); Serial.print(" ("); Serial.print(steps_to_do); Serial.print(")");
+    Serial.print(", wip "); Serial.print((queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed) ? "1" : "0");
+    Serial.print(", noop "); Serial.print((queue[next].type != MotorQueueItemType::NOOP && !queue[next].processed) ? "1" : "0");
+    Serial.println();
+  }
 
   return pause_steps || running || steps_to_do > 0 ||
     (queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS &&
@@ -429,9 +453,15 @@ void Motor::sync(/*bool set_is_homed*/){
 }
 
 
-bool Motor::process_next_queue_item(bool force_ignore_wait){
+bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
+  if(level > 2){
+    SERIAL_PRINTLN(F("!! PNQ too deep, break"));
+    return true;
+  }
   if(queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed && !force_ignore_wait) return true;
 
+  SERIAL_PRINT(F(">>> enter PNQ "));
+  SERIAL_PRINTLN(level);
   SERIAL_PRINT(F("PNQ="));
   uint8_t next = next_queue_index();
   SERIAL_PRINTLN(next);
@@ -443,10 +473,11 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
 
     }else{
       stop();
-      // SERIAL_PRINTLN(F("[pnq] empty queue, stopping!"));
+      SERIAL_PRINTLN(F("[pnq] empty queue, stopping!"));
       // Serial.println(F("[pnq] empty queue, stopping!"));
 
     }
+    SERIAL_PRINTLN(F("<<< leave PNQ (noop)"));
     return false;
   }
 
@@ -676,6 +707,13 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
       SERIAL_PRINTLN(is_homing_override);
       break;
     }
+    case MotorQueueItemType::SET_IGNORE_STALLGUARD: {
+      ignore_stallguard = bool(queue[next].value);
+      process_next = true;
+      SERIAL_PRINT(F("[pnq] set ignore sg "));
+      SERIAL_PRINTLN(ignore_stallguard);
+      break;
+    }
 
   }
   // memset(&queue[queue_index], 0, sizeof(queue[queue_index]));
@@ -700,8 +738,10 @@ bool Motor::process_next_queue_item(bool force_ignore_wait){
   }
   if(process_next){
     SERIAL_PRINTLN(F("[pqn finished] process_next!"));
-    process_next_queue_item();
+    process_next_queue_item(false, level + 1);
   }
+  SERIAL_PRINT(F("<<< leave PNQ "));
+  SERIAL_PRINTLN(level);
   return true;
 
 }
@@ -942,32 +982,32 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
 
   // move f30 g130 a100 d100 e4
 
-  Serial.println(F("[[motor]] plan_ramp_move:"));
-  PRINT_VAR(usteps);
-  PRINT_VAR(rpm_from);
-  PRINT_VAR(rpm_to);
-  PRINT_VAR(acceleration);
-  PRINT_VAR(deceleration);
-  Serial.println(F("------"));
-  PRINT_VAR(accel);
-  PRINT_VAR(decel);
-  PRINT_VAR(rot_direction);
-  PRINT_VAR(sps_from);
-  PRINT_VAR(sps_to);
-  PRINT_VAR(sps_pow2_diff);
-  PRINT_VAR(accel_sps);
-  PRINT_VAR(decel_sps);
-  PRINT_VAR(steps);
-  PRINT_VAR(accel_steps);
-  PRINT_VAR(decel_steps);
-  PRINT_VAR(steps - decel_steps);
+  // Serial.println(F("[[motor]] plan_ramp_move:"));
+  // PRINT_VAR(usteps);
+  // PRINT_VAR(rpm_from);
+  // PRINT_VAR(rpm_to);
+  // PRINT_VAR(acceleration);
+  // PRINT_VAR(deceleration);
+  // Serial.println(F("------"));
+  // PRINT_VAR(accel);
+  // PRINT_VAR(decel);
+  // PRINT_VAR(rot_direction);
+  // PRINT_VAR(sps_from);
+  // PRINT_VAR(sps_to);
+  // PRINT_VAR(sps_pow2_diff);
+  // PRINT_VAR(accel_sps);
+  // PRINT_VAR(decel_sps);
+  // PRINT_VAR(steps);
+  // PRINT_VAR(accel_steps);
+  // PRINT_VAR(decel_steps);
+  // PRINT_VAR(steps - decel_steps);
 
   if(steps >= accel_steps + decel_steps){
-    Serial.println("[prm] ramp ok");
+    // Serial.println("[prm] ramp ok");
   }else{
-    Serial.println("[prm] can not fit whole ramp to move!");
+    // Serial.println("[prm] can not fit whole ramp to move!");
     decel_steps = ceil(steps / ((accel_sps + decel_sps) / (float)decel_sps));
-    PRINT_VAR(decel_steps);
+    // PRINT_VAR(decel_steps);
   }
 
   uint8_t next = next_empty_queue_index();
@@ -1043,6 +1083,7 @@ void Motor::plan_ramp_move_to(float rotations, float rpm_from, float rpm_to, flo
   }else{  \
     motors[m].pause_steps = true;  \
     /*SERIAL_PRINTLN("[isr] pnq!");*/  \
+    SERIAL_PRINTLN("[isr " #m "] pnq!");  \
     motors[m].process_next_queue_item();  \
     motors[m].pause_steps = false;  \
   }  \
@@ -1056,6 +1097,7 @@ TIMER_ISR(5, 3)
 
 // "wait" handling timer, beeper off timer
 ISR(TIMER0_COMPA_vect){
+  // SET_PIN(1);
   const uint32_t _millis = millis();
   readEncoder();
 
@@ -1126,11 +1168,13 @@ ISR(TIMER0_COMPA_vect){
   #ifdef CUSTOM_TIMER0_ISR
     timer0Custom();
   #endif
+  // RESET_PIN(1);
 }
 
 
 // acceleration handling
 ISR(TIMER2_COMPA_vect){
+  // SET_PIN(2);
   const uint32_t _millis = millis();
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
@@ -1146,8 +1190,12 @@ ISR(TIMER2_COMPA_vect){
           if(new_rpm >= motors[i].target_rpm){
             new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
-            Serial.print("[TIM2] accel done at ");
-            Serial.println(motors[i].position_usteps);
+            // if(i>0){
+            //   Serial.print("[TIM2] ");
+            //   Serial.print(motors[i].axis);
+            //   Serial.print(" accel done at ");
+            //   Serial.println(motors[i].position_usteps);
+            // }
           }
 
         }else{
@@ -1156,8 +1204,12 @@ ISR(TIMER2_COMPA_vect){
           if(new_rpm <= motors[i].target_rpm){
             new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
-            Serial.print("[TIM2] decel done at ");
-            Serial.println(motors[i].position_usteps);
+            // if(i>0){
+            //   Serial.print("[TIM2] ");
+            //   Serial.print(motors[i].axis);
+            //   Serial.print(" decel done at ");
+            //   Serial.println(motors[i].position_usteps);
+            // }
           }
 
         }
@@ -1169,25 +1221,27 @@ ISR(TIMER2_COMPA_vect){
 
         if(new_rpm <= 0.0) motors[i].stop();
 
-        cli();
+        // cli();
         // *motors[i].timer_counter_port = 0;
         *motors[i].timer_compare_port = ocr;
-        sei();
+        // sei();
       }
     }
   }
+  // RESET_PIN(1);
 }
 
 
 // stallguard pin change interrupt
 ISR(PCINT2_vect){
+  // SET_PIN(3);
   const bool sg[MOTORS_MAX] = {
-    PINK & (1 << PINK2), // X_DIAG
-    PINK & (1 << PINK7), // Y_DIAG
-    PINK & (1 << PINK6), // Z_DIAG
-    PINK & (1 << PINK3), // E0_DIAG
+    !motors[0].ignore_stallguard && (PINK & (1 << PINK2)), // X_DIAG
+    !motors[1].ignore_stallguard && (PINK & (1 << PINK7)), // Y_DIAG
+    !motors[2].ignore_stallguard && (PINK & (1 << PINK6)), // Z_DIAG
+    !motors[3].ignore_stallguard && (PINK & (1 << PINK3)), // E0_DIAG
   };
-  if(!sg[0] && !sg[1] && !sg[2] && !sg[3]) return;
+  if(!sg[0] && !sg[1] && !sg[2] && !sg[3]) return; // { RESET_PIN(3); return; }
 
   SERIAL_PRINT("SG Int ");
   SERIAL_PRINT(sg[0]);
@@ -1250,4 +1304,5 @@ ISR(PCINT2_vect){
     }
   }
 
+  // RESET_PIN(3);
 }

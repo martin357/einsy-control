@@ -39,6 +39,10 @@ void setup() {
     setupCustom();
   #endif
 
+  Serial1.begin(74880);
+  #ifdef DEBUG_PRINT
+    Serial2.begin(74880);
+  #endif
   Serial.println(F("ready!"));
 
 }

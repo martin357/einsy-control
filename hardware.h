@@ -16,8 +16,8 @@
 
 // #define DEBUG_PRINT
 #ifdef DEBUG_PRINT
-  #define SERIAL_PRINT(x) Serial.print(x);
-  #define SERIAL_PRINTLN(x) Serial.println(x);
+  #define SERIAL_PRINT(x) Serial2.print(x);
+  #define SERIAL_PRINTLN(x) Serial2.println(x);
 #else
   #define SERIAL_PRINT(x) ;
   #define SERIAL_PRINTLN(x) ;

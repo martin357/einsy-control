@@ -19,8 +19,8 @@
   pinModeOutput(PIN_OUT_##n); \
   digitalWriteExt(PIN_OUT_##n, LOW); \
 
-#define SET_PIN(n, v) \
-  digitalWriteExt(PIN_OUT_##n, v); \
+// #define SET_PIN(n, v) \
+//   digitalWriteExt(PIN_OUT_##n, v); \
 
 
 void setupCustom(){
@@ -41,22 +41,51 @@ void setupCustom(){
 void loopCustom(){
   const uint32_t _millis = millis();
 
-  static bool val = false;
-  Serial.print(F("new value: "));
-  Serial.println(val);
-  SET_PIN(1, val);
-  SET_PIN(2, val);
-  SET_PIN(3, val);
-  SET_PIN(4, val);
-  SET_PIN(5, val);
-  SET_PIN(6, val);
-  SET_PIN(7, val);
-  SET_PIN(8, val);
-  SET_PIN(9, val);
-  SET_PIN(10, val);
-  SET_PIN(11, val);
-  SET_PIN(12, val);
-  val = !val;
+  // static bool val = false;
+  // Serial.print(F("new value: "));
+  // Serial.println(val);
+  // SET_PIN(1, val);
+  // SET_PIN(2, val);
+  // SET_PIN(3, val);
+  // SET_PIN(4, val);
+  // SET_PIN(5, val);
+  // SET_PIN(6, val);
+  // SET_PIN(7, val);
+  // SET_PIN(8, val);
+  // SET_PIN(9, val);
+  // SET_PIN(10, val);
+  // SET_PIN(11, val);
+  // SET_PIN(12, val);
+  // val = !val;
+
+  Serial.println(F("ON"));
+  SET_PIN(1);
+  SET_PIN(2);
+  SET_PIN(3);
+  SET_PIN(4);
+  SET_PIN(5);
+  SET_PIN(6);
+  SET_PIN(7);
+  SET_PIN(8);
+  SET_PIN(9);
+  SET_PIN(10);
+  SET_PIN(11);
+  SET_PIN(12);
+  delay(1000);
+
+  Serial.println(F("Off"));
+  RESET_PIN(1);
+  RESET_PIN(2);
+  RESET_PIN(3);
+  RESET_PIN(4);
+  RESET_PIN(5);
+  RESET_PIN(6);
+  RESET_PIN(7);
+  RESET_PIN(8);
+  RESET_PIN(9);
+  RESET_PIN(10);
+  RESET_PIN(11);
+  RESET_PIN(12);
 
   delay(1000);
 }

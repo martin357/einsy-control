@@ -609,23 +609,34 @@ void gcode_set_is_homing(){
 
 
 void gcode_is_homed(){
+  bool did_print = false;
   FOREACH_PARAM_AS_AXIS;
-  Serial.println(motors[index].is_homed_override == Bool_tristate::UNSET ? motors[index].is_homed : bool(motors[index].is_homed_override));
+  Serial.print(motors[index].is_homed_override == Bool_tristate::UNSET ? motors[index].is_homed : bool(motors[index].is_homed_override));
+  did_print = true;
   FOREACH_PARAM_AS_AXIS_END;
+  if(did_print) Serial.println();
 }
 
 
 void gcode_is_busy(){
+  SERIAL_PRINTLN(F("is_busy enter>"));
+  bool did_print = false;
   FOREACH_PARAM_AS_AXIS;
-  Serial.println(motors[index].is_busy());
+  Serial.print(motors[index].is_busy());
+  did_print = true;
   FOREACH_PARAM_AS_AXIS_END;
+  if(did_print) Serial.println();
+  SERIAL_PRINTLN(F("is_busy <leave"));
 }
 
 
 void gcode_is_homing(){
+  bool did_print = false;
   FOREACH_PARAM_AS_AXIS;
-  Serial.println(motors[index].is_homing_override == Bool_tristate::UNSET ? motors[index].is_homing : bool(motors[index].is_homing_override));
+  Serial.print(motors[index].is_homing_override == Bool_tristate::UNSET ? motors[index].is_homing : bool(motors[index].is_homing_override));
+  did_print = true;
   FOREACH_PARAM_AS_AXIS_END;
+  if(did_print) Serial.println();
 }
 
 
@@ -667,6 +678,13 @@ void gcode_set_is_homing_override(){
 void gcode_set_coolstep_threshold(){
   FOREACH_PARAM_AS_AXIS_WITH_VALUE;
   ADD_TO_QUEUE(SET_COOLSTEP_THRESHOLD, value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
+}
+
+
+void gcode_set_ignore_stallguard(){
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  ADD_TO_QUEUE(SET_IGNORE_STALLGUARD, bool(value));
   FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 

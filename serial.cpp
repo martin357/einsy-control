@@ -28,11 +28,37 @@ void processCommand(const __FlashStringHelper *cmd){
 
 
 void processCommand(const char *cmd, size_t len){
+  #ifdef DEBUG_PRINT
+    SERIAL_PRINT("CMD: '");
+    SERIAL_PRINT(cmd);
+    SERIAL_PRINTLN("'");
+  #endif
+
+  bool has_hash = false;
+  uint8_t given_hash;
+  uint8_t hash = 0;
+  if(len > 1 && cmd[0] == '@'){
+    given_hash = cmd[1];
+    has_hash = true;
+    cmd += 2;
+    len -= 2;
+  }
+
+  if(len > 0 && cmd[0] == '#'){ // it is a comment
+    Serial1.println(cmd);
+    return;
+  }
+
+  Serial1.print("cmd> '");
+  Serial1.print(cmd);
+  Serial1.println("'");
+
   bool ok = true;
   rx_params = 0;
   memset(rx_command, 0, RX_COMMAND_LEN);
   memset(rx_param, 0, RX_PARAMS * RX_PARAM_LEN);
   for(size_t i = 0; i < len; i++){
+    if(has_hash) hash = ((hash << 5) + hash) ^ cmd[i];
     if(cmd[i] == ' '){
       rx_delimiter_pos[rx_params] = i;
       if(rx_params < RX_PARAMS){
@@ -40,6 +66,26 @@ void processCommand(const char *cmd, size_t len){
       }else{
         Serial.println(F("max cmd params reached!"));
       }
+    }
+  }
+
+  if(has_hash){
+    if(hash == 0) hash++;
+    if(given_hash != hash){
+      Serial.print(F("invalid hash '"));
+      Serial.print(cmd);
+      Serial.println("'");
+
+      Serial1.print(F("invalid hash '"));
+      Serial1.print(cmd);
+      Serial1.println("'");
+
+      #ifdef DEBUG_PRINT
+        SERIAL_PRINT(F("!!!!!!!! >> INVALID HASH '"));
+        SERIAL_PRINT(cmd);
+        SERIAL_PRINTLN("'");
+      #endif
+      return;
     }
   }
 
@@ -114,14 +160,25 @@ void processCommand(const char *cmd, size_t len){
   else if(strcmp_P(rx_command, F("set_is_homed_override"))) gcode_set_is_homed_override();
   else if(strcmp_P(rx_command, F("set_is_homing_override"))) gcode_set_is_homing_override();
   else if(strcmp_P(rx_command, F("set_coolstep_threshold"))) gcode_set_coolstep_threshold();
+  else if(strcmp_P(rx_command, F("set_ignore_stallguard"))) gcode_set_ignore_stallguard();
   else if(strcmp_P(rx_command, F("test_sg"))) gcode_test_sg();
   #ifdef CUSTOM_GCODE
     CUSTOM_GCODE
   #endif
   else{
-    ok = false;
-    Serial.print(F("unknown command "));
-    Serial.println(rx_command);
+    Serial.print(F("unknown command '"));
+    Serial.print(cmd);
+    Serial.println("'");
+
+    Serial1.print(F("unknown command '"));
+    Serial1.print(cmd);
+    Serial1.println("'");
+    #ifdef DEBUG_PRINT
+      SERIAL_PRINT(F("!!!!!!!! >> UNK CMD '"));
+      SERIAL_PRINT(cmd);
+      SERIAL_PRINTLN("'");
+    #endif
+    return;
   }
 
 
@@ -158,8 +215,9 @@ void processCommand(const char *cmd, size_t len){
 
   if(lcd_present && print_gcode_to_lcd){
     lcd.setCursor(0, print_gcode_to_lcd_last_row++);
+    lcd.print(">");
     lcd.print(cmd);
-    lcd.print(" ");
+    lcd.print("< ");
     if(print_gcode_to_lcd_last_row >= 4) print_gcode_to_lcd_last_row = 0;
   }
 
@@ -175,6 +233,19 @@ void processCommand(const char *cmd){
 
 
 void handleSerial(){
+  #ifdef DEBUG_PRINT
+    const uint8_t bs = Serial.available();
+    static uint8_t max_bs = 0;
+    if(bs > max_bs) max_bs = bs;
+    if(bs>6){
+      SERIAL_PRINT("(HS:");
+      SERIAL_PRINT(bs);
+      SERIAL_PRINT(", M:");
+      SERIAL_PRINT(max_bs);
+      SERIAL_PRINTLN(")");
+    }
+  #endif
+  uint8_t cnt = 0;
   while(Serial.available()){
     const char ch = Serial.read();
     rx_buf[rx_buf_pos++] = ch;
@@ -186,6 +257,7 @@ void handleSerial(){
       rx_buf_pos = 0;
       break;
     }
+    if(++cnt >= 64) break;
   }
 }
 

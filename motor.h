@@ -73,6 +73,7 @@ enum MotorQueueItemType: uint8_t {
   SET_IS_HOMED_OVERRIDE = 29,
   SET_IS_HOMING_OVERRIDE = 30,
   SET_COOLSTEP_THRESHOLD = 31,
+  SET_IGNORE_STALLGUARD = 32,
 };
 
 
@@ -147,6 +148,7 @@ public:
   volatile int32_t position_usteps;
   volatile bool running;
   volatile bool stallguard_triggered;
+  volatile bool ignore_stallguard;
   volatile uint32_t steps_to_do;
   volatile uint32_t steps_total;
   volatile uint32_t ignore_stallguard_steps;
@@ -192,7 +194,7 @@ public:
   bool set_next_empty_queue_item(MotorQueueItemType, uint32_t = 0);
   void empty_queue();
   void sync(/*bool = false*/);
-  bool process_next_queue_item(bool = false);
+  bool process_next_queue_item(bool = false, uint8_t = 0);
   void debugPrintQueue();
   void debugPrintInfo();
   void plan_steps(uint32_t);
