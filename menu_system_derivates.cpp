@@ -146,8 +146,7 @@ MenuRangeMotorRPM::MenuRangeMotorRPM():
 
 void MenuRangeMotorRPM::on_enter(){
   MenuRange::on_enter();
-  // value = motors[last_entered_motor_menu].rpm();
-  value = motors[0].rpm();
+  value = motors[last_entered_motor_menu].rpm();
 }
 
 
@@ -155,14 +154,9 @@ void MenuRangeMotorRPM::loop(){
   static uint32_t last_loop = 0;
   uint32_t _millis = millis();
   if(_millis > last_loop + 50){
-    // if(value != motors[last_entered_motor_menu].rpm()){
-    if(value != motors[0].rpm()){
-      // motors[last_entered_motor_menu].target_rpm = -1.0;
-      // motors[last_entered_motor_menu].rpm(value);
-      for (size_t i = 0; i < MOTORS_MAX; i++) {
-        motors[i].target_rpm = -1.0;
-        motors[i].rpm(value);
-      }
+    if(value != motors[last_entered_motor_menu].rpm()){
+      motors[last_entered_motor_menu].target_rpm = -1.0;
+      motors[last_entered_motor_menu].rpm(value);
     }
     last_loop = _millis;
   }
