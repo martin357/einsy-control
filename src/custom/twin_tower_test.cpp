@@ -27,9 +27,9 @@ uint32_t pump_off_time_remaining = 0;
 uint32_t pump_off_time_decrease_last_tick = 0;
 uint32_t pump_slowdown_at = 0;
 
-float rpm_min = 50.0;
-float rpm_optimal = 180.0;
-float rpm_max = 180.0;
+float rpm_min = 80.0;
+float rpm_optimal = 220.0;
+float rpm_max = 260.0;
 float new_rpm = 0.0001;
 float total_dist = 0.0;
 
@@ -89,6 +89,7 @@ void pump_stop(bool wait = true){
   // processCommand(F("decel x150"));
   // processCommand(F("ramp_to x0.01"));
   processCommand(F("ramp_to x0"));
+  processCommand(F("start x")); // TODO check if this is still needed??
   if(wait) processCommand(F("wait_for_motor x"));
 }
 
@@ -325,9 +326,11 @@ void setupCustom(){
   main_menu.redraw_interval = 50;
   calibrate_menu.redraw_interval = 50;
 
-  // last_entered_motor_menu = 3;
-  // current_menu = &menu_motor_position;
-  // menu_motor_position.came_from = &main_menu;
+  last_entered_motor_menu = 3;
+  current_menu = &menu_motor_position_speed;
+  menu_motor_position_speed.offset = 1;
+  menu_motor_position_speed.current_item = 3;
+  menu_motor_position_speed.came_from = &main_menu;
   // processCommand(F("set_position e0"));
   // print_gcode_to_lcd = true;
 
@@ -340,6 +343,10 @@ void setupCustom(){
   // SETUP_PIN(4);
   // SETUP_PIN(5);
   // SETUP_PIN(6);
+  Serial.begin(115200);
+  Serial.flush();
+  Serial.println();
+  Serial.println(F("ready!"));
 }
 
 
@@ -551,9 +558,9 @@ ISR(PCINT0_vect){
   // Serial.print(sg[2]);
   // Serial.println(sg[3]);
 
-  if(!sg[0] && !sg[1] && !sg[2] && !sg[3]) return;
+  if(!sg[3]) return;
 
-  for(size_t i = 0; i < MOTORS_MAX; i++){
+  for(size_t i = 3; i < MOTORS_MAX; i++){
     if(sg[i]){
       if(!motors[i].is_homing) continue;
       if(motors[i].ignore_stallguard_steps > 0) continue;

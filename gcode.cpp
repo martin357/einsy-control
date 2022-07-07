@@ -121,7 +121,31 @@ void gcode_decel(){
 
 
 void gcode_ramp_to(){
+  float accel = 0.0;
+  float decel = 0.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'a': accel = value; break;
+        case 'd': decel = value; break;
+      }
+
+    }
+  }
+
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  if(accel > 0.0){
+    ADD_TO_QUEUE(SET_ACCEL, accel * 100.0);
+    motors[index].planned.accel = accel;
+  }
+  if(decel > 0.0){
+    ADD_TO_QUEUE(SET_DECEL, decel * 100.0);
+    motors[index].planned.decel = decel;
+  }
   ADD_TO_QUEUE_FLOAT(RAMP_TO);
   motors[index].planned.rpm = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
@@ -129,9 +153,35 @@ void gcode_ramp_to(){
 
 
 void gcode_ramp_to_nq(){
+  float accel = 0.0;
+  float decel = 0.0;
+
+  for (size_t i = 0; i < rx_params; i++) {
+    const uint8_t len = strlen(rx_param[i]);
+    if(len > 0){
+      strToLower(rx_param[i]);
+      const float value = (len < 2) ? 0.0 : atof(&rx_param[i][1]);
+      switch (rx_param[i][0]) {
+        case 'a': accel = value; break;
+        case 'd': decel = value; break;
+      }
+
+    }
+  }
+
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
+  if(accel > 0.0 && motors[index].accel != accel){
+    motors[index].accel = accel;
+    motors[index].accel_millionth = accel / 1e6f;
+    motors[index].planned.accel = accel;
+  }
+  if(decel > 0.0 && motors[index].decel != decel){
+    motors[index].decel = decel;
+    motors[index].decel_millionth = decel / 1e6f;
+    motors[index].planned.decel = decel;
+  }
   motors[index].ramp_to(value);
-  // motors[index].planned.rpm = value;
+  motors[index].planned.rpm = value;
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE_END;
 }
 
@@ -184,10 +234,10 @@ void gcode_do_steps_to(){
       ADD_TO_QUEUE(SET_RPM, rpm * 100.0);
       motors[index].planned.rpm = value;
     }
-    if(direction != motors[index].planned.direction){
-      ADD_TO_QUEUE(SET_DIRECTION, direction);
-      motors[index].planned.direction = direction;
-    }
+    // if(direction != motors[index].planned.direction){
+    ADD_TO_QUEUE(SET_DIRECTION, direction);
+    motors[index].planned.direction = direction;
+    // }
     ADD_TO_QUEUE(DO_STEPS, steps_delta < 0 ? -steps_delta : steps_delta);
     motors[index].planned.position_usteps = value;
   }
@@ -360,10 +410,10 @@ void gcode_move_usteps(){
         ADD_TO_QUEUE(SET_RPM, motor_rpm * 100.0);
         motors[index].planned.rpm = motor_rpm;
       }
-      if(direction != motors[index].planned.direction){
-        ADD_TO_QUEUE(SET_DIRECTION, direction);
-        motors[index].planned.direction = direction;
-      }
+      // if(direction != motors[index].planned.direction){
+      ADD_TO_QUEUE(SET_DIRECTION, direction);
+      motors[index].planned.direction = direction;
+      // }
       ADD_TO_QUEUE(DO_STEPS, steps_delta < 0 ? -steps_delta : steps_delta);
       motors[index].planned.position_usteps = value;
     }
@@ -619,14 +669,12 @@ void gcode_is_homed(){
 
 
 void gcode_is_busy(){
-  SERIAL_PRINTLN(F("is_busy enter>"));
   bool did_print = false;
   FOREACH_PARAM_AS_AXIS;
   Serial.print(motors[index].is_busy());
   did_print = true;
   FOREACH_PARAM_AS_AXIS_END;
   if(did_print) Serial.println();
-  SERIAL_PRINTLN(F("is_busy <leave"));
 }
 
 
@@ -690,6 +738,8 @@ void gcode_set_ignore_stallguard(){
 
 
 void gcode_reset_mcu(){
+  Serial.println("ok");
+  Serial.flush();
   cli();
   MCUSR &= ~(_BV(WDRF));
   WDTCSR |= _BV(WDCE) | _BV(WDE);

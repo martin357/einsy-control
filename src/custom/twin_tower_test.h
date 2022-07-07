@@ -76,7 +76,7 @@
     else if(strcmp_P(rx_command, F("level_ir_gate"))) custom_gcode_level_ir_gate();  \
 
   #define CUSTOM_PERMANENT_STORAGE  \
-    float zero_offset = -3.32;  \
+    float zero_offset = -2.5;  \
     float level_min = 1.0;  \
     float level_fill = 1.0;  \
     float level_optimal = 2.5;  \

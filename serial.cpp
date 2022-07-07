@@ -28,11 +28,14 @@ void processCommand(const __FlashStringHelper *cmd){
 
 
 void processCommand(const char *cmd, size_t len){
+  if(len < 1) return;
   if(len > 0 && cmd[0] == '#'){ // it is a comment
     SERIAL_PRINT("----- ");
     SERIAL_PRINT(cmd);
     SERIAL_PRINTLN(" -----");
-    Serial1.println(cmd);
+    #ifdef DEBUG_SERIAL
+      Serial1.println(cmd);
+    #endif
     return;
   }
 
@@ -52,9 +55,11 @@ void processCommand(const char *cmd, size_t len){
     len -= 2;
   }
 
-  Serial1.print("cmd> '");
-  Serial1.print(cmd);
-  Serial1.println("'");
+  #ifdef DEBUG_SERIAL
+    Serial1.print("cmd> '");
+    Serial1.print(cmd);
+    Serial1.println("'");
+  #endif
 
   bool ok = true;
   rx_params = 0;
@@ -73,15 +78,17 @@ void processCommand(const char *cmd, size_t len){
   }
 
   if(has_hash){
-    if(hash == 0) hash++;
+    if(hash == 0 || hash == '\n' || hash == ';') hash++;
     if(given_hash != hash){
       Serial.print(F("invalid hash '"));
       Serial.print(cmd);
       Serial.println("'");
 
-      Serial1.print(F("invalid hash '"));
-      Serial1.print(cmd);
-      Serial1.println("'");
+      #ifdef DEBUG_SERIAL
+        Serial1.print(F("invalid hash '"));
+        Serial1.print(cmd);
+        Serial1.println("'");
+      #endif
 
       #ifdef DEBUG_PRINT
         SERIAL_PRINT(F("!!!!!!!! >> INVALID HASH '"));
@@ -174,9 +181,12 @@ void processCommand(const char *cmd, size_t len){
     Serial.print(cmd);
     Serial.println("'");
 
-    Serial1.print(F("unknown command '"));
-    Serial1.print(cmd);
-    Serial1.println("'");
+    #ifdef DEBUG_SERIAL
+      Serial1.print(F("unknown command '"));
+      Serial1.print(cmd);
+      Serial1.println("'");
+    #endif
+
     #ifdef DEBUG_PRINT
       SERIAL_PRINT(F("!!!!!!!! >> UNK CMD '"));
       SERIAL_PRINT(cmd);
@@ -194,7 +204,8 @@ void processCommand(const char *cmd, size_t len){
       strToLower(rx_param[i]);
       const int index = axis2motor(rx_param[i][0]);
       if(index > -1){
-        if(!motors[index].running && motors[index].steps_to_do < 1){
+        // if(!motors[index].running && motors[index].steps_to_do < 1){
+        if(!motors[index].running || !motors[index].started){
           // const uint8_t next = motors[index].next_queue_index();
           // // if(motors[index].queue[next].processed || motors[index].queue[next].type == MotorQueueItemType::NOOP){
           // //   if(motors[index].running || motors[index].steps_to_do > 0){
@@ -241,17 +252,20 @@ void handleSerial(){
     const uint8_t bs = Serial.available();
     static uint8_t max_bs = 0;
     if(bs > max_bs) max_bs = bs;
-    if(bs>6){
-      SERIAL_PRINT("(HS:");
-      SERIAL_PRINT(bs);
-      SERIAL_PRINT(", M:");
-      SERIAL_PRINT(max_bs);
-      SERIAL_PRINTLN(")");
-    }
+    #ifdef DEBUG_SERIAL
+      if(bs>6){
+        Serial1.print("(HS:");
+        Serial1.print(bs);
+        Serial1.print(", M:");
+        Serial1.print(max_bs);
+        Serial1.println(")");
+      }
+    #endif
   #endif
   uint8_t cnt = 0;
   while(Serial.available()){
     const char ch = Serial.read();
+    // Serial2.write(ch);
     rx_buf[rx_buf_pos++] = ch;
 
     if(ch == '\n' || ch == ';'){

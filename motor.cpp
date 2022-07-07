@@ -24,7 +24,7 @@ void setupMotorTimers(){
   TCCR2A = 0;
   TCCR2B = 0;
   TCNT2  = 0;
-  OCR2A = 0xFF;
+  OCR2A = 0x7F; // 0xFF;
   TCCR2A |= (1 << WGM21);
   TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20);
   // TCCR2B |= (1 << CS22) | (1 << CS20);
@@ -150,6 +150,8 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   target_rpm_changed_at(0),
   accel(120.0),
   decel(120.0),
+  accel_millionth(0.00012),
+  decel_millionth(0.00012),
   default_ramp_rpm_from(0.0),
   default_ramp_rpm_to(0.0),
   queue_index(0),
@@ -196,18 +198,18 @@ void Motor::start(bool start_running){
   if(!is_on()) on();
   running = start_running;
   started = true;
-  cli();
-  *timer_counter_port = 0;
+  // cli();
+  // *timer_counter_port = 0;
   *timer_enable_port |= (1 << timer_enable_bit);
-  sei();
+  // sei();
   // Serial.println(F("[motor] start"));
 }
 
 
 void Motor::stop(){
-  cli();
+  // cli();
   *timer_enable_port = 0;
-  sei();
+  // sei();
   started = false;
   running = false;
   steps_to_do = 0;
@@ -270,10 +272,10 @@ void Motor::rpm(float value){
   }
 
   if(*timer_compare_port != ocr ){
-    cli();
+    // cli();
     // *timer_counter_port = 0;
     *timer_compare_port = ocr;
-    sei();
+    // sei();
 
     // static uint32_t last_millis = 0;
     // uint32_t _millis = millis();
@@ -296,22 +298,22 @@ float Motor::rpm(){
 
 
 void Motor::ramp_to(float value, bool keep_running){
-  cli();
+  // cli();
   target_rpm = value;
   ramp_start_rpm = _rpm;
-  target_rpm_changed_at = millis();
+  target_rpm_changed_at = micros();
+  // sei();
   SERIAL_PRINT(F("[ramp_to] "));
   SERIAL_PRINT(axis);
   SERIAL_PRINT(" to ");
   SERIAL_PRINTLN(value);
-  sei();
 }
 
 
 void Motor::ramp_off(){
-  cli();
+  // cli();
   target_rpm = -1.0;
-  sei();
+  // sei();
 }
 
 // TODO count total_steps according to direction/invert_direction
@@ -550,6 +552,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
     }
     case MotorQueueItemType::SET_ACCEL: {
       accel = queue[next].value / 100.0;
+      accel_millionth = accel / 1e6f;
 
       SERIAL_PRINT(F("[pnq] set accel to "));
       SERIAL_PRINTLN(accel);
@@ -558,6 +561,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
     }
     case MotorQueueItemType::SET_DECEL: {
       decel = queue[next].value / 100.0;
+      decel_millionth = decel / 1e6f;
 
       SERIAL_PRINT(F("[pnq] set decel to "));
       SERIAL_PRINTLN(decel);
@@ -790,8 +794,10 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(target_rpm);
   PRINT_VAR(ramp_start_rpm);
   PRINT_VAR(target_rpm_changed_at);
-  PRINT_VAR(accel);
-  PRINT_VAR(decel);
+  PRINT_VARF(accel);
+  PRINT_VARF(decel);
+  PRINT_VARF(accel_millionth);
+  PRINT_VARF(decel_millionth);
   PRINT_VAR(default_ramp_rpm_from);
   PRINT_VAR(default_ramp_rpm_to);
   PRINT_VAR(_rpm);
@@ -815,8 +821,8 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(planned.is_homed);
   PRINT_VARF(planned.position());
   PRINT_VAR(planned.position_usteps);
-  PRINT_VAR(planned.accel);
-  PRINT_VAR(planned.decel);
+  PRINT_VARF(planned.accel);
+  PRINT_VARF(planned.decel);
   Serial.print(F("__min_rpm: ")); Serial.println(_ocr2rpm(65535, usteps));
   Serial.print(F("__max_rpm: ")); Serial.println(_ocr2rpm(70, usteps));
 }
@@ -1177,18 +1183,17 @@ ISR(TIMER0_COMPA_vect){
 // acceleration handling
 ISR(TIMER2_COMPA_vect){
   // SET_PIN(2);
-  const uint32_t _millis = millis();
+  const uint32_t _micros = micros();
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(motors[i].started && !motors[i].pause_steps && (motors[i].running || motors[i].steps_to_do > 0)){
       if(motors[i].target_rpm >= 0.0){
-        const uint16_t delta_t = _millis - motors[i].target_rpm_changed_at;
+        const uint32_t delta_t = _micros - motors[i].target_rpm_changed_at;
         float new_rpm;
-        // ramp_start_rpm
 
         if(motors[i].target_rpm - motors[i].ramp_start_rpm > 0.0){
           // accelerating
-          new_rpm = motors[i].ramp_start_rpm + (motors[i].accel / 1000.0 * delta_t);
+          new_rpm = motors[i].ramp_start_rpm + motors[i].accel_millionth * delta_t;
           if(new_rpm >= motors[i].target_rpm){
             new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
@@ -1202,7 +1207,7 @@ ISR(TIMER2_COMPA_vect){
 
         }else{
           // decelerating
-          new_rpm = motors[i].ramp_start_rpm - (motors[i].decel / 1000.0 * delta_t);
+          new_rpm = motors[i].ramp_start_rpm - motors[i].decel_millionth * delta_t;
           if(new_rpm <= motors[i].target_rpm){
             new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
