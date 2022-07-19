@@ -27,12 +27,12 @@ uint32_t last_lcd_reinit = 0;
 const bool lcd_present = _is_lcd_present();
 const uint8_t temperature_samples_total = 64;
 const uint8_t voltage_samples_total = 16;
-#define INIT_MOTOR(i, d, n, a) Motor(d##_STEP_PIN, d##_DIR_PIN, d##_ENABLE_PIN, d##_TMC2130_CS, d##_TMC2130_DIAG, &PORTC, PINC##i, &OCR##n##A, &TCNT##n, &TIMSK##n, OCIE##n##A, a)
+#define INIT_MOTOR(i, d, n, j, a) Motor(d##_STEP_PIN, d##_DIR_PIN, d##_ENABLE_PIN, d##_TMC2130_CS, d##_TMC2130_DIAG, &PORTC, PINC##i, &PORTL, PINL##j, &OCR##n##A, &TCNT##n, &TIMSK##n, OCIE##n##A, a)
 Motor motors[] = {
-  INIT_MOTOR(0, X, 1, 'x'),
-  INIT_MOTOR(1, Y, 3, 'y'),
-  INIT_MOTOR(2, Z, 4, 'z'),
-  INIT_MOTOR(3, E0, 5, 'e'),
+  INIT_MOTOR(0, X, 1, 0, 'x'),
+  INIT_MOTOR(1, Y, 3, 1, 'y'),
+  INIT_MOTOR(2, Z, 4, 2, 'z'),
+  INIT_MOTOR(3, E0, 5, 6, 'e'),
 };
 #undef INIT_MOTOR
 

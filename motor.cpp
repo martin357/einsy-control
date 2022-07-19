@@ -107,16 +107,17 @@ float _usteps2rot(uint32_t value, uint16_t usteps){
 
 Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_pin,
     uint8_t diag_pin, volatile uint8_t* step_port, uint8_t step_bit,
-    volatile uint16_t* timer_compare_port, volatile uint16_t* timer_counter_port,
-    volatile uint8_t* timer_enable_port, uint8_t timer_enable_bit, const char axis):
+    volatile uint8_t* dir_port, uint8_t dir_bit, volatile uint16_t* timer_compare_port,
+    volatile uint16_t* timer_counter_port, volatile uint8_t* timer_enable_port,
+    uint8_t timer_enable_bit, const char axis):
   axis(axis),
-  step_pin(step_pin),
-  dir_pin(dir_pin),
   enable_pin(enable_pin),
   cs_pin(cs_pin),
   diag_pin(diag_pin),
   step_port(step_port),
   step_bit(step_bit),
+  dir_port(dir_port),
+  dir_bit(dir_bit),
   driver(cs_pin, 0.2f),
   usteps(16),
   pause_steps(false),
@@ -150,8 +151,8 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   target_rpm_changed_at(0),
   accel(120.0),
   decel(120.0),
-  accel_millionth(0.00012),
-  decel_millionth(0.00012),
+  accel_thousandth(0.12),
+  decel_thousandth(0.12),
   default_ramp_rpm_from(0.0),
   default_ramp_rpm_to(0.0),
   queue_index(0),
@@ -160,7 +161,8 @@ Motor::Motor(uint8_t step_pin, uint8_t dir_pin, uint8_t enable_pin, uint8_t cs_p
   timer_compare_port(timer_compare_port),
   timer_counter_port(timer_counter_port),
   timer_enable_port(timer_enable_port),
-  timer_enable_bit(timer_enable_bit){
+  timer_enable_bit(timer_enable_bit),
+  _pnq_lock(false){
     pinModeOutput(enable_pin);
     pinModeOutput(dir_pin);
     pinModeOutput(step_pin);
@@ -237,7 +239,8 @@ bool Motor::dir(){
 
 void Motor::dir(bool direction){
   _dir = invert_direction ? !direction : direction;
-  digitalWriteExt(dir_pin, _dir);
+  if(_dir) *dir_port |= 1 << dir_bit;
+  else *dir_port &= ~(1 << dir_bit);
 }
 
 
@@ -301,7 +304,7 @@ void Motor::ramp_to(float value, bool keep_running){
   // cli();
   target_rpm = value;
   ramp_start_rpm = _rpm;
-  target_rpm_changed_at = micros();
+  target_rpm_changed_at = millis();
   // sei();
   SERIAL_PRINT(F("[ramp_to] "));
   SERIAL_PRINT(axis);
@@ -327,15 +330,6 @@ bool Motor::is_busy(){
     SERIAL_PRINT(", wip "); SERIAL_PRINT((queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed) ? "1" : "0");
     SERIAL_PRINT(", noop "); SERIAL_PRINT((queue[next].type != MotorQueueItemType::NOOP && !queue[next].processed) ? "1" : "0");
     SERIAL_PRINTLN();
-  }
-  if(axis == 'e'){
-    Serial.print("is_busy "); Serial.print(axis);
-    Serial.print(" ps "); Serial.print(pause_steps ? "1" : "0");
-    Serial.print(", r "); Serial.print(running ? "1" : "0");
-    Serial.print(", std "); Serial.print(steps_to_do > 0 ? "1" : "0"); Serial.print(" ("); Serial.print(steps_to_do); Serial.print(")");
-    Serial.print(", wip "); Serial.print((queue[queue_index].type == MotorQueueItemType::WAIT_IN_PROGRESS && !queue[queue_index].processed) ? "1" : "0");
-    Serial.print(", noop "); Serial.print((queue[next].type != MotorQueueItemType::NOOP && !queue[next].processed) ? "1" : "0");
-    Serial.println();
   }
 
   return pause_steps || running || steps_to_do > 0 ||
@@ -456,8 +450,17 @@ void Motor::sync(/*bool set_is_homed*/){
 }
 
 
-bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
-  if(level > 2){
+bool Motor::process_next_queue_item(bool force_ignore_wait){
+  if(_pnq_lock) return false;
+  _pnq_lock = true;
+  const bool ret = _process_next_queue_item(force_ignore_wait);
+  _pnq_lock = false;
+  return ret;
+}
+
+
+bool Motor::_process_next_queue_item(bool force_ignore_wait, uint8_t level){
+  if(level > 1){
     SERIAL_PRINTLN(F("!! PNQ too deep, break"));
     return true;
   }
@@ -552,7 +555,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
     }
     case MotorQueueItemType::SET_ACCEL: {
       accel = queue[next].value / 100.0;
-      accel_millionth = accel / 1e6f;
+      accel_thousandth = accel / 1e3f;
 
       SERIAL_PRINT(F("[pnq] set accel to "));
       SERIAL_PRINTLN(accel);
@@ -561,7 +564,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
     }
     case MotorQueueItemType::SET_DECEL: {
       decel = queue[next].value / 100.0;
-      decel_millionth = decel / 1e6f;
+      decel_thousandth = decel / 1e3f;
 
       SERIAL_PRINT(F("[pnq] set decel to "));
       SERIAL_PRINTLN(decel);
@@ -744,7 +747,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
   }
   if(process_next){
     SERIAL_PRINTLN(F("[pqn finished] process_next!"));
-    process_next_queue_item(false, level + 1);
+    _process_next_queue_item(false, level + 1);
   }
   SERIAL_PRINT(F("<<< leave PNQ "));
   SERIAL_PRINTLN(level);
@@ -753,7 +756,7 @@ bool Motor::process_next_queue_item(bool force_ignore_wait, uint8_t level){
 }
 
 
-void Motor::debugPrintQueue(){
+void Motor::debugPrintQueue(bool full){
   const uint8_t next = next_queue_index();
   for (size_t i = 0; i < MOTOR_QUEUE_LEN; i++) {
     if(queue_index == i) Serial.print(F("-> "));
@@ -767,7 +770,7 @@ void Motor::debugPrintQueue(){
     Serial.print(F("\tv:"));
     Serial.print(queue[i].value);
     Serial.println();
-    if(queue[i].type==0 && !queue[i].processed && queue[i].value==0) break;
+    if(!full && queue[i].type==0 && !queue[i].processed && queue[i].value==0) break;
   }
 }
 
@@ -796,8 +799,8 @@ void Motor::debugPrintInfo(){
   PRINT_VAR(target_rpm_changed_at);
   PRINT_VARF(accel);
   PRINT_VARF(decel);
-  PRINT_VARF(accel_millionth);
-  PRINT_VARF(decel_millionth);
+  PRINT_VARF(accel_thousandth);
+  PRINT_VARF(decel_thousandth);
   PRINT_VAR(default_ramp_rpm_from);
   PRINT_VAR(default_ramp_rpm_to);
   PRINT_VAR(_rpm);
@@ -984,11 +987,14 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
   const uint32_t accel_sps = rpm2sps(acceleration);
   const uint32_t decel_sps = rpm2sps(deceleration);
   const uint32_t steps = usteps < 0 ? -usteps : usteps;
+  const float accel_t = (rpm_to - rpm_from) / acceleration;
+  const float decel_t = (rpm_to - rpm_from) / deceleration;
 
-  const uint32_t accel_steps = round(sps_pow2_diff / (2 * accel_sps));
-  uint32_t decel_steps = round(sps_pow2_diff / (2 * decel_sps));
+  const uint32_t accel_steps = 1 + (uint32_t)round(sps_from * accel_t) + (uint32_t)round(accel_sps * 0.5 * accel_t * accel_t);
+  uint32_t decel_steps = 1 + (uint32_t)round(sps_from * decel_t) + (uint32_t)round(decel_sps * 0.5 * decel_t * decel_t);
 
   // move f30 g130 a100 d100 e4
+  // move_usteps f20 g1400 a250 d500 e15000
 
   // Serial.println(F("[[motor]] plan_ramp_move:"));
   // PRINT_VAR(usteps);
@@ -997,6 +1003,8 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
   // PRINT_VAR(acceleration);
   // PRINT_VAR(deceleration);
   // Serial.println(F("------"));
+  // PRINT_VARF(accel_t);
+  // PRINT_VARF(decel_t);
   // PRINT_VAR(accel);
   // PRINT_VAR(decel);
   // PRINT_VAR(rot_direction);
@@ -1019,10 +1027,6 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
   }
 
   uint8_t next = next_empty_queue_index();
-  if(rot_direction != planned.direction){
-    set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, rot_direction);
-    planned.direction = rot_direction;
-  }
   if(acceleration != planned.accel){
     set_queue_item(next++, MotorQueueItemType::SET_ACCEL, acceleration * 100);
     planned.accel = acceleration;
@@ -1031,6 +1035,10 @@ void Motor::plan_ramp_move(int32_t usteps, float rpm_from, float rpm_to, float a
     set_queue_item(next++, MotorQueueItemType::SET_DECEL, deceleration * 100);
     planned.decel = deceleration;
   }
+  // if(rot_direction != planned.direction){
+  set_queue_item(next++, MotorQueueItemType::SET_DIRECTION, rot_direction);
+  planned.direction = rot_direction;
+  // }
   set_queue_item(next++, MotorQueueItemType::SET_RPM, rpm_from * 100);
   set_queue_item(next++, MotorQueueItemType::RAMP_TO, rpm_to * 100);
   set_queue_item(next++, MotorQueueItemType::DO_STEPS, steps - decel_steps);
@@ -1091,7 +1099,7 @@ void Motor::plan_ramp_move_to(float rotations, float rpm_from, float rpm_to, flo
   }else{  \
     motors[m].pause_steps = true;  \
     /*SERIAL_PRINTLN("[isr] pnq!");*/  \
-    SERIAL_PRINTLN("[isr " #m "] pnq!");  \
+    /*SERIAL_PRINTLN("[isr " #m "] pnq!");*/  \
     motors[m].process_next_queue_item();  \
     motors[m].pause_steps = false;  \
   }  \
@@ -1183,17 +1191,17 @@ ISR(TIMER0_COMPA_vect){
 // acceleration handling
 ISR(TIMER2_COMPA_vect){
   // SET_PIN(2);
-  const uint32_t _micros = micros();
+  const uint32_t _millis = millis();
 
   for(size_t i = 0; i < MOTORS_MAX; i++){
     if(motors[i].started && !motors[i].pause_steps && (motors[i].running || motors[i].steps_to_do > 0)){
       if(motors[i].target_rpm >= 0.0){
-        const uint32_t delta_t = _micros - motors[i].target_rpm_changed_at;
+        const uint32_t delta_t = _millis - motors[i].target_rpm_changed_at;
         float new_rpm;
 
         if(motors[i].target_rpm - motors[i].ramp_start_rpm > 0.0){
           // accelerating
-          new_rpm = motors[i].ramp_start_rpm + motors[i].accel_millionth * delta_t;
+          new_rpm = motors[i].ramp_start_rpm + motors[i].accel_thousandth * delta_t;
           if(new_rpm >= motors[i].target_rpm){
             new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set
@@ -1207,7 +1215,7 @@ ISR(TIMER2_COMPA_vect){
 
         }else{
           // decelerating
-          new_rpm = motors[i].ramp_start_rpm - motors[i].decel_millionth * delta_t;
+          new_rpm = motors[i].ramp_start_rpm - motors[i].decel_thousandth * delta_t;
           if(new_rpm <= motors[i].target_rpm){
             new_rpm = motors[i].target_rpm;
             motors[i].target_rpm = -1.0;  // stop ramping since we reached set

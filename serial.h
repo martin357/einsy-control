@@ -6,7 +6,7 @@
 #define RX_PARAM_LEN 24
 #define RX_PARAMS 8
 #define RX_COMMAND_LEN 32
-#define RX_BUF_LEN 128
+#define RX_BUF_LEN 64
 
 
 void processCommand(const __FlashStringHelper*);

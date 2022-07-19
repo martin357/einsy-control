@@ -4,7 +4,7 @@
 
 
 #define FSTEPS_PER_REVOLUTION 200
-#define MOTOR_QUEUE_LEN 64
+#define MOTOR_QUEUE_LEN 32
 #define MOTORS_PRESCALER  8
 #define MOTORS_MAX  4
 #define MOTOR_X 0
@@ -94,7 +94,7 @@ struct MotorStallguardInfo {
 
 class Motor{
 public:
-  Motor(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, volatile uint8_t*, uint8_t, volatile uint16_t*, volatile uint16_t*, volatile uint8_t*, uint8_t, const char);
+  Motor(uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, volatile uint8_t*, uint8_t, volatile uint8_t*, uint8_t, volatile uint16_t*, volatile uint16_t*, volatile uint8_t*, uint8_t, const char);
   void on();
   void off();
   bool is_on();
@@ -120,13 +120,13 @@ public:
   uint32_t rps2sps(float);
   float position();
   const char axis;
-  uint8_t step_pin;
-  uint8_t dir_pin;
   uint8_t enable_pin;
   uint8_t cs_pin;
   uint8_t diag_pin;
   volatile uint8_t* step_port;
   uint8_t step_bit;
+  volatile uint8_t* dir_port;
+  uint8_t dir_bit;
   TMC2130Stepper driver;
   volatile uint16_t usteps;
   volatile bool pause_steps;
@@ -184,8 +184,8 @@ public:
   volatile uint32_t target_rpm_changed_at;
   volatile float accel;
   volatile float decel;
-  volatile float accel_millionth;
-  volatile float decel_millionth;
+  volatile float accel_thousandth;
+  volatile float decel_thousandth;
   float default_ramp_rpm_from;
   float default_ramp_rpm_to;
   volatile uint8_t queue_index;
@@ -196,8 +196,8 @@ public:
   bool set_next_empty_queue_item(MotorQueueItemType, uint32_t = 0);
   void empty_queue();
   void sync(/*bool = false*/);
-  bool process_next_queue_item(bool = false, uint8_t = 0);
-  void debugPrintQueue();
+  bool process_next_queue_item(bool = false);
+  void debugPrintQueue(bool = false);
   void debugPrintInfo();
   void plan_steps(uint32_t);
   void plan_rotations(float, float = 0.0);
@@ -208,13 +208,15 @@ public:
   void plan_ramp_move(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
   void plan_ramp_move_to(int32_t, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
   void plan_ramp_move_to(float, float = 40.0, float = 160.0, float = 0.0, float = 0.0);
-// private:
   volatile bool _dir;
   volatile float _rpm;
   volatile uint16_t* timer_compare_port;
   volatile uint16_t* timer_counter_port;
   volatile uint8_t* timer_enable_port;
-  volatile uint8_t timer_enable_bit;
+  uint8_t timer_enable_bit;
+private:
+  bool _process_next_queue_item(bool = false, uint8_t = 0);
+  volatile bool _pnq_lock;
 };
 
 

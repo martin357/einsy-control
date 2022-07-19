@@ -172,12 +172,12 @@ void gcode_ramp_to_nq(){
   FOREACH_PARAM_AS_AXIS_WITH_FLOAT_VALUE;
   if(accel > 0.0 && motors[index].accel != accel){
     motors[index].accel = accel;
-    motors[index].accel_millionth = accel / 1e6f;
+    motors[index].accel_thousandth = accel / 1e3f;
     motors[index].planned.accel = accel;
   }
   if(decel > 0.0 && motors[index].decel != decel){
     motors[index].decel = decel;
-    motors[index].decel_millionth = decel / 1e6f;
+    motors[index].decel_thousandth = decel / 1e3f;
     motors[index].planned.decel = decel;
   }
   motors[index].ramp_to(value);
@@ -467,9 +467,9 @@ void gcode_autohome(){
 
 
 void gcode_print_queue(){
-  FOREACH_PARAM_AS_AXIS;
-  motors[index].debugPrintQueue();
-  FOREACH_PARAM_AS_AXIS_END;
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE;
+  motors[index].debugPrintQueue((bool)value);
+  FOREACH_PARAM_AS_AXIS_WITH_VALUE_END;
 }
 
 
