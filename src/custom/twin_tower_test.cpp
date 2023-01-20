@@ -271,13 +271,13 @@ void setupCustom(){
   motors[MT].autohome.autohome_on_move = false;
   motors[MT].autohome.direction = false;
   motors[MT].autohome.initial_rpm = 220;
-  motors[MT].autohome.final_rpm = 10;
+  motors[MT].autohome.final_rpm = 220;
   motors[MT].autohome.initial_backstep_rot = 0.0;
   motors[MT].autohome.final_backstep_rot = 0.15;
   motors[MT].autohome.ramp_from = 10;
   motors[MT].autohome.wait_duration = 50;
-  motors[MT].stop_on_stallguard = false; // IR optogate functions as a stallguard
-  motors[MT].stop_on_stallguard_only_when_homing = true;
+  motors[MT].stop_on_stallguard = true; // IR optogate functions as a stallguard
+  motors[MT].stop_on_stallguard_only_when_homing = false;
   // motors[MT].driver.TCOOLTHRS(0xffff);
 
   // pump
