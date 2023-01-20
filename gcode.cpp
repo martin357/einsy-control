@@ -489,14 +489,16 @@ void gcode_print_info(){
 
 void gcode_pos_usteps(){
   FOREACH_PARAM_AS_AXIS;
-  Serial.println(motors[index].position_usteps);
+  Serial.print(motors[index].position_usteps);
+  Serial.print(", ");
   FOREACH_PARAM_AS_AXIS_END;
 }
 
 
 void gcode_pos(){
   FOREACH_PARAM_AS_AXIS;
-  Serial.println(motors[index].position(), FLOAT_DECIMALS);
+  Serial.print(motors[index].position(), FLOAT_DECIMALS);
+  Serial.print(", ");
   FOREACH_PARAM_AS_AXIS_END;
 }
 
@@ -605,7 +607,7 @@ void gcode_sync_position(){
   Serial.print("=");
   Serial.print(motors[index].planned.position_usteps);
   FOREACH_PARAM_AS_AXIS_END;
-  if(j > 0) Serial.println();
+  if(j > 0) Serial.print(", ");
 }
 
 
@@ -635,7 +637,8 @@ void gcode_microstepping(){
   const bool is_pow2 = (value & (value - 1)) == 0;
   if(value < 0 || value > 256 || !is_pow2 || value == 1){
     Serial.print("invalid microstepping value ");
-    Serial.println(value);
+    Serial.print(value);
+    Serial.print(", ");
   }else{
     ADD_TO_QUEUE(SET_MICROSTEPPING, value);
   }
@@ -659,32 +662,26 @@ void gcode_set_is_homing(){
 
 
 void gcode_is_homed(){
-  bool did_print = false;
   FOREACH_PARAM_AS_AXIS;
   Serial.print(motors[index].is_homed_override == Bool_tristate::UNSET ? motors[index].is_homed : bool(motors[index].is_homed_override));
-  did_print = true;
+  Serial.print(", ");
   FOREACH_PARAM_AS_AXIS_END;
-  if(did_print) Serial.println();
 }
 
 
 void gcode_is_busy(){
-  bool did_print = false;
   FOREACH_PARAM_AS_AXIS;
   Serial.print(motors[index].is_busy());
-  did_print = true;
+  Serial.print(", ");
   FOREACH_PARAM_AS_AXIS_END;
-  if(did_print) Serial.println();
 }
 
 
 void gcode_is_homing(){
-  bool did_print = false;
   FOREACH_PARAM_AS_AXIS;
   Serial.print(motors[index].is_homing_override == Bool_tristate::UNSET ? motors[index].is_homing : bool(motors[index].is_homing_override));
-  did_print = true;
+  Serial.print(", ");
   FOREACH_PARAM_AS_AXIS_END;
-  if(did_print) Serial.println();
 }
 
 
